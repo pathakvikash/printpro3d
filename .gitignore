@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+uploads/
+
+# sample models
+bugatti/
+*.zip
+
+# legacy static site
+printpro3d_static/
+
+# vscode
+.vscode/
+
+# github config
+.github/
