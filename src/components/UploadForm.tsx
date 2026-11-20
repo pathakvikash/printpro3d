@@ -1,26 +1,32 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import ModelViewer from './ModelViewer';
+import QuoteOrder from './QuoteOrder';
+import type { MeshStats } from '@/lib/quote';
+import { canGoDirect } from '@/lib/directMode';
+import { BLOB_PREFIX, DIRECT_MIN, extOf, fileProblem, newUploadName } from '@/lib/uploadRules';
 
-const ALLOWED_TYPES = ['.stl', '.obj', '.glb', '.gltf', '.3mf'];
-const MAX_SIZE = 200 * 1024 * 1024;
+const validateFile = (f: File): string | null => fileProblem(f.name, f.size);
 
-function validateFile(f: File): string | null {
-  const ext = '.' + f.name.split('.').pop()?.toLowerCase();
-  if (!ALLOWED_TYPES.includes(ext)) {
-    return `Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`;
-  }
-  if (f.size > MAX_SIZE) {
-    return 'File too large. Maximum size: 200MB';
-  }
-  return null;
+// Vercel rejects request bodies over 4.5 MB, so on the Blob backend big files go straight to Blob, then /api/upload/finalize
+async function uploadDirect(f: File) {
+  const { upload } = await import('@vercel/blob/client');
+  const name = newUploadName(extOf(f.name));
+  await upload(BLOB_PREFIX + name, f, { access: 'private', handleUploadUrl: '/api/upload/blob', multipart: true });
+  const res = await fetch('/api/upload/finalize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, originalName: f.name }),
+  });
+  return res;
 }
 
-export default function UploadForm() {
-  const [file, setFile] = useState<File | null>(null);
+export default function UploadForm({ initialFile, onQuote }: { initialFile?: File; onQuote?: () => void }) {
+  const [file, setFile] = useState<File | null>(initialFile ?? null); // initialFile: a model built in the playground
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [uploaded, setUploaded] = useState<{ file: string; name: string; stats: MeshStats | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -28,6 +34,7 @@ export default function UploadForm() {
   const handleFile = useCallback((f: File) => {
     setError(null);
     setUploadedUrl(null);
+    setUploaded(null);
     const err = validateFile(f);
     if (err) {
       setError(err);
@@ -55,26 +62,57 @@ export default function UploadForm() {
     if (f) handleFile(f);
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const runUpload = useCallback(async (f: File) => {
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      let res: Response;
+      if (f.size > DIRECT_MIN && (await canGoDirect())) {
+        res = await uploadDirect(f);
+      } else {
+        const formData = new FormData();
+        formData.append('file', f);
+        res = await fetch('/api/upload', { method: 'POST', body: formData });
+      }
+      const data = await res.json().catch(() => ({}));
+      // a hosting limit (Vercel: 4.5 MB per request) answers 413 with plain text, not our JSON
+      if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'This file is too large to upload here. Try a smaller file.' : 'Upload failed'));
       setUploadedUrl(data.url);
+      setUploaded({ file: data.file, name: f.name, stats: data.stats });
       setFile(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error && err.message ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
+  }, []);
+
+  const handleUpload = () => {
+    if (file) void runUpload(file);
   };
+
+  // "Add another model" for an uploaded file: clears the quote and shows the drop zone again
+  const resetUpload = () => {
+    setUploaded(null);
+    setUploadedUrl(null);
+    setError(null);
+  };
+
+  // a playground model uploads once, by itself; the ref keeps React strict mode from uploading twice
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!initialFile || autoStarted.current) return;
+    autoStarted.current = true;
+    void runUpload(initialFile);
+  }, [initialFile, runUpload]);
+
+  // runs after the quote section has rendered (the ref keeps an inline callback from re-firing on every render)
+  const onQuoteRef = useRef(onQuote);
+  useEffect(() => { onQuoteRef.current = onQuote; });
+  useEffect(() => {
+    if (uploaded) onQuoteRef.current?.();
+  }, [uploaded]);
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -84,7 +122,8 @@ export default function UploadForm() {
 
   return (
     <div className="space-y-8">
-      {/* Drop Zone */}
+      {/* Drop Zone (hidden when the file is already chosen) */}
+      {!initialFile && (
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -119,9 +158,10 @@ export default function UploadForm() {
           </div>
         </div>
       </div>
+      )}
 
       {/* File selected */}
-      {file && (
+      {file && !initialFile && (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -169,13 +209,30 @@ export default function UploadForm() {
         </div>
       )}
 
+      {/* Playground model: status while it uploads */}
+      {initialFile && !uploadedUrl && !error && (
+        <p role="status" className="text-center text-lg font-medium text-gray-700 dark:text-gray-200">Preparing your quote…</p>
+      )}
+
       {/* Error */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
           <svg className="w-5 h-5 text-red-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+          <div className="space-y-2">
+            <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+            {initialFile && (
+              <button
+                type="button"
+                onClick={() => void runUpload(initialFile)}
+                disabled={uploading}
+                className="rounded-lg border border-red-300 dark:border-red-700 px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50"
+              >
+                Try again
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -191,21 +248,16 @@ export default function UploadForm() {
           <div className="h-[400px] rounded-xl overflow-hidden">
             <ModelViewer url={uploadedUrl} />
           </div>
-          <div className="flex gap-3">
-            <a
-              href="/materials"
-              className="flex-1 py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-center transition-all duration-200"
-            >
-              Choose Materials
-            </a>
-            <a
-              href={uploadedUrl}
-              download
-              className="flex-1 py-3 px-6 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-center transition-all duration-200"
-            >
-              Download
-            </a>
-          </div>
+          {uploaded && (
+            <QuoteOrder
+              key={uploaded.file}
+              file={uploaded.file}
+              stats={uploaded.stats}
+              label={initialFile ? 'Model from the builder' : uploaded.name}
+              // the builder owns its own model, so only uploads can be reset from here
+              onAnother={initialFile ? undefined : resetUpload}
+            />
+          )}
         </div>
       )}
     </div>

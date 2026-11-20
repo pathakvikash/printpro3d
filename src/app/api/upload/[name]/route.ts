@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
 import path from 'path';
+import { getBytes } from '@/lib/store';
 
 export async function GET(
   _request: Request,
@@ -9,8 +9,8 @@ export async function GET(
   try {
     const { name } = await params;
     const sanitized = path.basename(name);
-    const filepath = path.join(process.cwd(), 'uploads', sanitized);
-    const buffer = await readFile(filepath);
+    const buffer = await getBytes('uploads', sanitized);
+    if (!buffer) throw new Error('not found');
 
     const ext = path.extname(sanitized).toLowerCase();
     const mimeMap: Record<string, string> = {
@@ -19,15 +19,20 @@ export async function GET(
       '.glb': 'model/gltf-binary',
       '.gltf': 'model/gltf+json',
       '.3mf': 'model/3mf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
     };
 
     return new NextResponse(buffer, {
       headers: {
         'Content-Type': mimeMap[ext] || 'application/octet-stream',
+        'X-Content-Type-Options': 'nosniff',
         'Content-Disposition': `inline; filename="${sanitized}"`,
       },
     });
   } catch {
-    return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    return NextResponse.json({ error: 'File not found' }, { status: 404, headers: { 'X-Content-Type-Options': 'nosniff' } });
   }
 }

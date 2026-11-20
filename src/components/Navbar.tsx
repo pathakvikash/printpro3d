@@ -2,69 +2,52 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-const navLinks = [
-  { href: '/upload', label: 'Upload' },
-  { href: '/materials', label: 'Materials' },
-  { href: '/orders', label: 'Orders' },
-];
+import { useCart } from './CartProvider';
 
 export default function Navbar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { count, openCart } = useCart();
 
   useEffect(() => {
     setMounted(true);
-    const stored = window.localStorage.getItem('theme');
-    if (stored === 'dark') {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
+    let initial: 'light' | 'dark' = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    try {
+      const stored = window.localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') initial = stored;
+    } catch {
+      // storage unavailable (private mode): fall back to OS preference
     }
+    setTheme(initial);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      window.localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      window.localStorage.setItem('theme', 'light');
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme, mounted]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      try {
+        window.localStorage.setItem('theme', next);
+      } catch {
+        // storage unavailable: theme still applies for this page view
+      }
+      return next;
+    });
   };
 
   return (
     <nav className='sticky top-0 z-50 w-full bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800'>
-      <div className='max-w-7xl mx-auto px-6'>
+      <div className='max-w-7xl mx-auto px-4 sm:px-6'>
         <div className='flex items-center justify-between h-16'>
-          {/* Logo & Desktop Nav */}
-          <div className='flex items-center gap-10'>
-            <Link
-              href='/'
-              className='text-xl font-bold text-gray-900 dark:text-white'
-            >
-              PrintPro<span className='text-indigo-500'>3D</span>
-            </Link>
-            <div className='hidden md:flex items-center gap-8'>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className='text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors'
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <Link href='/' className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>
+            PrintPro<span className='text-indigo-500'>3D</span>
+          </Link>
 
           {/* Right side */}
-          <div className='flex items-center gap-4'>
+          <div className='flex items-center gap-1 sm:gap-4'>
             {/* Theme toggle */}
             <button
               aria-label='Toggle theme'
@@ -82,53 +65,41 @@ export default function Navbar() {
               )}
             </button>
 
-            {/* Desktop CTA */}
-            <Link
-              href='/upload'
-              className='hidden md:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200'
-            >
-              Upload Model
-            </Link>
-
-            {/* Mobile menu button */}
+            {/* Cart: opens the drawer */}
             <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className='md:hidden rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
-              aria-label='Toggle menu'
+              type='button'
+              onClick={() => openCart('cart')}
+              aria-label={count > 0 ? `Open cart, ${count} ${count === 1 ? 'item' : 'items'}` : 'Open cart'}
+              className='relative rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
             >
-              <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                {mobileOpen ? (
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
-                ) : (
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M4 6h16M4 12h16M4 18h16' />
-                )}
+              <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' />
               </svg>
+              {count > 0 && (
+                <span
+                  aria-hidden='true'
+                  className='absolute -top-0.5 -right-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-indigo-600 px-1 text-xs font-semibold text-white'
+                >
+                  {count}
+                </span>
+              )}
             </button>
+
+            <Link
+              href='/?start=track#start'
+              className='hidden min-[400px]:inline-block px-2 sm:px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap'
+            >
+              Track order
+            </Link>
+            <Link
+              href='/#start'
+              className='px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap'
+            >
+              Start a project
+            </Link>
           </div>
         </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className='md:hidden pb-4 space-y-2'>
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className='block px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors'
-              >
-                {link.label}
-              </Link>
-            ))}
-            <Link
-              href='/upload'
-              onClick={() => setMobileOpen(false)}
-              className='block px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors text-center'
-            >
-              Upload Model
-            </Link>
-          </div>
-        )}
       </div>
     </nav>
   );

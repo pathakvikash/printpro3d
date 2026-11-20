@@ -77,6 +77,10 @@ function StlModel({ url }: { url: string }) {
             if (!cancelled) {
               geo.center();
               geo.computeVertexNormals();
+              // fit any model size to the camera (z=4): bounding radius 1.3
+              geo.computeBoundingSphere();
+              const r = geo.boundingSphere?.radius || 1;
+              geo.scale(1.3 / r, 1.3 / r, 1.3 / r);
               setGeometry(geo);
             }
           },
@@ -94,7 +98,7 @@ function StlModel({ url }: { url: string }) {
   if (error) return <PlaceholderScene />;
   if (!geometry) return null;
   return (
-    <mesh geometry={geometry} scale={0.5}>
+    <mesh geometry={geometry}>
       <meshStandardMaterial color="#6366f1" metalness={0.3} roughness={0.6} />
     </mesh>
   );
@@ -115,8 +119,11 @@ function ObjModel({ url }: { url: string }) {
           url,
           (obj) => {
             if (!cancelled) {
-              obj.scale.set(0.5, 0.5, 0.5);
-              obj.position.set(0, 0, 0);
+              // centre and fit any model size to the camera (z=4)
+              const sphere = new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
+              const k = 1.3 / (sphere.radius || 1);
+              obj.scale.setScalar(k);
+              obj.position.copy(sphere.center).multiplyScalar(-k);
               obj.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                   child.material = new THREE.MeshStandardMaterial({

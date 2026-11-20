@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,6 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 uploads/
+/uploads
+/orders
+/requests
 
 # sample models
 bugatti/
@@ -53,3 +57,6 @@ printpro3d_static/
 
 # github config
 .github/
+/ai-usage
+/ai-jobs
+/ratelimit

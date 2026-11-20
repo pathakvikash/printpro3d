@@ -1,12 +1,25 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { storeUpload } from '@/lib/uploads';
+import { ALLOWED_EXTS as ALLOWED, MAX_UPLOAD as MAX_SIZE } from '@/lib/uploadRules';
+import { filled, limited } from '@/lib/spam';
 
-const ALLOWED = ['.stl', '.obj', '.glb', '.gltf', '.3mf'];
+export const maxDuration = 60; // seconds: parsing a large mesh takes a while
 
 export async function POST(request: Request) {
+  const slow = await limited(request, 'upload');
+  if (slow) return slow;
+  // reject oversized bodies before reading them (200MB + 1MB multipart slack)
+  const len = request.headers.get('content-length');
+  if (len === null || !(Number(len) <= MAX_SIZE + 1024 * 1024)) {
+    return NextResponse.json({ error: 'File too large. Maximum size: 200MB' }, { status: 413 });
+  }
   try {
     const formData = await request.formData();
+    if (filled(formData.get('website'))) {
+      // honeypot: look like a success, save nothing
+      return NextResponse.json({ url: '', name: '', size: 0, type: 'stl', file: `${crypto.randomUUID()}.stl`, stats: null });
+    }
     const file = formData.get('file') as File | null;
 
     if (!file) {
@@ -21,23 +34,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: 'File too large. Maximum size: 200MB' }, { status: 413 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    await mkdir(uploadDir, { recursive: true });
-
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueName = `${Date.now()}-${safeName}`;
-    const filepath = path.join(uploadDir, uniqueName);
-    await writeFile(filepath, buffer);
-
-    return NextResponse.json({
-      url: `/api/upload/${uniqueName}`,
-      name: file.name,
-      size: file.size,
-      type: ext.slice(1),
-    });
+    // random name: the download URL has no login, so it must not be guessable
+    const uniqueName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
+    return NextResponse.json(await storeUpload(buffer, uniqueName, file.name));
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

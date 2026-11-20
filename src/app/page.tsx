@@ -1,237 +1,170 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
-import HeroScene from '@/components/HeroScene';
+import ProjectFlow from '@/components/ProjectFlow';
+import HomeShop from '@/components/HomeShop';
+import HeroPart from '@/components/HeroPart';
+import { modelFor, pickProvider } from '@/lib/aiDesign';
+import { CATALOG } from '@/lib/catalog';
+import { BED_MM, MATERIALS, MAX_QTY, type MaterialKey } from '@/lib/quote';
+import { MATERIAL_INFO } from '@/lib/materialInfo';
+
+// read per request: the AI choice depends on MESHY_API_KEY at runtime, not at build time
+export const dynamic = 'force-dynamic';
+
+const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];
+
+const FACTS = [
+  { value: String(MATERIAL_KEYS.length), label: 'Plastics', note: MATERIAL_KEYS.join(', ') },
+  { value: String(CATALOG.length), label: 'Ready-made parts', note: 'Our own designs, printed to order' },
+  { value: `${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm`, label: 'Largest part', note: 'Print volume' },
+  { value: `1 to ${MAX_QTY}+`, label: 'Pieces per order', note: 'More on request' },
+];
+
+const STEPS = [
+  { title: 'Start your way', text: 'Upload a file, describe an idea, or open one of our designs.' },
+  { title: 'Choose material and quantity', text: 'The price updates as you choose.' },
+  { title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.' },
+];
+
+const CHECKS = [
+  'Instant price for most STL and OBJ files',
+  'No file? Describe it, or start from one of our designs',
+  'One piece up to 100+ units',
+];
+
+// OWNER: confirm this statement matches how you handle files
+const FILE_PROMISE = 'We use your files only to quote and print your order.';
 
 export default function Home() {
+  const provider = pickProvider(process.env);
+  const designEnabled = (provider !== null && modelFor(provider, process.env) !== null) || process.env.NODE_ENV !== 'production';
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center overflow-hidden bg-gray-950">
-        <HeroScene />
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 w-full">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium mb-8">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-              Professional 3D Printing Service
-            </div>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight">
-              Your Vision,
+      {/* Hero: text first, one primary action, one text link. The 3D part is a client island (desktop only). */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-gray-950 via-slate-900 to-indigo-950 text-white">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:py-28">
+          <div>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              Upload a file.
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">
-                Printed in 3D
-              </span>
+              Get a price.
+              <br />
+              We print it.
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-gray-400 leading-relaxed max-w-lg">
-              Upload your 3D models, choose from premium materials, and get high-quality prints delivered to your doorstep.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/upload"
-                className="group inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-lg transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40"
-              >
-                Upload Your Model
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-              <Link
-                href="/materials"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white font-semibold text-lg transition-all duration-300"
-              >
-                View Materials
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
-          <span className="text-gray-500 text-xs font-medium uppercase tracking-widest">Scroll</span>
-          <div className="w-5 h-8 rounded-full border-2 border-gray-700 flex justify-center pt-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" />
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Bar */}
-      <section className="py-12 bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { number: '10,000+', label: 'Prints Delivered' },
-              { number: '50+', label: 'Premium Materials' },
-              { number: '2-Day', label: 'Avg. Turnaround' },
-              { number: '99%', label: 'Satisfaction Rate' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">{stat.number}</p>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* What We Offer */}
-      <section className="py-24 bg-white dark:bg-gray-950">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm uppercase tracking-wider">What We Offer</p>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-              End-to-End 3D Printing Services
-            </h2>
-            <p className="mt-4 text-gray-500 dark:text-gray-400">
-              From prototyping to production, we handle every step of the 3D printing process with precision and care.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                title: '3D Printing',
-                desc: 'High-resolution FDM, SLA, and SLS printing for prototypes and end-use parts.',
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76a1 1 0 000 1.4z" />
-                ),
-              },
-              {
-                title: 'Rapid Prototyping',
-                desc: 'Fast iteration cycles with quick turnaround to accelerate your product development.',
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                ),
-              },
-              {
-                title: 'Custom Finishing',
-                desc: 'Sanding, priming, painting, and post-processing for a flawless professional finish.',
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                ),
-              },
-              {
-                title: 'Bulk Production',
-                desc: 'Scalable manufacturing with consistent quality for low to medium volume production runs.',
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                ),
-              },
-            ].map((service) => (
-              <div
-                key={service.title}
-                className="group relative p-8 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5"
-              >
-                <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    {service.icon}
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{service.title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{service.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-24 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm uppercase tracking-wider">How It Works</p>
-            <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-              From Design to Doorstep in 4 Steps
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
-            {[
-              { step: '01', title: 'Upload', desc: 'Upload your 3D model in STL, OBJ, or GLB format.' },
-              { step: '02', title: 'Customize', desc: 'Choose material, color, finish, and infill settings.' },
-              { step: '03', title: 'Quote & Pay', desc: 'Get an instant price and pay securely online.' },
-              { step: '04', title: 'We Deliver', desc: 'We print, finish, and ship your order to your door.' },
-            ].map((item) => (
-              <div key={item.step} className="relative">
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center mb-5">
-                    <span className="text-white text-xl font-bold">{item.step}</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{item.title}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Materials Preview */}
-      <section className="py-24 bg-white dark:bg-gray-950">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm uppercase tracking-wider">Premium Materials</p>
-              <h2 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-                50+ Materials & Finishes
-              </h2>
-              <p className="mt-4 text-gray-500 dark:text-gray-400 leading-relaxed">
-                From standard PLA to engineering-grade Nylon, carbon fiber composites, and flexible TPU. Choose from a wide range of colors and post-processing finishes to get exactly the look and feel you need.
-              </p>
-              <Link
-                href="/materials"
-                className="mt-8 inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-              >
-                Explore All Materials
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { name: 'PLA+', color: 'from-emerald-400 to-emerald-600' },
-                { name: 'ABS', color: 'from-blue-400 to-blue-600' },
-                { name: 'PETG', color: 'from-cyan-400 to-cyan-600' },
-                { name: 'Nylon', color: 'from-amber-400 to-amber-600' },
-                { name: 'TPU', color: 'from-rose-400 to-rose-600' },
-                { name: 'Carbon Fiber', color: 'from-gray-400 to-gray-600' },
-              ].map((mat) => (
-                <div
-                  key={mat.name}
-                  className="relative p-6 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 group cursor-default"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${mat.color} opacity-10 dark:opacity-20 group-hover:opacity-20 dark:group-hover:opacity-30 transition-opacity`} />
-                  <p className="relative font-semibold text-gray-900 dark:text-white">{mat.name}</p>
-                  <p className="relative text-sm text-gray-500 dark:text-gray-400 mt-1">Premium quality</p>
-                </div>
+            <ul className="mt-8 space-y-3 text-lg text-gray-300">
+              {CHECKS.map((c) => (
+                <li key={c} className="flex gap-3">
+                  <span aria-hidden className="text-indigo-400">–</span>
+                  <span>{c}</span>
+                </li>
               ))}
+            </ul>
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <Link
+                href="/?start=file#start"
+                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-8 py-4 text-lg font-semibold text-white hover:bg-indigo-500 transition-colors"
+              >
+                Get an instant quote
+              </Link>
+              <Link
+                href="/?start=build&example=shelf-bracket&price=1#start"
+                className="inline-flex items-center justify-center px-2 py-4 text-lg font-medium text-indigo-300 underline underline-offset-4 hover:text-white"
+              >
+                Try a sample
+              </Link>
             </div>
+            <p className="mt-6 text-sm text-gray-400">{FILE_PROMISE}</p>
           </div>
+          <HeroPart />
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 bg-gradient-to-r from-indigo-600 to-indigo-500">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white">
-            Ready to Bring Your Ideas to Life?
-          </h2>
-          <p className="mt-4 text-lg text-indigo-100">
-            Upload your 3D model and get a free instant quote. No account required.
+      {/* Facts: computed from the config, so they stay true when the price list or bed size changes */}
+      <section aria-label="At a glance" className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+        <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-8 sm:px-6 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-gray-200 dark:lg:divide-gray-800">
+          {FACTS.map((f, i) => (
+            <div key={f.label} className={`${i === 0 ? '' : 'lg:pl-8'} ${i === FACTS.length - 1 ? '' : 'lg:pr-8'}`}>
+              <dt className="text-sm text-gray-500 dark:text-gray-400">{f.label}</dt>
+              <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{f.value}</dd>
+              <dd className="mt-1 text-xs text-gray-500 dark:text-gray-400">{f.note}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <Suspense fallback={null}>
+        <ProjectFlow aiEnabled={Boolean(process.env.MESHY_API_KEY)} designEnabled={designEnabled} />
+      </Suspense>
+
+      {/* Ready to print: the shop itself, so the parts are the first thing a visitor sees */}
+      <section className="py-20 bg-white dark:bg-gray-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center">Ready to print</h2>
+          <p className="mt-3 text-center text-gray-500 dark:text-gray-400">
+            Our own designs, printed to order. Tap a part to see it in 3D.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/upload"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white text-indigo-600 font-semibold text-lg hover:bg-indigo-50 transition-all duration-300 shadow-xl"
-            >
-              Get Started Free
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-            <Link
-              href="/materials"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl border-2 border-white/30 text-white font-semibold text-lg hover:bg-white/10 transition-all duration-300"
-            >
-              View Pricing
-            </Link>
+          <div className="mt-10">
+            <HomeShop />
           </div>
+          <p className="mt-10 text-center text-gray-600 dark:text-gray-400">
+            Not in the list?{' '}
+            <Link href="/?start=idea#start" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">
+              Describe your idea
+            </Link>{' '}
+            or{' '}
+            <Link href="/?start=file#start" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">
+              Upload a 3D file
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">How it works</h2>
+          <ol className="mt-10 grid gap-10 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="border-t-2 border-indigo-600 pt-5">
+                <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
+                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h3>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Materials: a plain list, one line per material */}
+      <section className="py-20 bg-white dark:bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Materials</h2>
+          <p className="mt-3 text-gray-600 dark:text-gray-400">Each material has its own live price on the quote step.</p>
+          <dl className="mt-10 divide-y divide-gray-200 dark:divide-gray-800 border-y border-gray-200 dark:border-gray-800">
+            {MATERIAL_KEYS.map((k) => (
+              <div key={k} className="grid gap-2 py-5 sm:grid-cols-[8rem_1fr] sm:gap-6">
+                <dt className="font-semibold text-gray-900 dark:text-white">{MATERIAL_INFO[k].label}</dt>
+                <dd className="text-gray-600 dark:text-gray-300">{MATERIAL_INFO[k].blurb}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* One closing call to action */}
+      <section className="py-20 bg-gradient-to-r from-indigo-600 to-indigo-500">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">From one piece to wholesale</h2>
+          <p className="mt-4 text-lg text-indigo-100">
+            Enter a quantity to see the price. We check every order before we print it.
+          </p>
+          <Link
+            href="/#start"
+            className="mt-8 inline-flex items-center justify-center px-8 py-4 rounded-xl bg-white text-indigo-600 font-semibold text-lg hover:bg-indigo-50 transition-all duration-300 shadow-xl"
+          >
+            Get an instant quote
+          </Link>
         </div>
       </section>
     </>
