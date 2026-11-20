@@ -10,7 +10,7 @@ import { JOBS, claimRepair, readJob, releaseCopy, reserveCopy, serialJob, update
 import { scaleStl } from '@/lib/stlScale';
 import { getBytes, putBytes, putJson } from '@/lib/store';
 
-export const maxDuration = 120; // seconds: the first size may wait for Meshy's print repair (up to 90 s)
+export const maxDuration = 60; // seconds: the first size may wait for Meshy's print repair (up to 90 s)
 
 const MIN_MM = 10;
 const MAX_MM = Math.max(BED_MM.x, BED_MM.y, BED_MM.z);
