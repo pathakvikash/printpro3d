@@ -39,6 +39,14 @@ npm run ai:models                             # models the configured provider o
 
 See the README. The first deploy is a manual step by the owner: import the repo under the personal Vercel account, add the private Blob store and env vars, then check the smoke test on the preview URL before sharing it.
 
+## Live deployment
+
+- URL: https://printpro3d.vercel.app (Vercel project `printpro3d`, personal account, Hobby plan, deploys from `main`).
+- Env set in Vercel: `ADMIN_TOKEN`, `SITE_URL`, and from the private Blob store `printpro3d-blob`: `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`. Not yet set: AI, Meshy and Resend keys.
+- Vercel blocks deploys of vulnerable Next.js versions (15.3.5 was refused). Keep `next` on a patched 15.5.x or newer.
+- Hobby is for non-commercial use and caps function time at 60 s. Check Vercel's terms and move to Pro before taking paid orders.
+- Env var changes need a redeploy (push a commit or use Redeploy on a deployment).
+
 ## Git
 
 Remote: `https://github.com/pathakvikash/printpro3d`. Use the `pathakvikash` account only. The machine's default git email may be the work one: set a repo-local author before committing and push with the personal token, never through the work login.
