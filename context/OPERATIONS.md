@@ -51,8 +51,3 @@ See the README. The first deploy is a manual step by the owner: import the repo 
 ## Git
 
 Remote: `https://github.com/pathakvikash/printpro3d`. Use the `pathakvikash` account only. The machine's default git email may be the work one: set a repo-local author before committing and push with the personal token, never through the work login.
-
-## Second deployment (v2)
-
-- Repo `pathakvikash/printpro3d-v2` (private), Vercel project `printpro3d-v2` (personal account, Hobby), https://printpro3d-v2.vercel.app, deploys from `main`. It has its own private Blob store `printpro3d-v2-blob` and its own `ADMIN_TOKEN`; it shares no data with the first deployment (`printpro3d`).
-- Env set: `ADMIN_TOKEN`, `SITE_URL`, Blob variables. Not set: AI, Meshy and Resend keys.
