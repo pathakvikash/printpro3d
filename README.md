@@ -24,7 +24,7 @@ Without keys: quoting, the shop, the builder, the cart, checkout and tracking al
 
 ## What the customer sees
 
-One page, one guided flow (no separate page per feature):
+Real pages with a nav bar: `/quote`, `/request`, `/ai`, `/draw`, `/shop`, `/build`, `/track`, `/materials`, `/how-it-works`, `/contact`. The home page links to each. Old `/?start=<step>` links redirect to the new pages.
 
 | Step | What it does |
 | --- | --- |
@@ -75,8 +75,8 @@ Vercel limits to know: request bodies over 4.5 MB are refused by the platform, s
 ## Where things live
 
 ```
-src/app            page, API routes, admin page
-src/components     the guided flow and its steps
+src/app            home, one folder per page, API routes, admin page, sitemap
+src/components     page components, Navbar, Footer
 src/lib            pricing, cart, tracking, AI, storage, email (pure logic + tests)
 scripts            owner CLI (order:status, ai:models)
 context/           project brief for the next AI or developer

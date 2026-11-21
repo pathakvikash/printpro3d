@@ -37,8 +37,9 @@ async function shrink(f: File): Promise<File> {
   }
 }
 
-export default function IdeaRequest() {
-  const [category, setCategory] = useState('game');
+// replacement: opened from "Need a part reproduced?"; same form, with prompts for the original part
+export default function IdeaRequest({ replacement = false }: { replacement?: boolean }) {
+  const [category, setCategory] = useState(replacement ? 'other' : 'game');
   const [deliver, setDeliver] = useState('print');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +74,11 @@ export default function IdeaRequest() {
     }
   };
 
-  if (done) return <Done title="Request received" id={done} lines={["We'll reply with a design and a quote."]} />;
+  if (done) return <Done title="Request received" id={done} lines={["We'll review it and get back to you with the next steps."]} />;
 
   return (
     <form onSubmit={submit} className={card}>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tell us what you need</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{replacement ? 'Tell us about the original part' : 'Tell us what you need'}</h3>
 
       <div>
         <label htmlFor="category" className={label}>Category</label>
@@ -87,7 +88,7 @@ export default function IdeaRequest() {
       </div>
       <div>
         <label htmlFor="description" className={label}>Description</label>
-        <textarea id="description" name="description" required maxLength={2000} rows={5} placeholder={PROMPTS[category]} className={input} />
+        <textarea id="description" name="description" required maxLength={2000} rows={5} placeholder={replacement ? 'What the part is, what it came from, what broke, and the sizes you can measure (hole spacing, thickness).' : PROMPTS[category]} className={input} />
       </div>
 
       <fieldset>
@@ -130,7 +131,7 @@ export default function IdeaRequest() {
         <input id="budget" name="budget" maxLength={50} className={input} />
       </div>
       <div>
-        <label htmlFor="images" className={label}>Reference images (optional, up to 3, png, jpg or webp, 5MB each)</label>
+        <label htmlFor="images" className={label}>{replacement ? 'Photos of the original part (up to 3, png, jpg or webp, 5MB each)' : 'Reference images (optional, up to 3, png, jpg or webp, 5MB each)'}</label>
         <input id="images" name="images" type="file" multiple accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className={input} />
       </div>
 

@@ -215,7 +215,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
             </button>
           </div>
           {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
-          <Link href={`/?start=build&example=${item.exampleId}#start`} className={`${secondaryBtn} w-full`}>
+          <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}>
             Customise this in the builder
           </Link>
         </div>
@@ -224,8 +224,8 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
   );
 }
 
-// embedded: used on the home page, where the grid is wider and gets three columns on large screens
-export default function ShopOrder({ onWholesale, embedded = false }: { onWholesale: () => void; embedded?: boolean }) {
+// embedded: used on the home page, where the grid is wider and gets three columns on large screens; limit: show only the first n parts, no filter chips
+export default function ShopOrder({ onWholesale, embedded = false, limit }: { onWholesale: () => void; embedded?: boolean; limit?: number }) {
   const reduceMotion = useReduceMotion();
   const [visible, setVisibleSet] = useState<string[]>([]);
   const [cat, setCat] = useState('all');
@@ -245,20 +245,22 @@ export default function ShopOrder({ onWholesale, embedded = false }: { onWholesa
   }, []);
 
   const chips = [{ id: 'all', label: 'All' }, ...CATEGORIES.filter((c) => PRODUCTS.some((p) => p.item.category === c.id))];
-  const shown = PRODUCTS.filter((p) => cat === 'all' || p.item.category === cat);
+  const shown = PRODUCTS.filter((p) => cat === 'all' || p.item.category === cat).slice(0, limit);
   // at most six WebGL canvases: the open dialog takes one of them
   const live = new Set(visible.slice(0, openId ? MAX_CANVASES - 1 : MAX_CANVASES));
   const open = PRODUCTS.find((p) => p.item.id === openId);
 
   return (
     <div className="space-y-6">
-      <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
-        {chips.map((c) => (
-          <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setCat(c.id)} className={chipClass(cat === c.id)}>
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {limit === undefined && (
+        <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
+          {chips.map((c) => (
+            <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setCat(c.id)} className={chipClass(cat === c.id)}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
       <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${embedded ? 'lg:grid-cols-3' : ''}`}>
         {shown.map((p) => (
           <ShopCard key={p.item.id} p={p} live={live.has(p.item.id)} reduceMotion={reduceMotion} setVisible={setVisible} onView={onView} />

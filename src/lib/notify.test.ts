@@ -46,7 +46,7 @@ test('status email: stage name, sentence and a track link from SITE_URL', () => 
   assert.equal(m.subject, 'Your order: Printing');
   assert.equal(
     m.text,
-    ['Hello Ann Bob,', '', `Update on your order ${id}`, 'Stage: Printing', 'Your order is being printed.', '', `Track it: https://shop.example/?start=track&id=${id}#start`].join('\n'),
+    ['Hello Ann Bob,', '', `Update on your order ${id}`, 'Stage: Printing', 'Your order is being printed.', '', `Track it: https://shop.example/track?id=${id}`].join('\n'),
   );
   const r = buildStatusEmail('request', id, 'quote_sent');
   assert.equal(r.subject, 'Your design request: Quote sent');

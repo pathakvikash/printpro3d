@@ -180,7 +180,7 @@ export function buildStatusEmail(
       `Stage: ${stage}`,
       v.sentence,
       '',
-      base ? `Track it: ${base}/?start=track&id=${encodeURIComponent(id)}#start` : `Track it on our website with this id: ${id}`,
+      base ? `Track it: ${base}/track?id=${encodeURIComponent(id)}` : `Track it on our website with this id: ${id}`,
     ].join('\n'),
   };
 }

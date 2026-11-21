@@ -22,7 +22,7 @@ You are the maintainer. The owner delegated design decisions; still ask before p
 ## Ten facts that save time
 
 1. Next.js 15 App Router, React 19, TypeScript, Tailwind 4, three.js via @react-three/fiber. Node 22.18+ (tests run `.ts` directly).
-2. One page (`src/app/page.tsx`) with a guided flow (`src/components/ProjectFlow.tsx`). No per-feature pages or nav. Only `/` and `/admin` (plus `/upload` redirect-style page).
+2. Real pages with a nav bar (since 2026-11-21): `/quote` (file), `/request` (idea), `/ai`, `/draw`, `/shop`, `/build`, `/track`, `/materials`, `/how-it-works`, `/contact`, plus `/admin`. `/` is the landing page. Old `/?start=<step>` and `/upload` redirect. Each page is a server `page.tsx` mounting one component inside `PageShell`.
 3. Pure logic lives in `src/lib` with tests next to it (`*.test.ts`, run by `npm test`). Import with explicit `.ts` extensions.
 4. The server recomputes every price (`src/lib/quote.ts`, `src/lib/catalog.ts`). Browser prices are display only.
 5. All storage goes through `src/lib/store.ts`: local disk, Vercel Blob, or `/tmp` (ephemeral, demo only).

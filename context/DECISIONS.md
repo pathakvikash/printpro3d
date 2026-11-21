@@ -2,7 +2,7 @@
 
 | Decision | Why |
 | --- | --- |
-| One guided page, no per-feature pages or nav | Owner asked for auto-navigation; separate empty pages scored the product 3/10 |
+| Split into real pages with a nav bar, 2026-11-21 | Owner asked for it; the URL used to be state (`/?start=`), now each feature has its own route and old links redirect |
 | Orders saved as `pending_review`, price shown as estimate | Flipped or overlapping meshes can under-count volume; owner confirms before payment |
 | Manual payment for now (owner sends link or UPI request) | Online payment needs the owner's Razorpay/Stripe account |
 | Server recomputes prices | Client totals can be forged |

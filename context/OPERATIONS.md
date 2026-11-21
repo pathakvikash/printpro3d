@@ -16,13 +16,14 @@ Do not build while `next dev` or `next start` runs from the same folder; stop it
 ## Smoke test of a production build
 
 1. Home loads, no console errors; header theme toggle switches light and dark and survives reload.
-2. Upload a small closed STL: size, volume and four material prices appear; Add to cart.
-3. Shop: seven cards with 3D previews, View in 3D opens a dialog (Escape closes), save and add to cart.
-4. Build: add a box and a hole, price updates, add to cart.
+2. `/quote`: upload a small closed STL: size, volume and four material prices appear; Add to cart.
+3. `/shop`: seven cards with 3D previews, View in 3D opens a dialog (Escape closes), save and add to cart.
+4. `/build`: add a box and a hole, price updates, add to cart.
 5. Cart drawer: change quantity (a model line becomes "We'll quote this one"), checkout with a test contact.
-6. Track: use the new order id; the demo order shows all stages.
+6. `/track`: use the new order id; the demo order shows all stages.
 7. `/admin`: wrong token is refused, right token lists the order; change status; the customer email is logged or sent.
-8. Phone width (375 px): no horizontal scroll, no 3D canvas on the home hero.
+8. Nav: every link opens its page (also `/request`, `/materials`, `/how-it-works`, `/contact`); old `/?start=file` and `/upload` land on `/quote`; hamburger works on mobile.
+9. Phone width (375 px): no horizontal scroll, no 3D canvas on the home hero.
 
 ## Data
 

@@ -225,7 +225,7 @@ function Drawer() {
         <p className="font-semibold text-gray-900 dark:text-gray-100">{ex.title}</p>
         <div className="flex flex-wrap items-center gap-4">
           <Link
-            href={`/?start=build&example=${ex.id}#start`}
+            href={`/build?example=${ex.id}`}
             onClick={closeCart}
             className={secondaryBtn}
           >
@@ -270,7 +270,7 @@ function Drawer() {
           <p>We&apos;ll confirm your order and send a payment link.</p>
         </div>
         <Link
-          href={`/?start=track&id=${encodeURIComponent(order.id)}#start`}
+          href={`/track?id=${encodeURIComponent(order.id)}`}
           onClick={closeCart}
           className={`${secondaryBtn} w-full`}
         >
@@ -304,10 +304,10 @@ function Drawer() {
         <div className="space-y-5 py-8 text-center">
           <p className="text-gray-700 dark:text-gray-200">Your cart is empty.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href="/?start=shop#start" onClick={closeCart} className={secondaryBtn}>
+            <Link href="/shop" onClick={closeCart} className={secondaryBtn}>
               Browse ready items
             </Link>
-            <Link href="/?start=file#start" onClick={closeCart} className={secondaryBtn}>
+            <Link href="/quote" onClick={closeCart} className={secondaryBtn}>
               Upload a file
             </Link>
           </div>

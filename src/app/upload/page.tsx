@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function UploadPage() {
-  redirect('/?start=file#start');
+  redirect('/quote');
 }

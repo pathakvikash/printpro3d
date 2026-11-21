@@ -191,7 +191,8 @@ export function buildRequest(provider: 'anthropic' | 'openai', input: DesignInpu
     body: {
       model: cfg.model, max_tokens: 8000,
       messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content }],
-      response_format: { type: 'json_object' }, // many compatible servers reject json_schema
+      // many compatible servers reject json_schema; LM Studio rejects json_object, so it gets none (the prompt asks for JSON and the parser extracts it)
+      ...(/^https?:\/\/(localhost|127\.0\.0\.1):1234\b/.test(cfg.baseUrl) ? {} : { response_format: { type: 'json_object' } }),
     },
   };
 }

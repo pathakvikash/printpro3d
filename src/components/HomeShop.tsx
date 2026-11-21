@@ -7,17 +7,12 @@ import { useRouter } from 'next/navigation';
 // the shop code (and its 3D previews) loads only when the grid nears the viewport
 const ShopOrder = dynamic(() => import('./ShopOrder'), { ssr: false, loading: () => <ShopSkeleton /> });
 
-// six placeholder cards at about the height of a real card, so the page does not jump when the shop mounts
+// three placeholder cards at about the height of a real card, so the page does not jump when the shop mounts
 function ShopSkeleton() {
   return (
     <div aria-hidden className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {[64, 96, 80, 112, 72].map((w) => (
-          <span key={w} className="h-9 rounded-full bg-gray-200 dark:bg-gray-800" style={{ width: w }} />
-        ))}
-      </div>
       <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }, (_, i) => (
+        {Array.from({ length: 3 }, (_, i) => (
           <li key={i} className="h-[30rem] rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
         ))}
       </ul>
@@ -53,7 +48,7 @@ export default function HomeShop() {
 
   return (
     <div ref={box}>
-      {near ? <ShopOrder embedded onWholesale={() => router.push('/?start=idea#start')} /> : <ShopSkeleton />}
+      {near ? <ShopOrder embedded limit={3} onWholesale={() => router.push('/request')} /> : <ShopSkeleton />}
     </div>
   );
 }

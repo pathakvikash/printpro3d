@@ -3,7 +3,9 @@
 ## Layout
 
 ```
-src/app/page.tsx            home: hero, facts bar, guided flow, how it works, materials
+src/app/page.tsx            home: hero, facts bar, option cards, 3-part shop preview, how it works, materials teaser; redirects old ?start= links
+src/app/{quote,request,ai,draw,shop,build,track,materials,how-it-works,contact}/page.tsx   one page per feature
+src/app/sitemap.ts          public routes (no /admin)
 src/app/layout.tsx          CartProvider, pre-paint theme script, fonts
 src/app/admin/page.tsx      owner page (ADMIN_TOKEN), noindex, no nav link
 src/app/api/
@@ -14,7 +16,7 @@ src/app/api/
   generate (+[id], [id]/size)   Meshy text/image to 3D, repair, scale
   design        "Draw it with AI" (shape model from photo/text)
   admin/orders, admin/files/[name]   owner list, status change, file download
-src/components/   ProjectFlow (steps), UploadForm, QuoteOrder, ShopOrder, HomeShop, Playground (+scene),
+src/components/   PageShell, RoutePages (client wrappers: router callbacks, ssr:false imports), UploadForm, QuoteOrder, ShopOrder, HomeShop, Playground (+scene),
                   ExamplePreview, HeroPart, AiDesign, AiGenerate, IdeaRequest, TrackOrder,
                   CartProvider, CartDrawer, ContactFields, AdminPanel, Navbar, Footer
 src/lib/          pure logic and server helpers, each with a *.test.ts
@@ -23,7 +25,7 @@ scripts/          set-status.mjs (owner CLI), ai-models.mjs
 
 ## The flow
 
-`ProjectFlow` shows steps `file | idea | shop | track | build | ai | design`. Heavy steps are `next/dynamic` imports so the home page stays light. Focus moves to the new step on change. `?start=track&id=<id>` deep links into tracking.
+Each feature is its own route (`/quote`, `/request`, `/ai`, `/draw`, `/shop`, `/build`, `/track`), so a route loads only its own code and three.js stays off the home page. `/ai` and `/draw` show a not-available note when their provider is off. `/track?id=<id>` deep links into tracking. The home page maps old `/?start=<step>` URLs to the new routes with `redirect()`.
 
 Customer paths:
 - **File**: upload (`/api/upload`) → server parses STL/OBJ (`analyzeModel.ts`, `meshStats`) → volume, bounding box, bed fit → `.stats.json` sidecar → `QuoteOrder` shows per-material live prices → add to cart.
