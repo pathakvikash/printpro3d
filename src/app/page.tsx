@@ -117,7 +117,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           </div>
         </div>
         <div aria-hidden className="absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 sm:flex">
-          <span className="text-xs font-medium uppercase tracking-widest text-gray-500">Scroll</span>
+          <span className="text-xs font-medium uppercase tracking-widest text-gray-400">Scroll</span>
           <div className="flex h-8 w-5 justify-center rounded-full border-2 border-gray-700 pt-1.5">
             <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
           </div>

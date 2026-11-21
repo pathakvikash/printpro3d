@@ -31,7 +31,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-6 pb-8">
-        <p className="pt-6 border-t border-gray-800 text-sm text-gray-500">© {currentYear} PrintPro3D</p>
+        <p className="pt-6 border-t border-gray-800 text-sm text-gray-400">© {currentYear} PrintPro3D</p>
       </div>
     </footer>
   );
