@@ -47,11 +47,11 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-950`}
       >
         <CartProvider>
           <Navbar />
-          <main className='min-h-screen'>{children}</main>
+          <main className='min-h-screen bg-gray-50 dark:bg-gray-900'>{children}</main>
           <Footer />
           <CartDrawer />
         </CartProvider>
