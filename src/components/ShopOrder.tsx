@@ -92,7 +92,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
           View in 3D
         </button>
 
-        <div className="mt-auto flex flex-wrap items-center gap-3 pt-2">
+        <div className="mt-auto flex items-center gap-3 pt-2">
           <QtyStepper name={item.name} qty={qty} onChange={setQty} />
           <button
             type="button"
@@ -100,7 +100,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
               add({ kind: 'shop', id: item.id, qty });
               toast('Added to cart', true);
             }}
-            className="inline-flex flex-1 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 sm:flex-none"
+            className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           >
             Add to cart
           </button>
@@ -200,7 +200,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
           <p className="text-sm text-gray-700 dark:text-gray-300">{dims} · {item.material}</p>
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{money.format(item.price)} each</p>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2">
             <QtyStepper name={item.name} qty={qty} onChange={setQty} />
             <button
               type="button"
@@ -209,7 +209,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
                 toast('Added to cart', true);
                 setAdded(true);
               }}
-              className="inline-flex flex-1 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 sm:flex-none"
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
             >
               {added ? 'Added' : 'Add to cart'}
             </button>

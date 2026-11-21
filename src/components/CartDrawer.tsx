@@ -9,10 +9,11 @@ import { MAX_QTY } from '@/lib/quote';
 import { ContactFields, contactFrom, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart, type CartTab } from './CartProvider';
 
+// joined stepper: one bordered group, 44px tall, matching the Add to cart button
 const stepBtn =
-  'h-9 w-9 shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-semibold text-gray-800 dark:text-gray-100 hover:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-40';
+  'flex h-full w-10 shrink-0 items-center justify-center text-lg text-gray-700 dark:text-gray-200 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:text-gray-300 dark:disabled:text-gray-600 disabled:hover:bg-transparent';
 const qtyInput =
-  'h-9 w-14 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-center text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  'h-full w-12 border-x border-gray-300 dark:border-gray-600 bg-transparent text-center text-[15px] text-gray-900 dark:text-gray-100 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-800 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 type Order = { id: string; status: string; total: number | null; unpricedCount: number; currency: string };
 
@@ -52,7 +53,7 @@ function QtyField({ name, value, onCommit }: { name: string; value: number; onCo
 
 export function QtyStepper({ name, qty, onChange }: { name: string; qty: number; onChange: (n: number) => void }) {
   return (
-    <div className="inline-flex items-center gap-1">
+    <div className="inline-flex h-11 items-stretch overflow-hidden rounded-[10px] border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900">
       <button type="button" aria-label={`Decrease quantity of ${name}`} disabled={qty <= 1} onClick={() => onChange(qty - 1)} className={stepBtn}>
         −
       </button>
