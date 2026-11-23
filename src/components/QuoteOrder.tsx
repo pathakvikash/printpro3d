@@ -21,12 +21,14 @@ export default function QuoteOrder({
   positions,
   label: modelName = 'Your model',
   onAnother,
+  project,
 }: {
   file: string;
   stats: MeshStats | null;
   positions?: Float32Array | null; // triangle soup of the uploaded mesh, for the drawing
   label?: string;
   onAnother?: () => void;
+  project?: string; // a finalized design project: the cart line is a 'design' line and the server prices the STL it built
 }) {
   const { add, openCart } = useCart();
   const [material, setMaterial] = useState<MaterialKey>('PLA');
@@ -50,7 +52,7 @@ export default function QuoteOrder({
 
   const addToCart = (checkout: boolean) => {
     // estimate is the line total we showed; null means we quote it by hand
-    add({ kind: 'model', file, label: modelName, material, qty, estimate: price });
+    add(project ? { kind: 'design', project, label: modelName, material, qty, estimate: price } : { kind: 'model', file, label: modelName, material, qty, estimate: price });
     setAdded(true);
     if (checkout) openCart('cart', 'checkout');
   };
@@ -160,10 +162,10 @@ export default function QuoteOrder({
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <button type="button" onClick={() => addToCart(false)} disabled={!validQty} className={submitBtn}>
-          <Icon name="cart" />Add to cart
+          <Icon name="cart" />{project ? 'Place order' : 'Add to cart'}
         </button>
         <button type="button" onClick={() => addToCart(true)} disabled={!validQty} className={`${secondaryBtn} w-full disabled:opacity-50`}>
-          <Icon name="check" />Add and checkout
+          <Icon name="check" />{project ? 'Place order and checkout' : 'Add and checkout'}
         </button>
       </div>
     </div>

@@ -8,8 +8,8 @@ import ShopOrder from './ShopOrder';
 const loading = () => <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading…</p>;
 const AiGenerate = dynamic(() => import('./AiGenerate'), { ssr: false, loading });
 const AiDesign = dynamic(() => import('./AiDesign'), { ssr: false, loading });
-// three's editor code stays out of every other route
-const Playground = dynamic(() => import('./Playground'), {
+// the whole blueprint-first flow (and three's editor code with it) stays out of every other route
+const BuildFlow = dynamic(() => import('./build/BuildFlow'), {
   ssr: false,
   loading: () => <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading the builder…</p>,
 });
@@ -27,5 +27,5 @@ export function ShopRoute() {
   return <ShopOrder onWholesale={() => router.push('/request')} />;
 }
 export function BuildRoute() {
-  return <Playground />;
+  return <BuildFlow />;
 }

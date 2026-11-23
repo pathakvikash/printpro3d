@@ -16,7 +16,8 @@ const secondary =
 type Phase = 'form' | 'working' | 'failed' | 'ready' | 'quote';
 type Sized = { url: string; file: string; stats: MeshStats | null };
 
-export default function AiGenerate({ onDesigner }: { onDesigner: () => void }) {
+/** onModel: the Build page's Plan step takes the sized model as a scale-only project instead of quoting it here. */
+export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => void; onModel?: (file: string) => void }) {
   const [phase, setPhase] = useState<Phase>('form');
   const [mode, setMode] = useState<'text' | 'image'>('text');
   const [busy, setBusy] = useState(false);
@@ -183,7 +184,11 @@ export default function AiGenerate({ onDesigner }: { onDesigner: () => void }) {
       {phase === 'quote' && sized && (
         <div className="space-y-4">
           <div className="h-[400px] rounded-xl overflow-hidden"><ModelViewer url={sized.url} /></div>
-          <QuoteOrder key={sized.file} file={sized.file} stats={sized.stats} label="AI-generated model" />
+          {onModel ? (
+            <button type="button" onClick={() => onModel(sized.file)} className={`${submitBtn} sm:w-auto`}>Plan with this model</button>
+          ) : (
+            <QuoteOrder key={sized.file} file={sized.file} stats={sized.stats} label="AI-generated model" />
+          )}
           <button type="button" onClick={again} className={secondary}>Generate another</button>
         </div>
       )}

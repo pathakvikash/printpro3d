@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
+import Icon from './Icon';
 import PlaygroundScene, { type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
 import { MOTORS, type PropMotor } from '@/lib/motors';
 import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, typicalMass } from '@/lib/flight/components';
@@ -16,8 +17,9 @@ import {
 } from '@/lib/flight/layout';
 import { BED_MM, fitsBed, meshStats } from '@/lib/quote';
 import { exampleById } from '@/lib/examples';
+import { buildOffThread } from '@/lib/buildOffThread';
 import {
-  DEFAULT_SIZE, KINDS, LABEL, MAX_SHAPES, MIN_SIZE, buildMesh, clampCoord, minZ, parseDesign, solidsSize, toStl,
+  DEFAULT_SIZE, KINDS, LABEL, MAX_SHAPES, MIN_SIZE, clampCoord, minZ, parseDesign, solidsSize, toStl,
   type Kind, type Shape, type V3,
 } from '@/lib/playground';
 
@@ -117,32 +119,21 @@ function loadAiDraft(): AiDraft | null {
   }
 }
 
-/** buildMesh in a Web Worker so a big design cannot freeze the tab; falls back to the main thread if workers are unavailable. */
-function buildOffThread(shapes: Shape[]): Promise<Float32Array | null> {
-  return new Promise((resolve, reject) => {
-    const direct = () => { try { resolve(buildMesh(shapes)); } catch (e) { reject(e); } };
-    let w: Worker;
-    try { w = new Worker(new URL('../lib/playground.worker.ts', import.meta.url)); } catch { direct(); return; }
-    w.onmessage = (e: MessageEvent<{ tris?: Float32Array | null; error?: string }>) => {
-      w.terminate();
-      if (e.data.error) reject(new Error(e.data.error)); else resolve(e.data.tris ?? null);
-    };
-    w.onerror = () => { w.terminate(); direct(); };
-    w.postMessage(shapes);
-  });
-}
+/** Project mode (initialShapes given): the shapes of a design project's blueprint. No localStorage, no price or upload; `onSave` turns edits into a new
+ * revision (resolves to an error text, or null on success) and `readOnly` freezes the canvas. Without props this is the free-form builder. */
+export type PlaygroundProject = { initialShapes: Shape[]; readOnly?: boolean; onSave?: (shapes: Shape[]) => Promise<string | null> };
 
-export default function Playground() {
+export default function Playground({ project }: { project?: PlaygroundProject } = {}) {
   const params = useSearchParams();
-  const example = exampleById(params.get('example'));
+  const example = project ? null : exampleById(params.get('example'));
   // captured once; the key is removed after mount (StrictMode runs initializers twice)
-  const [aiDraft] = useState<AiDraft | null>(() => (typeof window !== 'undefined' && params.get('from') === 'ai' ? loadAiDraft() : null));
+  const [aiDraft] = useState<AiDraft | null>(() => (!project && typeof window !== 'undefined' && params.get('from') === 'ai' ? loadAiDraft() : null));
   const wantSim = params.get('sim') === '1';
   const [h, setH] = useState<History>(() => ({
     past: [], future: [],
     now: {
-      shapes: example ? structuredClone(example.shapes) : aiDraft ? structuredClone(aiDraft.shapes) : load(),
-      parts: example || aiDraft ? NO_PARTS : loadPartsSaved(),
+      shapes: project ? structuredClone(project.initialShapes) : example ? structuredClone(example.shapes) : aiDraft ? structuredClone(aiDraft.shapes) : load(),
+      parts: project || example || aiDraft ? NO_PARTS : loadPartsSaved(),
     },
   }));
   const loadedExample = useRef(example?.id ?? null);
@@ -163,7 +154,8 @@ export default function Playground() {
   const [simulate, setSimulate] = useState(() => wantSim && h.now.parts.motors.length > 0);
   const [estimated, setEstimated] = useState<string[]>([]);
   const [frame, setFrame] = useState<{ of: Shape[]; body: Body | null } | null>(null);
-  const locked = simulate;
+  const locked = simulate || !!project?.readOnly;
+  const [saving, setSaving] = useState(false);
   const shapesRef = useRef(shapes);
   shapesRef.current = shapes;
   const sel = shapes.find((s) => s.id === selectedId) ?? null;
@@ -245,7 +237,7 @@ export default function Playground() {
   // after undoing an add, the selection may point at nothing
   useEffect(() => { if (selectedId && !shapes.some((s) => s.id === selectedId)) setSelectedId(null); }, [shapes, selectedId]);
 
-  useEffect(() => { try { sessionStorage.removeItem(AI_KEY); } catch {} }, []);
+  useEffect(() => { if (!project) try { sessionStorage.removeItem(AI_KEY); } catch {} }, [project]);
 
   useEffect(() => { if (partSel && !parts.motors.some((m) => m.id === partSel) && !parts.components.some((c) => c.id === partSel)) setPartSel(null); }, [parts, partSel]);
   useEffect(() => { if (simulate && !parts.motors.length) setSimulate(false); }, [simulate, parts.motors.length]);
@@ -260,13 +252,13 @@ export default function Playground() {
 
   // autosave (private windows can throw; the editor works without it)
   useEffect(() => {
-    if ((example || aiDraft) && !touched.current) return;
+    if (project || ((example || aiDraft) && !touched.current)) return; // a project's edits are saved as revisions, never to the free-form slot
     try {
       localStorage.setItem(KEY, JSON.stringify(shapes));
       const sp = savedParts(parts); // no motors: the parser needs one, so the key is cleared (mass parts alone are not kept)
       if (sp) localStorage.setItem(PARTS_KEY, sp); else localStorage.removeItem(PARTS_KEY);
     } catch {}
-  }, [shapes, parts, example, aiDraft]);
+  }, [shapes, parts, example, aiDraft, project]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -311,6 +303,13 @@ export default function Playground() {
     setOffer({ file, key: Date.now() });
     setTimeout(() => offerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
+  const save = async () => {
+    if (!project?.onSave) return;
+    setSaving(true);
+    const err = await project.onSave(shapesRef.current).catch(() => 'The change could not be saved. Try again.');
+    setSaving(false);
+    if (err) setNote(err);
+  };
   const download = async () => {
     const tris = await build();
     if (!tris) return;
@@ -344,12 +343,12 @@ export default function Playground() {
 
   return (
     <div className="space-y-6">
-      <div>
+      {!project && <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Build it myself</h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Add shapes, move and resize them, and mark some as holes to cut them out. Everything is in millimetres; the flat grid is the print plate.
         </p>
-      </div>
+      </div>}
 
       {example && (
         <p className="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-sm text-indigo-900 dark:text-indigo-200">
@@ -370,13 +369,13 @@ export default function Playground() {
               <button key={k} type="button" onClick={() => add(k)} disabled={locked} className={btn}>+ {LABEL[k]}</button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
+          {!project && <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
             <button type="button" aria-pressed={placing?.kind === 'motor'} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} className={btnOn(placing?.kind === 'motor')}>+ Motor</button>
             {MASS_PARTS.map((n) => {
               const act = placing?.kind === 'mass' && placing.name === n;
               return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} className={btnOn(act)}>+ {n === 'Flight controller' ? 'FC' : n}</button>;
             })}
-          </div>
+          </div>}
           {placing && (
             <p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
               {placing.kind === 'motor'
@@ -401,7 +400,7 @@ export default function Playground() {
               {([['translate', 'Move'], ['rotate', 'Rotate'], ['scale', 'Scale']] as const).map(([t, text]) => (
                 <button key={t} type="button" aria-pressed={tool === t} disabled={locked} onClick={() => setTool(t)} className={btnOn(tool === t)}>{text}</button>
               ))}
-              {parts.motors.length > 0 && (
+              {!project && parts.motors.length > 0 && (
                 <button type="button" aria-pressed={simulate} onClick={() => { setSimulate(!simulate); setPlacing(null); setSelectedId(null); setPartSel(null); }} className={btnOn(simulate)}>Simulate</button>
               )}
             </div>
@@ -526,12 +525,23 @@ export default function Playground() {
         </aside>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={price} disabled={!hasSolid || busy} className={primary}>{busy ? 'Building…' : 'Get a price'}</button>
-        {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
-        <button type="button" onClick={download} disabled={!hasSolid || busy} className={`${btn} py-3`}>Download STL</button>
-        {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
-      </div>
+      {project ? (
+        project.onSave && !project.readOnly && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={save} disabled={!h.past.length || !hasSolid || saving} className={`${primary} inline-flex items-center gap-2`}>
+              <Icon name="check" />{saving ? 'Saving…' : 'Save as a new revision'}
+            </button>
+            {!h.past.length && <p className="text-sm text-gray-500 dark:text-gray-400">Change something to save a revision.</p>}
+          </div>
+        )
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={price} disabled={!hasSolid || busy} className={primary}>{busy ? 'Building…' : 'Get a price'}</button>
+          {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
+          <button type="button" onClick={download} disabled={!hasSolid || busy} className={`${btn} py-3`}>Download STL</button>
+          {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
+        </div>
+      )}
       {note && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{note}</p>}
 
       <div ref={offerRef} className="scroll-mt-20">

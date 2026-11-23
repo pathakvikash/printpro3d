@@ -14,6 +14,10 @@ const PATHS = {
   eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
   play: 'M5 3l14 9-14 9z',
   wrench: 'M14.7 6.3a4 4 0 005 5L21 14l-3 3-2.7-1.3L8 23l-3-3 7.3-7.3A4 4 0 0014.7 6.3z',
+  undo: 'M3 7v6h6M3.5 13a9 9 0 105.6-8.5',
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z',
+  lock: 'M5 11h14v10H5zM8 11V7a4 4 0 018 0v4',
+  arrow: 'M5 12h14M12 5l7 7-7 7',
   rupee: 'M6 3h12M6 8h12M6 13l8.5 8M6 13h3a5 5 0 000-10',
 } as const;
 export type IconName = keyof typeof PATHS;
