@@ -282,6 +282,7 @@ export function TemplateDialog({ t, reduceMotion, onClose }: { t: TemplateDef; r
 }
 
 export function ComingSoon() {
+  if (!COMING_SOON.length) return null;
   return (
     <p className="text-sm text-gray-500 dark:text-gray-400">
       Coming soon: {COMING_SOON.map((c) => c.name).join(', ')}.

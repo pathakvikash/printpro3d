@@ -20,7 +20,7 @@ const claim = (t: TemplateDef, cfg: Cfg) => {
 };
 
 test('every template default builds a closed mesh inside the bed, and its description matches the mesh', () => {
-  assert.equal(TEMPLATES.length, 8);
+  assert.equal(TEMPLATES.length, 10);
   for (const t of TEMPLATES) {
     const { b, mesh, stats } = claim(t, defaultCfg(t));
     assert.ok(fitsBed(stats.sizeMm), `${t.id} fits the bed: ${JSON.stringify(stats.sizeMm)}`);
@@ -128,4 +128,21 @@ test('order line: price comes from the config; a cart line cannot set it', () =>
   const a = { n: 1, kind: 'tpl' as const, tpl: t, cfg, qty: MAX_QTY };
   assert.throws(() => mergeChecked([a, { ...a, n: 2, qty: 1 }]), /over/);
   assert.equal(mergeChecked([{ ...a, qty: 1 }, { ...a, n: 2, qty: 2 }, { ...a, n: 3, cfg: { ...cfg, len: 38 }, qty: 1 }]).length, 2);
+});
+
+test('grid bin and drone mount: descriptions state what the mesh has; server price covers both', () => {
+  const g = templateById('grid-bin')!;
+  const gb = buildTemplate(g, normalizeCfg(g, { ux: 3, uy: 1, hu: 4, wall: 1.6, div: 2, label: true }, true));
+  assert.ok(gb.description.includes('3 × 1 units') && gb.description.includes('28 mm') && gb.description.includes('2 dividers across the X length, 3 compartments') && gb.description.includes('label tab'), gb.description);
+  assert.ok(/check fit on your baseplate/.test(gb.description) && /not the certified Gridfinity/.test(gb.description));
+  const d = templateById('drone-camera-mount')!;
+  const db = buildTemplate(d, normalizeCfg(d, { cam: '20', tilt: 35, pattern: '30.5', strap: 10 }, true));
+  assert.ok(db.description.includes('4 M3 holes') && db.description.includes('2 strap slots') && db.description.includes('30.5 × 30.5') && db.description.includes('Openings through the part: 8.'), db.description);
+  for (const t of [g, d]) {
+    const lo = priceTemplate(t.id, normalizeCfg(t, Object.fromEntries(t.fields.map((f) => [f.key, f.type === 'range' ? f.min : f.default])), true), 1);
+    const hi = priceTemplate(t.id, normalizeCfg(t, Object.fromEntries(t.fields.map((f) => [f.key, f.type === 'range' ? f.max : f.default])), true), 1);
+    assert.ok(hi.quote.total > lo.quote.total, t.id);
+    assert.equal(hi.quote.total, quote(hi.stats, t.material, 1).total);
+    assert.equal(templateOrderLine(t, defaultCfg(t), 2).total, quote(priceTemplate(t.id, defaultCfg(t), 2).stats, t.material, 2).total);
+  }
 });

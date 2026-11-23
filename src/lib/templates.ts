@@ -269,6 +269,49 @@ function wheel(c: Cfg): Built {
   };
 }
 
+// ---------- grid storage bin ----------
+
+const UNIT = 42, HU = 7, FOOT = 2.4, FLOOR = 1.2, DROP = 3; // dividers and tab stay DROP mm below the rim so a stacked foot clears them
+
+function gridBin(c: Cfg): Built {
+  const ux = c.ux as number, uy = c.uy as number, hu = c.hu as number, w = c.wall as number, nd = c.div as number, tab = !!c.label;
+  const OX = ux * UNIT - 0.5, OY = uy * UNIT - 0.5, H = hu * HU, IX = OX - 2 * w, IY = OY - 2 * w, floorZ = FOOT + FLOOR;
+  const sh: Shape[] = [box([OX, OY, H - FOOT], [0, 0, (FOOT + H) / 2])];
+  for (let i = 0; i < ux; i++) for (let j = 0; j < uy; j++) {
+    sh.push(box([UNIT - 4.5, UNIT - 4.5, FOOT + 0.5], [(i - (ux - 1) / 2) * UNIT, (j - (uy - 1) / 2) * UNIT, (FOOT + 0.5) / 2])); // stepped foot, overlaps the floor
+  }
+  sh.push(box([IX, IY, H + 1 - floorZ], [0, 0, (floorZ + H + 1) / 2], 'hole'));
+  const top = H - DROP;
+  for (let i = 1; i <= nd; i++) sh.push(late(box([w, IY + 1, top - floorZ + 0.5], [-IX / 2 + (IX * i) / (nd + 1), 0, (floorZ - 0.5 + top) / 2])));
+  if (tab) sh.push(late(box([IX + 1, 8.5, 1.2], [0, -IY / 2 + 3.75, top - 0.6])));
+  return {
+    shapes: sh, holes: 0, parts: 1,
+    description: `A storage bin ${ux} × ${uy} units (${r1(OX)} × ${r1(OY)} mm, 42 mm per unit), ${hu} units tall (${H} mm, 7 mm per unit) with ${r1(w)} mm walls and a ${FLOOR} mm floor. Each unit has a plain stepped foot (${r1(UNIT - 4.5)} mm square, ${FOOT} mm deep) that drops into the opening of the bin below. ${nd ? `${nd} divider${nd > 1 ? 's' : ''} across the X length, ${nd + 1} compartments. ` : 'No dividers. '}${tab ? 'An 8 mm deep label tab along the inside of the front wall. ' : 'No label tab. '}Dividers and tab sit ${DROP} mm below the rim so a stacked bin clears them. This is not the certified Gridfinity profile (no magnet pockets or interlock chamfers): check fit on your baseplate.`,
+  };
+}
+
+// ---------- drone camera mount ----------
+
+function droneMount(c: Cfg): Built {
+  const cam = Number(c.cam), tilt = c.tilt as number, s = Number(c.pattern), sw = c.strap as number;
+  const th = (tilt * Math.PI) / 180, sn = Math.sin(th), cs = Math.cos(th);
+  const T = 3, G = 3, d = cam + 6, h = cam + 4; // plate and cheek thickness, strap slot depth, cheek length (Y) and height (Z)
+  const hy = (h / 2) * sn + (d / 2) * cs;
+  const cx = cam / 2 + 0.2 + T / 2, X = Math.max(s + 9, 2 * (cx + T / 2) + 8, sw + 10);
+  const cy = s / 2 + 1.6 + 3 + hy, zc = (h / 2) * cs + (d / 2) * sn + 1;
+  const yr = -(s / 2 + 1.6 + 3 + G / 2), yf = cy + hy + 3 + G / 2;
+  const y0 = yr - G / 2 - 3, y1 = yf + G / 2 + 3;
+  const sh: Shape[] = [box([X, y1 - y0, T], [0, (y0 + y1) / 2, T / 2])];
+  for (const k of [-1, 1]) sh.push(S('box', [T, d, h], [k * cx, cy, zc], 'solid', [tilt, 0, 0]));
+  for (const x of [-s / 2, s / 2]) for (const y of [-s / 2, s / 2]) sh.push(cyl(3.2, x, y, -1, T + 1, 'hole'));
+  for (const y of [yr, yf]) sh.push(box([sw, G, T + 2], [0, y, T / 2], 'hole'));
+  for (const k of [-1, 1]) sh.push(S('cylinder', [2.2, 2.2, T + 1.4], [k * cx, cy, zc], 'hole', [0, 90, 0]));
+  return {
+    shapes: sh, holes: 8, parts: 1,
+    description: `A camera mount for a ${cam} mm wide camera (typical size: check your camera) tilted ${r1(tilt)} degrees, on a ${r1(X)} mm wide base plate with 4 M3 holes (3.2 mm) on a ${s} × ${s} mm pattern, 2 strap slots ${sw} mm wide and ${G} mm deep, and a 2.2 mm cross hole through each of the 2 cheeks for a retaining screw. Suggested material: TPU.`,
+  };
+}
+
 const BUILDERS: Record<string, (c: Cfg) => Built> = {
   'enclosure-box': enclosureBox,
   'board-case': boardCase,
@@ -278,6 +321,8 @@ const BUILDERS: Record<string, (c: Cfg) => Built> = {
   'spacer-set': spacerSet,
   'motor-mount': motorMount,
   'motor-wheel': wheel,
+  'grid-bin': gridBin,
+  'drone-camera-mount': droneMount,
 };
 
 /** The shapes and the facts for one config. cfg must already be normalised (normalizeCfg). */

@@ -107,12 +107,30 @@ export const TEMPLATES: TemplateDef[] = [
     ],
     marketLinks: [],
   },
+  {
+    id: 'grid-bin', name: 'Grid storage bin (42 mm module)', category: 'gadget', material: 'PLA', colour: 'any',
+    blurb: 'A storage bin sized in 42 mm grid units, with a simple stepped base that drops into the bin below. Not certified Gridfinity: check fit on your baseplate.',
+    fields: [
+      rng('ux', 'Units along X', 1, 4, 1, 2, '', '42 mm per unit'), rng('uy', 'Units along Y', 1, 4, 1, 2, '', '42 mm per unit'),
+      rng('hu', 'Height in units', 2, 6, 1, 3, '', '7 mm per unit'), rng('wall', 'Wall thickness', 1.2, 2, 0.2, 1.2),
+      rng('div', 'Dividers', 0, 3, 1, 0, ''), bool('label', 'Label tab on the front wall', false),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'drone-camera-mount', name: 'Drone camera mount (TPU-friendly)', category: 'drone', material: 'TPU', colour: 'black',
+    blurb: 'A base plate on a standard M3 hole pattern with two cheeks that hold an FPV camera at a tilt. Camera sizes are typical: check your camera.',
+    fields: [
+      sel('cam', 'Camera width', [['14', '14 mm (micro)'], ['19', '19 mm'], ['20', '20 mm']], '19'),
+      rng('tilt', 'Tilt angle', 0, 40, 1, 25, 'deg', 'Typical FPV is 15 to 35'),
+      sel('pattern', 'M3 hole spacing', [['20', '20 x 20 mm'], ['25.5', '25.5 x 25.5 mm'], ['30.5', '30.5 x 30.5 mm']], '25.5'),
+      rng('strap', 'Strap slot width', 8, 20, 1, 12, 'mm', 'Width of the strap or tie that goes through'),
+    ],
+    marketLinks: [],
+  },
 ];
 
-export const COMING_SOON = [
-  { id: 'gridfinity-bin', name: 'Gridfinity-compatible storage bin' },
-  { id: 'drone-camera-mount', name: 'Drone action-camera mount (TPU)' },
-];
+export const COMING_SOON: { id: string; name: string }[] = [];
 
 export const templateById = (id: unknown) => (typeof id === 'string' ? TEMPLATES.find((t) => t.id === id) ?? null : null);
 
