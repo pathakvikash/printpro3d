@@ -4,7 +4,7 @@ import { business } from '@/lib/contact';
 
 const COLUMNS = [
   { title: 'Order', links: [['/quote', 'Get a quote'], ['/request', 'Describe your idea'], ['/shop', 'Shop'], ['/build', 'Build it yourself'], ['/track', 'Track order']] },
-  { title: 'Learn', links: [['/materials', 'Materials'], ['/motor-test', 'Motor test'], ['/how-it-works', 'How it works'], ['/about', 'About'], ['/contact', 'Contact']] },
+  { title: 'Learn', links: [['/materials', 'Materials'], ['/build', 'Build and simulate'], ['/how-it-works', 'How it works'], ['/about', 'About'], ['/contact', 'Contact']] },
 ] as const;
 
 export default function Footer() {

@@ -1,9 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
-import PlaygroundScene, { type Pose, type Tool } from './playground/PlaygroundScene';
+import PlaygroundScene, { type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import { MOTORS, type PropMotor } from '@/lib/motors';
+import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, typicalMass } from '@/lib/flight/components';
+import { meshBody, printedDensity, type Body, type Vec3 } from '@/lib/flight/mass';
+import { trim } from '@/lib/flight/trim';
+import { propDiameterMm } from '@/lib/flight/rotor';
+import {
+  MASS_PARTS, NO_PARTS, PARTS_KEY, addMass, addMotor, loadParts, makeQuad, mountPoints, nextSpin, patchMass, patchMotor, pushHistory, redoHistory,
+  removePart, savedParts, undoHistory, type History, type Parts,
+} from '@/lib/flight/layout';
 import { BED_MM, fitsBed, meshStats } from '@/lib/quote';
 import { exampleById } from '@/lib/examples';
 import {
@@ -13,9 +23,10 @@ import {
 
 const KEY = 'printpro3d.playground.v1';
 const AI_KEY = 'printpro3d.aidesign.v1'; // written by the Draw it with AI form
-const HISTORY_CAP = 50;
-
-type History = { past: Shape[][]; now: Shape[]; future: Shape[][]; key?: string; at?: number };
+const PROP_MOTOR = MOTORS.find((m): m is PropMotor => m.kind === 'prop')!;
+const FlightHud = dynamic(() => import('./playground/FlightHud'), { ssr: false });
+const clampPos = (v: number) => Math.max(-MAX_POS_MM, Math.min(MAX_POS_MM, v));
+const asV3 = (p: Vec3): V3 => ({ x: p[0], y: p[1], z: p[2] });
 
 const btnBase = 'rounded-xl border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const btnIdle = 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800';
@@ -68,6 +79,16 @@ function VecRow({ title, unit, value, onChange, min, labels }: {
   );
 }
 
+function loadPartsSaved(): Parts {
+  try { return loadParts(localStorage.getItem(PARTS_KEY)); } catch { return NO_PARTS; }
+}
+
+function PosRow({ value, onChange }: { value: Vec3; onChange: (p: Vec3) => void }) {
+  return (
+    <VecRow title="Position" unit="mm" value={asV3(value)} onChange={(a, v) => onChange(value.map((o, i) => (['x', 'y', 'z'][i] === a ? clampPos(v) : o)) as Vec3)} />
+  );
+}
+
 function load(): Shape[] {
   try {
     return parseDesign(localStorage.getItem(KEY));
@@ -116,7 +137,14 @@ export default function Playground() {
   const example = exampleById(params.get('example'));
   // captured once; the key is removed after mount (StrictMode runs initializers twice)
   const [aiDraft] = useState<AiDraft | null>(() => (typeof window !== 'undefined' && params.get('from') === 'ai' ? loadAiDraft() : null));
-  const [h, setH] = useState<History>(() => ({ past: [], now: example ? structuredClone(example.shapes) : aiDraft ? structuredClone(aiDraft.shapes) : load(), future: [] }));
+  const wantSim = params.get('sim') === '1';
+  const [h, setH] = useState<History>(() => ({
+    past: [], future: [],
+    now: {
+      shapes: example ? structuredClone(example.shapes) : aiDraft ? structuredClone(aiDraft.shapes) : load(),
+      parts: example || aiDraft ? NO_PARTS : loadPartsSaved(),
+    },
+  }));
   const loadedExample = useRef(example?.id ?? null);
   const touched = useRef(false); // an untouched example never overwrites the saved design
   const editor = useRef<HTMLDivElement>(null);
@@ -128,7 +156,14 @@ export default function Playground() {
   const offerRef = useRef<HTMLDivElement>(null);
   const scrollToOffer = useCallback(() => offerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
   const autoPriced = useRef(false);
-  const shapes = h.now;
+  const shapes = h.now.shapes;
+  const parts = h.now.parts;
+  const [partSel, setPartSel] = useState<string | null>(null);
+  const [placing, setPlacing] = useState<Placing | null>(() => (wantSim && !h.now.parts.motors.length ? { kind: 'motor', spin: 'ccw', motorId: PROP_MOTOR.id } : null));
+  const [simulate, setSimulate] = useState(() => wantSim && h.now.parts.motors.length > 0);
+  const [estimated, setEstimated] = useState<string[]>([]);
+  const [frame, setFrame] = useState<{ of: Shape[]; body: Body | null } | null>(null);
+  const locked = simulate;
   const shapesRef = useRef(shapes);
   shapesRef.current = shapes;
   const sel = shapes.find((s) => s.id === selectedId) ?? null;
@@ -136,20 +171,41 @@ export default function Playground() {
   const hasSolid = size !== null;
 
   // every change is one snapshot; repeated edits of the same field within a second share one (typing "25")
-  const commit = useCallback((next: (s: Shape[]) => Shape[], key?: string) => {
+  const commitDoc = useCallback((next: (d: History['now']) => History['now'], key?: string) => {
     touched.current = true;
-    setH((p) => {
-      const now = next(p.now);
-      const at = Date.now();
-      if (key && key === p.key && p.at !== undefined && at - p.at < 1000) return { ...p, now, at };
-      return { past: [...p.past, p.now].slice(-HISTORY_CAP), now, future: [], key, at };
-    });
+    setH((p) => pushHistory(p, next(p.now), key, Date.now()));
   }, []);
-  const undo = useCallback(() => setH((p) => (p.past.length ? { past: p.past.slice(0, -1), now: p.past[p.past.length - 1], future: [p.now, ...p.future] } : p)), []);
-  const redo = useCallback(() => setH((p) => (p.future.length ? { past: [...p.past, p.now].slice(-HISTORY_CAP), now: p.future[0], future: p.future.slice(1) } : p)), []);
+  const commit = useCallback((next: (s: Shape[]) => Shape[], key?: string) => commitDoc((d) => ({ ...d, shapes: next(d.shapes) }), key), [commitDoc]);
+  const commitParts = useCallback((next: (p: Parts) => Parts, key?: string) => commitDoc((d) => ({ ...d, parts: next(d.parts) }), key), [commitDoc]);
+  const undo = useCallback(() => { if (!locked) setH(undoHistory); }, [locked]);
+  const redo = useCallback(() => { if (!locked) setH(redoHistory); }, [locked]);
 
   const patch = (id: string, f: (s: Shape) => Shape, key?: string) => commit((all) => all.map((s) => (s.id === id ? f(s) : s)), key);
   const remove = useCallback((id: string) => { commit((all) => all.filter((s) => s.id !== id)); setSelectedId(null); }, [commit]);
+  const removeP = useCallback((id: string) => { commitParts((p) => removePart(p, id)); setPartSel(null); }, [commitParts]);
+  const selectShape = useCallback((id: string | null) => { setSelectedId(id); setPartSel(null); }, []);
+  const selectPart = useCallback((id: string) => { setPartSel(id); setSelectedId(null); }, []);
+  const motor = parts.motors.find((m) => m.id === partSel) ?? null;
+  const mass = parts.components.find((c) => c.id === partSel) ?? null;
+  const mounts = useMemo(() => mountPoints(shapes), [shapes]);
+  const startPlace = (p: Placing) => {
+    if (locked) return;
+    if (p.kind === 'motor' && parts.motors.length >= MAX_MOTORS) { setNote(`That is the limit: ${MAX_MOTORS} motors.`); return; }
+    if (p.kind === 'mass' && parts.components.length >= MAX_COMPONENTS) { setNote(`That is the limit: ${MAX_COMPONENTS} parts.`); return; }
+    setPlacing((cur) => (cur?.kind === p.kind && (p.kind === 'motor' || (cur as Placing & { name: string }).name === p.name) ? null : p));
+    setSelectedId(null); setPartSel(null);
+  };
+  const place = (pos: Vec3) => {
+    if (!placing) return;
+    const out = placing.kind === 'motor' ? addMotor(parts, pos, placing.motorId) : addMass(parts, placing.name, pos);
+    if (out.id) { commitParts(() => out.parts); setPartSel(out.id); }
+    setPlacing(null);
+  };
+  const movePart = useCallback((id: string, pos: Vec3) => {
+    const c = pos.map(clampPos) as Vec3;
+    commitParts((p) => ({ motors: patchMotor(p, id, (m) => ({ ...m, pos: c })).motors, components: patchMass(p, id, (m) => ({ ...m, pos: c })).components }));
+  }, [commitParts]);
+
 
   const full = () => {
     if (shapes.length < MAX_SHAPES) return false;
@@ -182,8 +238,8 @@ export default function Playground() {
     if (example && example.id !== loadedExample.current) {
       loadedExample.current = example.id;
       touched.current = false;
-      setH({ past: [], now: structuredClone(example.shapes), future: [] });
-      setSelectedId(null);
+      setH({ past: [], now: { shapes: structuredClone(example.shapes), parts: NO_PARTS }, future: [] });
+      setSelectedId(null); setPartSel(null); setSimulate(false);
     }
   }, [example]);
   // after undoing an add, the selection may point at nothing
@@ -191,11 +247,26 @@ export default function Playground() {
 
   useEffect(() => { try { sessionStorage.removeItem(AI_KEY); } catch {} }, []);
 
+  useEffect(() => { if (partSel && !parts.motors.some((m) => m.id === partSel) && !parts.components.some((c) => c.id === partSel)) setPartSel(null); }, [parts, partSel]);
+  useEffect(() => { if (simulate && !parts.motors.length) setSimulate(false); }, [simulate, parts.motors.length]);
+  // frame mass from the built mesh (uniform fill: an estimate), only while simulating
+  useEffect(() => {
+    if (!simulate) return;
+    let live = true;
+    const of = shapes;
+    buildOffThread(of).then((tris) => { if (live) setFrame({ of, body: tris ? meshBody(tris, null, printedDensity('PLA')) : null }); }, () => { if (live) setFrame({ of, body: null }); });
+    return () => { live = false; };
+  }, [simulate, shapes]);
+
   // autosave (private windows can throw; the editor works without it)
   useEffect(() => {
     if ((example || aiDraft) && !touched.current) return;
-    try { localStorage.setItem(KEY, JSON.stringify(shapes)); } catch {}
-  }, [shapes, example, aiDraft]);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(shapes));
+      const sp = savedParts(parts); // no motors: the parser needs one, so the key is cleared (mass parts alone are not kept)
+      if (sp) localStorage.setItem(PARTS_KEY, sp); else localStorage.removeItem(PARTS_KEY);
+    } catch {}
+  }, [shapes, parts, example, aiDraft]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -206,14 +277,14 @@ export default function Playground() {
         e.preventDefault();
         if (typing) (el as HTMLElement).blur(); // let the field show the restored value
         if (e.shiftKey) redo(); else undo();
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && selectedId) {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && !locked && (selectedId || partSel)) {
         e.preventDefault();
-        remove(selectedId);
-      }
+        if (partSel) removeP(partSel); else if (selectedId) remove(selectedId);
+      } else if (e.key === 'Escape') setPlacing(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo, remove, selectedId]);
+  }, [undo, redo, remove, removeP, selectedId, partSel, locked]);
 
   const build = async () => {
     setBusy(true);
@@ -261,6 +332,15 @@ export default function Playground() {
   const pose = useCallback((id: string, p: Pose) => commit((all) => all.map((s) => (s.id === id ? { ...s, ...p } : s))), [commit]);
   const names = shapes.map((s, i) => `${LABEL[s.kind]} ${shapes.slice(0, i + 1).filter((o) => o.kind === s.kind).length}`);
   const fits = size ? fitsBed(size) : false;
+  const frameReady = frame?.of === shapes;
+  const sim = useMemo<SimView | null>(() => {
+    if (!simulate || parts.motors.length < 3 || !frameReady) return null;
+    try {
+      const t = trim({ motors: parts.motors, components: parts.components, frame: frame?.body ?? undefined });
+      return { cg: [t.cgMm[0], t.cgMm[1], t.cgMm[2]], arrows: parts.motors.map((m, i) => ({ pos: m.pos, thrustN: t.motors[i].thrustN, maxN: t.motors[i].maxThrustN })) };
+    } catch { return null; }
+  }, [simulate, parts, frame, frameReady]);
+  const spinNow = nextSpin(parts.motors);
 
   return (
     <div className="space-y-6">
@@ -287,25 +367,49 @@ export default function Playground() {
         <div className="space-y-3 min-w-0">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Add a shape">
             {KINDS.map((k) => (
-              <button key={k} type="button" onClick={() => add(k)} className={btn}>+ {LABEL[k]}</button>
+              <button key={k} type="button" onClick={() => add(k)} disabled={locked} className={btn}>+ {LABEL[k]}</button>
             ))}
           </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
+            <button type="button" aria-pressed={placing?.kind === 'motor'} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} className={btnOn(placing?.kind === 'motor')}>+ Motor</button>
+            {MASS_PARTS.map((n) => {
+              const act = placing?.kind === 'mass' && placing.name === n;
+              return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} className={btnOn(act)}>+ {n === 'Flight controller' ? 'FC' : n}</button>;
+            })}
+          </div>
+          {placing && (
+            <p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
+              {placing.kind === 'motor'
+                ? 'Move over the model and click to place the motor. It snaps to a mount point (top of a cylinder or a hole) within 8 mm. Press Esc to cancel.'
+                : `Move over the model and click to place the ${placing.name}. Press Esc to cancel.`}
+            </p>
+          )}
 
-          <div className="h-[55vh] min-h-[320px] lg:h-[560px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950">
-            <PlaygroundScene shapes={shapes} selectedId={sel?.id ?? null} tool={tool} onSelect={setSelectedId} onPose={pose} />
+          <div className={`relative h-[55vh] min-h-[320px] lg:h-[560px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 ${placing ? 'cursor-crosshair' : ''}`}>
+            <PlaygroundScene
+              shapes={shapes} selectedId={sel?.id ?? null} tool={tool} onSelect={selectShape} onPose={pose}
+              parts={parts} partSel={partSel} onSelectPart={selectPart} onMovePart={movePart}
+              placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated}
+            />
+            {simulate && (
+              <FlightHud motors={parts.motors} components={parts.components} frame={frame?.body ?? null} frameMm={size ? { x: size.x, y: size.y } : null} frameState={frameReady ? 'ready' : 'building'} />
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">
             <div className="flex gap-2" role="group" aria-label="Transform mode">
               {([['translate', 'Move'], ['rotate', 'Rotate'], ['scale', 'Scale']] as const).map(([t, text]) => (
-                <button key={t} type="button" aria-pressed={tool === t} onClick={() => setTool(t)} className={btnOn(tool === t)}>{text}</button>
+                <button key={t} type="button" aria-pressed={tool === t} disabled={locked} onClick={() => setTool(t)} className={btnOn(tool === t)}>{text}</button>
               ))}
+              {parts.motors.length > 0 && (
+                <button type="button" aria-pressed={simulate} onClick={() => { setSimulate(!simulate); setPlacing(null); setSelectedId(null); setPartSel(null); }} className={btnOn(simulate)}>Simulate</button>
+              )}
             </div>
-            <button type="button" onClick={undo} disabled={!h.past.length} className={btn}>Undo</button>
-            <button type="button" onClick={redo} disabled={!h.future.length} className={btn}>Redo</button>
-            <button type="button" onClick={duplicate} disabled={!sel} className={btn}>Duplicate</button>
-            <button type="button" onClick={() => sel && remove(sel.id)} disabled={!sel} className={btn}>Delete</button>
-            <button type="button" onClick={clearAll} disabled={!shapes.length} className={btn}>Clear all</button>
+            <button type="button" onClick={undo} disabled={locked || !h.past.length} className={btn}>Undo</button>
+            <button type="button" onClick={redo} disabled={locked || !h.future.length} className={btn}>Redo</button>
+            <button type="button" onClick={duplicate} disabled={locked || !sel} className={btn}>Duplicate</button>
+            <button type="button" onClick={() => (partSel ? removeP(partSel) : sel && remove(sel.id))} disabled={locked || (!sel && !partSel)} className={btn}>Delete</button>
+            <button type="button" onClick={clearAll} disabled={locked || !shapes.length} className={btn}>Clear all</button>
           </div>
         </div>
 
@@ -321,7 +425,7 @@ export default function Playground() {
                     <button
                       type="button"
                       aria-pressed={s.id === sel?.id}
-                      onClick={() => setSelectedId(s.id)}
+                      onClick={() => !locked && selectShape(s.id)}
                       className={`w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-left ${s.id === sel?.id ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-100' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                       <span className="min-w-0">
@@ -336,7 +440,53 @@ export default function Playground() {
             )}
           </div>
 
-          {sel && (
+          {(motor || mass) && !locked && (
+            <div className={panel}>
+              {motor && (
+                <>
+                  <h3 className={heading}>Motor {motor.id}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{MOTORS.find((x) => x.id === motor.motorId)?.name}, {propDiameterMm(PROP_MOTOR.prop).toFixed(0)} mm prop. Not part of the printed model.</p>
+                  <div className="flex gap-2" role="group" aria-label="Spin direction">
+                    {(['cw', 'ccw'] as const).map((d) => (
+                      <button key={d} type="button" aria-pressed={motor.spin === d} onClick={() => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, spin: d })))} className={`${btnOn(motor.spin === d)} flex-1`}>
+                        Spin {d === 'cw' ? 'CW' : 'CCW'}
+                      </button>
+                    ))}
+                  </div>
+                  <PosRow value={motor.pos} onChange={(pos) => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, pos })), `mp${motor.id}`)} />
+                  <button type="button" onClick={() => commitParts((p) => makeQuad(p, motor.id))} className={`${btn} w-full`}>Make 4 (quad-X)</button>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Quad-X copies this motor&rsquo;s distance from the centre to all four corners and replaces the motors you have.</p>
+                </>
+              )}
+              {mass && (
+                <>
+                  <h3 className={heading}>{mass.name}</h3>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Mass (g), blank until you type it
+                    <input
+                      type="number" step="any" min={0} max={MAX_MASS_G} value={mass.massG ?? ''} placeholder="not set"
+                      aria-label={`${mass.name} mass in grams`}
+                      onChange={(e) => {
+                        const v = e.target.valueAsNumber;
+                        setEstimated((x) => x.filter((i) => i !== mass.id));
+                        commitParts((p) => patchMass(p, mass.id, (c) => ({ ...c, massG: Number.isFinite(v) ? Math.max(0, Math.min(MAX_MASS_G, v)) : null })), `mm${mass.id}`);
+                      }}
+                      className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </label>
+                  {typicalMass(mass.name) && (
+                    <button type="button" onClick={() => { const t = typicalMass(mass.name)!; setEstimated((x) => [...x, mass.id]); commitParts((p) => patchMass(p, mass.id, (c) => ({ ...c, massG: t.massG }))); }} className={`${btn} w-full`}>
+                      Use typical value
+                    </button>
+                  )}
+                  {estimated.includes(mass.id) && <p className="text-xs text-amber-700 dark:text-amber-300">ESTIMATE: typical {mass.name}, real parts vary widely. Weigh yours.</p>}
+                  <PosRow value={mass.pos} onChange={(pos) => commitParts((p) => patchMass(p, mass.id, (c) => ({ ...c, pos })), `cp${mass.id}`)} />
+                </>
+              )}
+            </div>
+          )}
+
+          {sel && !locked && (
             <div className={panel}>
               <h3 className={heading}>{names[shapes.indexOf(sel)]}</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -1,16 +1,25 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Edges, OrbitControls, TransformControls } from '@react-three/drei';
+import { Edges, Html, OrbitControls, TransformControls } from '@react-three/drei';
+import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import SafeCanvas from '../WebGLCanvas';
 import { BED_MM } from '@/lib/quote';
 import { MIN_SIZE, unitGeometry, type Shape } from '@/lib/playground';
+import { MOTORS } from '@/lib/motors';
+import { propDiameterMm } from '@/lib/flight/rotor';
+import { snapToMount, roundPos, type Parts } from '@/lib/flight/layout';
+import type { Vec3 } from '@/lib/flight/mass';
 
 export type Tool = 'translate' | 'rotate' | 'scale';
 export type Pose = Pick<Shape, 'position' | 'rotation' | 'size'>;
 
 const DEG = Math.PI / 180;
+export type Placing = { kind: 'motor'; spin: 'cw' | 'ccw'; motorId: string } | { kind: 'mass'; name: string };
+export type SimView = { cg: Vec3; arrows: { pos: Vec3; thrustN: number; maxN: number }[] };
+const BELL_R = 14, BELL_H = 12, PROP_Z = 14; // mm: a 2306-class bell, prop disc just above it
+const propMm = (motorId: string) => { const m = MOTORS.find((x) => x.id === motorId); return m && m.kind === 'prop' ? propDiameterMm(m.prop) : 127; };
 const r = (v: number, k = 1000) => Math.round(v * k) / k;
 
 // Z is up here exactly as in the exported STL: the plate is the XY plane centred on the origin.
@@ -40,8 +49,8 @@ function Plate() {
   );
 }
 
-function ShapeMesh({ shape, selected, onSelect, setObj }: {
-  shape: Shape; selected: boolean; onSelect: (id: string) => void; setObj: (o: THREE.Mesh | null) => void;
+function ShapeMesh({ shape, selected, onSelect, setObj, inert }: {
+  shape: Shape; selected: boolean; onSelect: (id: string) => void; setObj: (o: THREE.Object3D | null) => void; inert: boolean;
 }) {
   const g = unitGeometry(shape.kind);
   const hole = shape.mode === 'hole';
@@ -53,7 +62,7 @@ function ShapeMesh({ shape, selected, onSelect, setObj }: {
       position={[p.x, p.y, p.z]}
       rotation={[q.x * DEG, q.y * DEG, q.z * DEG]}
       scale={[s.x, s.y, s.z]}
-      onClick={(e) => { e.stopPropagation(); onSelect(shape.id); }}
+      onClick={(e) => { if (inert) return; e.stopPropagation(); onSelect(shape.id); }}
     >
       {hole
         ? <meshStandardMaterial color="#ef4444" transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} />
@@ -69,14 +78,97 @@ function ShapeMesh({ shape, selected, onSelect, setObj }: {
   );
 }
 
-export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose }: {
+/** Grey bell, translucent prop disc of the dataset's prop diameter, and an arc arrow showing the spin seen from above. */
+function MotorGlyph({ spin, motorId, ghost, selected }: { spin: 'cw' | 'ccw'; motorId: string; ghost?: boolean; selected?: boolean }) {
+  const d = propMm(motorId), op = ghost ? 0.5 : 1;
+  const arc = d * 0.42;
+  return (
+    <group>
+      <mesh position={[0, 0, BELL_H / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[BELL_R, BELL_R, BELL_H, 24]} />
+        <meshStandardMaterial color={selected ? '#e5e7eb' : '#9ca3af'} transparent={ghost} opacity={op} />
+      </mesh>
+      <mesh position={[0, 0, PROP_Z]}>
+        <circleGeometry args={[d / 2, 48]} />
+        <meshBasicMaterial color={ghost ? '#fbbf24' : '#38bdf8'} transparent opacity={ghost ? 0.22 : 0.16} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      {/* CCW seen from +Z is the positive rotation about Z; CW is the mirror image */}
+      <group position={[0, 0, PROP_Z + 0.5]} scale={[spin === 'cw' ? -1 : 1, 1, 1]}>
+        <mesh>
+          <torusGeometry args={[arc, 1.2, 6, 32, Math.PI * 1.5]} />
+          <meshBasicMaterial color="#fde047" />
+        </mesh>
+        <mesh position={[Math.cos(Math.PI * 1.5) * arc, Math.sin(Math.PI * 1.5) * arc, 0]} rotation={[0, 0, Math.PI * 1.5 + Math.PI]}>
+          <coneGeometry args={[4, 9, 12]} />
+          <meshBasicMaterial color="#fde047" />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function MassGlyph({ name, massG, estimate, ghost, selected }: { name: string; massG: number | null; estimate: boolean; ghost?: boolean; selected?: boolean }) {
+  return (
+    <group>
+      <mesh position={[0, 0, 4]}>
+        <boxGeometry args={[24, 14, 8]} />
+        <meshStandardMaterial color={selected ? '#fcd34d' : '#f59e0b'} transparent={ghost} opacity={ghost ? 0.5 : 0.9} />
+      </mesh>
+      <Html position={[0, 0, 14]} center style={{ pointerEvents: 'none' }}>
+        <span className="whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] text-white">
+          {name} · {massG === null ? '? g' : `${massG} g${estimate ? ' (est.)' : ''}`}
+        </span>
+      </Html>
+    </group>
+  );
+}
+
+/** CG marker plus one thrust arrow per motor, length = thrust (1 N = 12 mm, at least 6 mm). */
+function SimOverlay({ view }: { view: SimView }) {
+  return (
+    <>
+      <mesh position={view.cg}>
+        <sphereGeometry args={[3.5, 16, 12]} />
+        <meshBasicMaterial color="#ef4444" depthTest={false} />
+      </mesh>
+      <Html position={view.cg} style={{ pointerEvents: 'none' }}><span className="ml-3 whitespace-nowrap rounded bg-red-600 px-1 py-0.5 text-[10px] text-white">CG</span></Html>
+      {view.arrows.map((a, i) => {
+        const len = Math.max(6, Math.max(0, a.thrustN) * 12);
+        return (
+          <group key={i} position={a.pos}>
+            <mesh position={[0, 0, len / 2]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[1.2, 1.2, len, 8]} />
+              <meshBasicMaterial color="#22c55e" depthTest={false} />
+            </mesh>
+            <mesh position={[0, 0, len + 3]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[3.5, 7, 12]} />
+              <meshBasicMaterial color="#22c55e" depthTest={false} />
+            </mesh>
+          </group>
+        );
+      })}
+    </>
+  );
+}
+
+export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose, parts, partSel, onSelectPart, onMovePart, placing, mounts, onPlace, locked, sim, estimated }: {
   shapes: Shape[]; selectedId: string | null; tool: Tool;
   onSelect: (id: string | null) => void; onPose: (id: string, pose: Pose) => void;
+  parts: Parts; partSel: string | null; onSelectPart: (id: string) => void; onMovePart: (id: string, pos: Vec3) => void;
+  placing: Placing | null; mounts: Vec3[]; onPlace: (pos: Vec3) => void; locked: boolean; sim: SimView | null; estimated: string[];
 }) {
-  const [obj, setObj] = useState<THREE.Mesh | null>(null);
+  const [obj, setObj] = useState<THREE.Object3D | null>(null);
+  const [ghost, setGhost] = useState<{ pos: Vec3; snapped: boolean } | null>(null);
   const grab = () => {
+    if (!obj) return;
+    if (partSel) {
+      const next = roundPos([obj.position.x, obj.position.y, obj.position.z]);
+      const cur = parts.motors.find((m) => m.id === partSel)?.pos ?? parts.components.find((c) => c.id === partSel)?.pos;
+      if (cur && next.some((v, i) => v !== cur[i])) onMovePart(partSel, next);
+      return;
+    }
     const cur = shapes.find((x) => x.id === selectedId);
-    if (!obj || !cur) return;
+    if (!cur) return;
     const next: Pose = {
       position: { x: r(obj.position.x), y: r(obj.position.y), z: r(obj.position.z) },
       rotation: { x: r(obj.rotation.x / DEG), y: r(obj.rotation.y / DEG), z: r(obj.rotation.z / DEG) },
@@ -84,20 +176,57 @@ export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, on
     };
     if (JSON.stringify(next) !== JSON.stringify({ position: cur.position, rotation: cur.rotation, size: cur.size })) onPose(cur.id, next); // a click without a move is not an edit
   };
+  const hit = (e: ThreeEvent<PointerEvent | MouseEvent>): { pos: Vec3; snapped: boolean } => {
+    const p: Vec3 = [e.point.x, e.point.y, e.point.z];
+    return placing?.kind === 'motor' ? snapToMount(p, mounts) : { pos: p, snapped: false };
+  };
+  const pick = (id: string) => (e: ThreeEvent<MouseEvent>) => { if (placing || locked) return; e.stopPropagation(); onSelectPart(id); };
+  const selObj = (id: string) => (id === partSel ? setObj : undefined);
+  const showGhost = placing && ghost && !locked;
   return (
     <SafeCanvas
       camera={{ position: [100, -125, 100], up: [0, 0, 1], fov: 45, near: 1, far: 4000 }}
       dpr={[1, 2]}
-      onPointerMissed={() => onSelect(null)}
+      onPointerMissed={() => { if (!placing && !locked) onSelect(null); }}
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[120, -160, 300]} intensity={1.1} />
       <directionalLight position={[-200, 100, 100]} intensity={0.35} color="#818cf8" />
-      <Plate />
-      {shapes.map((s) => (
-        <ShapeMesh key={s.id} shape={s} selected={s.id === selectedId} onSelect={onSelect} setObj={setObj} />
+      <group
+        onPointerMove={placing ? (e) => setGhost(hit(e)) : undefined}
+        onPointerLeave={() => setGhost(null)}
+        onClick={placing ? (e) => { e.stopPropagation(); onPlace(roundPos(hit(e).pos)); } : undefined}
+      >
+        <Plate />
+        {shapes.map((s) => (
+          <ShapeMesh key={s.id} shape={s} selected={!partSel && s.id === selectedId} onSelect={onSelect} setObj={setObj} inert={!!placing || locked} />
+        ))}
+      </group>
+      {parts.motors.map((m) => (
+        <group key={m.id} ref={selObj(m.id)} position={m.pos} onClick={pick(m.id)}>
+          <MotorGlyph spin={m.spin} motorId={m.motorId} selected={m.id === partSel} />
+        </group>
       ))}
-      {obj && selectedId && <TransformControls object={obj} mode={tool} onMouseUp={grab} />}
+      {parts.components.map((c) => (
+        <group key={c.id} ref={selObj(c.id)} position={c.pos} onClick={pick(c.id)}>
+          <MassGlyph name={c.name} massG={c.massG} estimate={estimated.includes(c.id)} selected={c.id === partSel} />
+        </group>
+      ))}
+      {showGhost && (
+        <group position={ghost.pos} raycast={() => null}>
+          {placing.kind === 'motor'
+            ? <MotorGlyph spin={placing.spin} motorId={placing.motorId} ghost />
+            : <MassGlyph name={placing.name} massG={null} estimate={false} ghost />}
+          {ghost.snapped && (
+            <mesh position={[0, 0, 0.3]}>
+              <ringGeometry args={[BELL_R + 2, BELL_R + 4, 32]} />
+              <meshBasicMaterial color="#22c55e" side={THREE.DoubleSide} />
+            </mesh>
+          )}
+        </group>
+      )}
+      {sim && <SimOverlay view={sim} />}
+      {obj && !locked && !placing && (partSel || selectedId) && <TransformControls object={obj} mode={partSel ? 'translate' : tool} onMouseUp={grab} />}
       <OrbitControls makeDefault target={[0, 0, 15]} maxPolarAngle={Math.PI / 2 - 0.02} enableDamping={false} />
     </SafeCanvas>
   );
