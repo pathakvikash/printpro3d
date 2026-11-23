@@ -25,7 +25,7 @@ export async function GET(
       '.webp': 'image/webp',
     };
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': mimeMap[ext] || 'application/octet-stream',
         'X-Content-Type-Options': 'nosniff',
