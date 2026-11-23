@@ -243,7 +243,8 @@ export function toDesign(input: unknown): DesignResult {
     const position = vec(s.position, clampCoord), rotation = vec(s.rotation, clampCoord);
     const size = vec(s.size, (n) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, n)));
     if (!position || !rotation || !size) continue;
-    let id = '';
+    // a valid incoming id survives a revise; anything else gets a fresh one
+    let id = typeof s.id === 'string' && /^[\w-]{1,32}$/.test(s.id) && !seen.has(s.id) ? s.id : '';
     while (!id || seen.has(id)) id = Math.random().toString(36).slice(2, 10);
     seen.add(id);
     shapes.push({ id, kind: s.kind as Shape['kind'], mode: s.mode, position, rotation, size });

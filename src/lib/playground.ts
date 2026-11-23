@@ -82,7 +82,7 @@ export function shapeMatrix(s: Shape): Matrix4 {
   );
 }
 
-function worldVertices(s: Shape): Vector3[] {
+export function worldVertices(s: Shape): Vector3[] {
   const m = shapeMatrix(s);
   const pos = unitGeometry(s.kind).attributes.position;
   return Array.from({ length: pos.count }, (_, i) => new Vector3().fromBufferAttribute(pos, i).applyMatrix4(m));
