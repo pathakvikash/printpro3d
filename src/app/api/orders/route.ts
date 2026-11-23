@@ -15,7 +15,9 @@ import { filled, limited } from '@/lib/spam';
 
 // ponytail: orders are JSON records in the store (local disk, or Vercel Blob); list/filter in the admin page is a full scan — move to a DB if volume grows
 
-type SavedLine = OrderLine & { stats?: MeshStats | null; quote?: ReturnType<typeof quote> | null; cfg?: Cfg };
+export const maxDuration = 60; // seconds: template lines are rebuilt with CSG here (MAX_TPL_LINES caps it)
+
+type SavedLine =OrderLine & { stats?: MeshStats | null; quote?: ReturnType<typeof quote> | null; cfg?: Cfg };
 
 const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_QTY;
 

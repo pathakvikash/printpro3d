@@ -13,10 +13,13 @@ export type Checked =
   | { n: number; kind: 'tpl'; tpl: TemplateDef; cfg: Cfg; qty: number }
   | { n: number; kind: 'model'; file: string; material: string; qty: number };
 
+// Each template line is a CSG rebuild on the server (up to ~1 s, several when the kernel needs retries), so an
+// order carries at most this many distinct configured parts. Keeps one request well inside the function timeout.
+export const MAX_TPL_LINES = 5;
+
 // Same shop item, or same upload + material, becomes one line with the summed quantity.
 // A sum over MAX_QTY is refused, not capped: the customer must get the quantity they asked for.
-export function mergeChecked(reqs: Checked[]): Checked[] {
-  const out: Checked[] = [];
+export function mergeChecked(reqs: Checked[]): Checked[] {  const out: Checked[] = [];
   const at = new Map<string, number>();
   for (const r of reqs) {
     const key = JSON.stringify(r.kind === 'shop' ? ['shop', r.item.id] : r.kind === 'tpl' ? ['tpl', r.tpl.id, cfgKey(r.tpl, r.cfg)] : ['model', r.file, r.material]);
@@ -31,5 +34,6 @@ export function mergeChecked(reqs: Checked[]): Checked[] {
     if (qty > MAX_QTY) throw new Error(`item ${r.n}: quantity over ${MAX_QTY} after merging`);
     out[i] = { ...cur, qty };
   }
+  if (out.filter((r) => r.kind === 'tpl').length > MAX_TPL_LINES) throw new Error(`at most ${MAX_TPL_LINES} different configured parts per order`);
   return out;
 }
