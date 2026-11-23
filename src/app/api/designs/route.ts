@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseEmail } from '@/lib/contact';
-import { checkPrompt } from '@/lib/aiGuard';
+import { checkPrompt, DESIGN_PROMPT_MAX } from '@/lib/aiGuard';
 import { createFromMesh, createFromPrompt, createFromTemplate, DesignError } from '@/lib/designProjects';
 import { capabilities } from '@/lib/designAi';
 import { filled, limited } from '@/lib/spam';
@@ -14,7 +14,7 @@ export const maxDuration = 60; // seconds: up to two AI calls (questions, then t
 export const GET = () => NextResponse.json(capabilities());
 
 const checked = (v: unknown, what: string): string => {
-  const c = checkPrompt(v);
+  const c = checkPrompt(v, DESIGN_PROMPT_MAX);
   if (!c.ok) throw new DesignError(422, c.reason);
   return c.prompt.length >= 3 ? c.prompt : what;
 };

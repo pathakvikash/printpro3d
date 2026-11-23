@@ -4,6 +4,7 @@ import { getJson, putJson } from './store.ts';
 
 export const PROMPT_MIN = 3;
 export const PROMPT_MAX = 400;
+export const DESIGN_PROMPT_MAX = 600; // the blueprint planner takes a longer brief than the mesh generator
 
 // ponytail: static deny-list — add an LLM/vision classifier when volume justifies it; a human still approves every order
 // Plain words are matched on word boundaries, so "magazine rack" and "knife block" pass; only weapon-specific
@@ -37,10 +38,10 @@ const PROTECTED_RE = matcher(PROTECTED);
 
 export type PromptCheck = { ok: true; prompt: string } | { ok: false; reason: string };
 
-export function checkPrompt(input: unknown): PromptCheck {
+export function checkPrompt(input: unknown, max = PROMPT_MAX): PromptCheck {
   const prompt = typeof input === 'string' ? input.trim().replace(/\s+/g, ' ') : '';
-  if (prompt.length < PROMPT_MIN || prompt.length > PROMPT_MAX) {
-    return { ok: false, reason: `Describe your model in ${PROMPT_MIN} to ${PROMPT_MAX} characters.` };
+  if (prompt.length < PROMPT_MIN || prompt.length > max) {
+    return { ok: false, reason: `Describe your model in ${PROMPT_MIN} to ${max} characters.` };
   }
   const n = norm(prompt);
   if (WEAPON_RE.test(n.replace(ALLOWED_RE, ' '))) {

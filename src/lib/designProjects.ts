@@ -305,6 +305,9 @@ export const finalize = (id: string): Promise<Project> =>
     return p;
   });
 
+/** Stats of the print file a finalized project built (the sidecar priceModel reads), or null. */
+export const finalStats = async (p: Project): Promise<MeshStats | null> => (p.finalFile ? getJson<MeshStats>('uploads', `${p.finalFile}.stats.json`) : null);
+
 /** Called by /api/orders once the order is saved. */
 export const markOrdered = (id: string): Promise<Project> =>
   update(id, (p) => {
