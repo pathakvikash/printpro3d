@@ -66,7 +66,7 @@ test('placement: flight controller at centre, camera at front with typical tilt'
   assert.ok(cam.posMm && 'tiltDeg' in cam);
   assert.ok(cam.tiltDeg >= 15 && cam.tiltDeg <= 35);
   assert.equal(cam.posMm[0], 0);
-  assert.ok(cam.posMm[1] > 20);
+  assert.ok(cam.posMm[1] >= 15, 'front edge of the centre plate');
   assert.match(cam.reason, /typical \(FPV 15-35 deg\), adjust to taste/);
   assert.equal(cam.basis, 'typical');
 });
@@ -112,4 +112,22 @@ test('validate: AI plan only re-ranks or rewords; junk is rejected and nothing i
   assert.equal(r.rejected.length, 3);
   assert.deepEqual(applyAiPlan(cands, 'nope', plate).ordered.map((c) => c.kind), cands.map((c) => c.kind));
   assert.deepEqual(applyAiPlan(cands, JSON.parse('{"__proto__":1,"suggestions":[]}'), plate).ordered.length, cands.length);
+});
+
+test('review fixes: parts sit on real material, turned battery is checked turned, yaw wraps, off-centre frame spins', () => {
+  const cam = suggestPlacement('camera', plate, quad());
+  assert.ok(cam.posMm && cam.posMm[1] <= 20, `camera must sit over the 40 mm centre plate, not the gap between arms: ${cam.posMm}`);
+  assert.equal(validateSuggestion({ kind: 'fc', posMm: [0, 30, 8] }, plate).ok, false); // bbox of the X arms, but no material there
+  // long thin rail along y: the battery only fits turned, and stacks on the ESC under it
+  const rail = [{ ...plate[0], kind: 'box' as const, size: { x: 40, y: 160, z: 3 }, position: { x: 0, y: 0, z: 1.5 }, rotation: { x: 0, y: 0, z: 0 } }];
+  const esc = comp('ESC', [0, 20, 6], 15);
+  const b = suggestPlacement('battery', rail, { motors: [], components: [esc] });
+  assert.ok(b.posMm && 'yawDeg' in b && b.yawDeg === 90, b.reason);
+  if (Math.abs(b.posMm[1] - 20) < 45) assert.ok(b.posMm[2] - 10 >= 9 - 1e-9, `turned battery must stack on the ESC, z=${b.posMm[2]}`);
+  const y = validateSuggestion({ kind: 'fc', yawDeg: 270 }, plate);
+  assert.ok(y.ok && y.value.yawDeg === -90);
+  const moved = plate.map((s) => ({ ...s, position: { ...s.position, x: s.position.x + 60 } }));
+  const m = suggestPlacement('motor', moved, none);
+  assert.ok(m.posMm && 'spin' in m, m.reason);
+  assert.deepEqual([m.posMm[0], m.posMm[1], m.spin], [88, 28, 'ccw']); // front-right of the frame, not of the bed
 });

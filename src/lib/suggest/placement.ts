@@ -6,7 +6,7 @@ import { mountPoints, type Parts } from '../flight/layout.ts';
 import { combine, pointBody, printedDensity, type Body, type Vec3 } from '../flight/mass.ts';
 import { typicalMass, type MassComponent } from '../flight/components.ts';
 import { trim } from '../flight/trim.ts';
-import { checkPlacement, classify, overlaps, partBox, PART_SIZE, solidBoxes, union, type Box, type PartKind } from './validate.ts';
+import { checkPlacement, classify, overFrame, overlaps, partBox, PART_SIZE, solidBoxes, union, type Box, type PartKind } from './validate.ts';
 
 export type Placement = {
   posMm: Vec3; yawDeg: number; tiltDeg: number; spin?: 'cw' | 'ccw'; reason: string; basis: 'rule' | 'physics' | 'typical';
@@ -31,30 +31,30 @@ const compBox = (c: MassComponent): Box | null => { const k = classify(c.name); 
 const xyOverlap = (a: Box, b: Box) => a.lo[0] < b.hi[0] && b.lo[0] < a.hi[0] && a.lo[1] < b.hi[1] && b.lo[1] < a.hi[1];
 
 /** z of the part's centre when it rests on whatever is below its footprint (frame solids and already placed parts stack). */
-function restZ(kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts): number {
-  const s = PART_SIZE[kind], foot = partBox(kind, [xy[0], xy[1], 0]);
+function restZ(kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts, size: Vec3 = PART_SIZE[kind]): number {
+  const s = size, foot = partBox(kind, [xy[0], xy[1], 0], size);
   const below = [...solidBoxes(shapes), ...parts.components.map(compBox).filter((b): b is Box => !!b)].filter((b) => xyOverlap(b, foot));
   return Math.max(0, ...below.map((b) => b.hi[2])) + s[2] / 2;
 }
 
 function motorSpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult {
-  const taken = parts.motors.map((m) => m.pos);
-  let pads = mountPoints(shapes).filter((p) => Math.abs(p[0]) > PAD_MIN_MM && Math.abs(p[1]) > PAD_MIN_MM);
+  const taken = parts.motors.map((m) => m.pos), cx = (frame.hi[0] + frame.lo[0]) / 2, cy = (frame.hi[1] + frame.lo[1]) / 2;
+  let pads = mountPoints(shapes).filter((p) => Math.abs(p[0] - cx) > PAD_MIN_MM && Math.abs(p[1] - cy) > PAD_MIN_MM);
   let how = 'Snaps to a mount pad';
   if (!pads.length) { // no pads: the four frame corners, pulled in 20%
-    const hx = (frame.hi[0] - frame.lo[0]) * 0.4, hy = (frame.hi[1] - frame.lo[1]) * 0.4, cx = (frame.hi[0] + frame.lo[0]) / 2, cy = (frame.hi[1] + frame.lo[1]) / 2;
+    const hx = (frame.hi[0] - frame.lo[0]) * 0.4, hy = (frame.hi[1] - frame.lo[1]) * 0.4;
     pads = [[cx + hx, cy + hy, frame.hi[2]], [cx - hx, cy + hy, frame.hi[2]], [cx - hx, cy - hy, frame.hi[2]], [cx + hx, cy - hy, frame.hi[2]]];
     how = 'No mount pads found, so it goes near a frame corner';
   }
-  // quad-X order: front-right, front-left, rear-left, rear-right
-  const rank = (p: Vec3) => (p[1] > 0 ? (p[0] > 0 ? 0 : 1) : p[0] < 0 ? 2 : 3);
+  // quad-X order about the frame centre: front-right, front-left, rear-left, rear-right
+  const rank = (p: Vec3) => (p[1] > cy ? (p[0] > cx ? 0 : 1) : p[0] < cx ? 2 : 3);
   const free = pads.filter((p) => !taken.some((t) => Math.hypot(t[0] - p[0], t[1] - p[1]) < 8)).sort((a, b) => rank(a) - rank(b));
   const pad = free[0];
   if (!pad) return none('Every mount pad already has a motor.');
-  const spin = pad[0] * pad[1] > 0 ? 'ccw' : 'cw'; // quadX(): front-right and rear-left CCW, front-left and rear-right CW (props-in)
+  const spin = (pad[0] - cx) * (pad[1] - cy) > 0 ? 'ccw' : 'cw'; // quadX(): front-right and rear-left CCW, front-left and rear-right CW (props-in)
   const pos: Vec3 = [pad[0], pad[1], pad[2]], why = checkPlacement('motor', pos, shapes);
   if (why) return none(`The mount pad at (${round1(pad[0])}, ${round1(pad[1])}) is unusable: ${why}.`);
-  const corner = `${pad[1] > 0 ? 'front' : 'rear'}-${pad[0] > 0 ? 'right' : 'left'}`;
+  const corner = `${pad[1] > cy ? 'front' : 'rear'}-${pad[0] > cx ? 'right' : 'left'}`;
   return { posMm: pos, yawDeg: 0, tiltDeg: 0, spin, basis: 'rule', reason: `${how} at (${round1(pad[0])}, ${round1(pad[1])}), the ${corner} corner. Spin ${spin.toUpperCase()} so opposite corners cancel torque (quad-X, props in).` };
 }
 
@@ -70,11 +70,11 @@ function batterySpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult
 
   let best: { pos: Vec3; yaw: number; score: number; dist: number } | null = null;
   for (const yaw of [0, 90]) {
-    const [hw, hd] = yaw ? [d / 2, w / 2] : [w / 2, d / 2];
+    const [hw, hd] = yaw ? [d / 2, w / 2] : [w / 2, d / 2], size: Vec3 = [hw * 2, hd * 2, PART_SIZE.battery[2]];
     for (let x = frame.lo[0] + hw; x <= frame.hi[0] - hw + 1e-9; x += GRID_MM) for (let y = frame.lo[1] + hd; y <= frame.hi[1] - hd + 1e-9; y += GRID_MM) {
-      const pos: Vec3 = [x, y, restZ('battery', [x, y], shapes, parts)];
-      const box = yaw ? { lo: [x - hw, y - hd, pos[2] - PART_SIZE.battery[2] / 2], hi: [x + hw, y + hd, pos[2] + PART_SIZE.battery[2] / 2] } as Box : partBox('battery', pos);
-      if (!(box.hi[2] <= 250) || solidBoxes(shapes).some((s) => overlaps(box, s))) continue;
+      if (!overFrame(shapes, x, y)) continue; // must sit on real material, not in a gap between arms
+      const pos: Vec3 = [x, y, restZ('battery', [x, y], shapes, parts, size)];
+      if (!(partBox('battery', pos, size).hi[2] <= 250) || solidBoxes(shapes).some((s) => overlaps(partBox('battery', pos, size), s))) continue;
       const score = off(cgOf(pos)), dist = Math.hypot(x - centroid[0], y - centroid[1]);
       if (!best || score < best.score - 1e-6 || (Math.abs(score - best.score) <= 1e-6 && dist < best.dist)) best = { pos, yaw, score, dist };
     }
@@ -108,13 +108,15 @@ export function suggestPlacement(kind: PartKind, shapes: Shape[], parts: Parts):
     const cx = parts.motors.length ? parts.motors.reduce((a, m) => a + m.pos[0], 0) / parts.motors.length : (frame.lo[0] + frame.hi[0]) / 2;
     const cy = parts.motors.length ? parts.motors.reduce((a, m) => a + m.pos[1], 0) / parts.motors.length : (frame.lo[1] + frame.hi[1]) / 2;
     if (kind === 'camera') {
-      const y = frame.hi[1] - PART_SIZE.camera[1] / 2, z = restZ('camera', [cx, y], shapes, parts);
+      let y = frame.hi[1] - PART_SIZE.camera[1] / 2;
+      while (y > cy && !overFrame(shapes, cx, y)) y -= GRID_MM; // X frames have no material at the front centre: back off onto the plate
+      const z = restZ('camera', [cx, y], shapes, parts);
       r = { posMm: [round1(cx), round1(y), round1(z)], yawDeg: 0, tiltDeg: CAMERA_TILT_DEG, basis: 'typical', reason: `Front centre of the frame, tilted up ${CAMERA_TILT_DEG} deg: typical (FPV 15-35 deg), adjust to taste.` };
     } else {
       const z = restZ(kind, [cx, cy], shapes, parts), what = { fc: 'The flight controller goes at the centre, where the drone turns around', esc: 'The ESC goes at the centre, short wires to every motor', payload: 'The payload goes under the thrust centre so it does not tip the drone' }[kind];
       r = { posMm: [round1(cx), round1(cy), round1(z)], yawDeg: 0, tiltDeg: 0, basis: 'typical', reason: `${what} (typical layout).` };
     }
   }
-  if (r.posMm) { const why = checkPlacement(kind, r.posMm, shapes); if (why) return none(`The ${kind} spot found does not work: ${why}.`); }
+  if (r.posMm) { const turned = 'yawDeg' in r && r.yawDeg === 90 ? [PART_SIZE[kind][1], PART_SIZE[kind][0], PART_SIZE[kind][2]] as Vec3 : undefined, why = checkPlacement(kind, r.posMm, shapes, turned); if (why) return none(`The ${kind} spot found does not work: ${why}.`); }
   return r;
 }

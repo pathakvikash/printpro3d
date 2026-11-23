@@ -50,16 +50,26 @@ export function union(bs: Box[]): Box | null {
   return { lo: [0, 1, 2].map((i) => Math.min(...bs.map((b) => b.lo[i]))) as Vec3, hi: [0, 1, 2].map((i) => Math.max(...bs.map((b) => b.hi[i]))) as Vec3 };
 }
 export const overlaps = (a: Box, b: Box) => [0, 1, 2].every((i) => a.lo[i] < b.hi[i] - EPS && b.lo[i] < a.hi[i] - EPS);
+/** Is (x, y) over the shape's real outline (not its bbox)? Exact for shapes turned only about z; a shape tilted about x or y falls back to its bbox. */
+export function overShape(s: Shape, x: number, y: number): boolean {
+  if (Math.abs(s.rotation.x) > 1e-6 || Math.abs(s.rotation.y) > 1e-6) { const b = shapeBox(s); return x >= b.lo[0] && x <= b.hi[0] && y >= b.lo[1] && y <= b.hi[1]; }
+  const a = (-s.rotation.z * Math.PI) / 180, dx = x - s.position.x, dy = y - s.position.y;
+  const u = (dx * Math.cos(a) - dy * Math.sin(a)) / (s.size.x / 2), v = (dx * Math.sin(a) + dy * Math.cos(a)) / (s.size.y / 2);
+  if (s.kind === 'box' || s.kind === 'wedge') return Math.abs(u) <= 1 + 1e-9 && Math.abs(v) <= 1 + 1e-9;
+  const r = Math.hypot(u, v);
+  return r <= 1 + 1e-9 && (s.kind !== 'torus' || r >= 0.5 - 1e-9); // torus tube spans radius 0.25..0.5 of the 1-unit size
+}
+export const overFrame = (shapes: Shape[], x: number, y: number) => shapes.some((s) => s.mode === 'solid' && overShape(s, x, y));
 export const inBed = (b: Box) => Math.abs(b.lo[0]) <= BED.x / 2 && Math.abs(b.hi[0]) <= BED.x / 2 && Math.abs(b.lo[1]) <= BED.y / 2 && Math.abs(b.hi[1]) <= BED.y / 2 && b.lo[2] >= -EPS && b.hi[2] <= BED.z;
 
-/** null when the part at pos is acceptable, else why not: finite, in the bed, centre over the frame, no overlap with frame solids. */
-export function checkPlacement(kind: PartKind, pos: Vec3, shapes: Shape[]): string | null {
+/** null when the part at pos is acceptable, else why not: finite, in the bed, centre over real frame material, no overlap with frame solids. size: the part's (x, y, z) when turned (battery at yaw 90). */
+export function checkPlacement(kind: PartKind, pos: Vec3, shapes: Shape[], size?: Vec3): string | null {
   if (!pos.every((v) => Number.isFinite(v) && Math.abs(v) <= MAX_ABS)) return 'position is not a sensible number';
-  const box = partBox(kind, pos);
+  const box = partBox(kind, pos, size);
   if (!inBed(box)) return `outside the ${BED.x}x${BED.y}x${BED.z} mm bed`;
   const solids = solidBoxes(shapes), frame = union(solids);
   if (!frame) return 'there is no frame yet';
-  if (pos[0] < frame.lo[0] || pos[0] > frame.hi[0] || pos[1] < frame.lo[1] || pos[1] > frame.hi[1]) return 'outside the frame footprint';
+  if (!overFrame(shapes, pos[0], pos[1])) return 'its centre is not over any frame material';
   if (solids.some((s) => overlaps(box, s))) return 'would intersect the frame';
   return null;
 }
@@ -92,10 +102,11 @@ const BAD_KEYS = ['__proto__', 'constructor', 'prototype'];
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const angle = (v: unknown, lim: number): number | string => (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > MAX_ABS ? 'angle must be a finite number' : clamp(v, -lim, lim));
+const wrap180 = (v: number) => { const w = ((v % 360) + 540) % 360 - 180; return w === -180 ? 180 : w; };
 
 /**
  * One AI item. Rejects prototype keys, unknown keys, unknown kinds (or kinds not in `allowed`), NaN/huge numbers and positions outside the bed,
- * off the frame or inside it. Angles are clamped (yaw -180..180, tilt -90..90); the reason is cut to 200 chars with control characters removed.
+ * off the frame or inside it. Yaw wraps to -180..180 (270 is -90), tilt clamps to -90..90; the reason is cut to 200 chars with control characters removed.
  */
 export function validateSuggestion(raw: unknown, design: Shape[], allowed: readonly PartKind[] = PART_KINDS): Validated {
   const no = (error: string): Validated => ({ ok: false, error });
@@ -119,7 +130,7 @@ export function validateSuggestion(raw: unknown, design: Shape[], allowed: reado
     if (why) return no(`position rejected: ${why}`);
     out.posMm = [p[0], p[1], p[2]];
   }
-  if (raw.yawDeg !== undefined) { const a = angle(raw.yawDeg, 180); if (typeof a === 'string') return no(a); out.yawDeg = a; }
+  if (raw.yawDeg !== undefined) { const a = angle(raw.yawDeg, MAX_ABS); if (typeof a === 'string') return no(a); out.yawDeg = wrap180(a); }
   if (raw.tiltDeg !== undefined) { const a = angle(raw.tiltDeg, 90); if (typeof a === 'string') return no(a); out.tiltDeg = a; }
   return { ok: true, value: out };
 }
