@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { PrintMesh, PrintStage, prepGeometry } from './PrintMaterial';
 import { buildMesh, unitGeometry, solidsSize, type Shape } from '@/lib/playground';
@@ -10,7 +10,7 @@ const DEG = Math.PI / 180;
 
 /** The finished part (solids minus holes) as one print-ready geometry, or null if the shapes cannot be combined. */
 export function useBuiltGeometry(shapes: Shape[], mesh?: Float32Array | null) {
-  return useMemo(() => {
+  const geo = useMemo(() => {
     try {
       const tris = mesh !== undefined ? mesh : buildMesh(shapes); // a ready-made mesh (templates) is drawn as given, so preview and price use the same one
       if (!tris) return null;
@@ -21,6 +21,9 @@ export function useBuiltGeometry(shapes: Shape[], mesh?: Float32Array | null) {
       return null;
     }
   }, [shapes, mesh]);
+  // r3f disposes a mesh's geometry on unmount, not when the prop is swapped: every config change would leak a GPU buffer
+  useEffect(() => () => geo?.dispose(), [geo]);
+  return geo;
 }
 
 /** Live preview of an example as a printed part: layer lines, studio light, draggable turntable.

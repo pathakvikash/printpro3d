@@ -133,7 +133,7 @@ function FieldControl({ f, value, onChange }: { f: Field; value: number | string
           <button type="button" aria-label={`Increase ${f.label}`} disabled={v >= f.max} onClick={() => step(1)} className={`${ctl} h-8 w-8 px-0 disabled:opacity-40`}>+</button>
         </div>
       </div>
-      <input id={id} type="range" min={f.min} max={f.max} step={f.step} value={v} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full accent-indigo-600" />
+      <input id={id} type="range" min={f.min} max={f.max} step={f.step} value={v} aria-valuetext={`${v}${f.unit ? ` ${f.unit}` : ''}`} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full accent-indigo-600" />
     </div>
   );
 }
@@ -206,7 +206,7 @@ export function TemplateDialog({ t, reduceMotion, onClose }: { t: TemplateDef; r
           </button>
         </div>
 
-        <div className="grid md:grid-cols-[1.15fr_1fr]">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="space-y-3 p-5 pt-0">
             <div className="relative h-72 overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 sm:h-96">
               {r.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} interactive material={t.material} />}

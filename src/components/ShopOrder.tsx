@@ -246,7 +246,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
           </div>
         </div>
 
-        <div className="grid md:grid-cols-[1.15fr_1fr]">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="space-y-3 p-5 pt-0">
             <div className="h-72 overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 sm:h-96">
               {tab === 'photo' ? (
