@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import { blueprint } from '@/lib/blueprint';
+import Icon from './Icon';
 import BlueprintSheet from './BlueprintSheet';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart } from './CartProvider';
 
+// illustrative colours, same as MaterialCards
+const SWATCH: Record<MaterialKey, string> = { PLA: '#bfb49c', PETG: '#3f86ad', ABS: '#4a4f57', TPU: '#c2553f' };
 const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];
 
 // `label` names the model in the cart; `onAnother` (optional) resets the step so another model can be added
@@ -59,11 +62,11 @@ export default function QuoteOrder({
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button type="button" onClick={() => openCart('cart')} className={`${submitBtn} sm:w-auto sm:px-6`}>
-            View cart
+            <Icon name="cart" />View cart
           </button>
           {onAnother && (
             <button type="button" onClick={onAnother} className={secondaryBtn}>
-              Add another model
+              <Icon name="plus" />Add another model
             </button>
           )}
         </div>
@@ -92,40 +95,28 @@ export default function QuoteOrder({
 
       <fieldset className="space-y-2">
         <legend className={label}>Material</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div role="radiogroup" aria-label="Material" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {MATERIAL_KEYS.map((key) => {
             const selected = material === key;
             const total = priceFor(key);
             return (
               <label
                 key={key}
-                className={`flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
                   selected
                     ? 'border-indigo-600 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
                     : 'border-gray-200 bg-white hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-indigo-500'
                 }`}
               >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">{MATERIAL_INFO[key].label}</span>
-                  <input
-                    type="radio"
-                    name="material"
-                    value={key}
-                    checked={selected}
-                    onChange={() => setMaterial(key)}
-                    className="h-4 w-4 accent-indigo-600"
-                  />
-                </span>
-                <span className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[key].blurb}</span>
-                <span className="mt-auto pt-1 text-lg font-bold text-indigo-600 dark:text-indigo-400">
-                  {total !== null ? money.format(total) : 'Quote on request'}
-                  {total !== null && <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">for {qty}</span>}
-                </span>
-                {selected && <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">✓ Selected</span>}
+                <input type="radio" name="material" value={key} checked={selected} onChange={() => setMaterial(key)} className="sr-only" />
+                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/20 dark:border-white/30" style={{ backgroundColor: SWATCH[key] }} />
+                <span className="font-semibold text-gray-900 dark:text-gray-100">{MATERIAL_INFO[key].label}</span>
+                <span className="ml-auto font-semibold text-indigo-600 dark:text-indigo-400">{total !== null ? money.format(total) : 'Quote'}</span>
               </label>
             );
           })}
         </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb}</p>
       </fieldset>
 
       {sheet && (
@@ -136,22 +127,28 @@ export default function QuoteOrder({
         </section>
       )}
 
-      <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-        {price !== null
-          ? `Estimated price: ${money.format(price)}`
-          : !stats
+      {price !== null ? (
+        <p className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-900 dark:bg-indigo-950/40">
+          <Icon name="tag" className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Estimated price</span>
+          <span className="ml-auto text-2xl font-bold text-indigo-600 dark:text-indigo-400">{money.format(price)}</span>
+        </p>
+      ) : (
+        <p className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+          {!stats
             ? 'We will quote this one manually'
             : !fits
               ? `Larger than our ${BED_MM.x}×${BED_MM.y}×${BED_MM.z} mm print area — we will quote this one manually`
               : 'Enter a quantity between 1 and ' + MAX_QTY}
-      </p>
+        </p>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <button type="button" onClick={() => addToCart(false)} disabled={!validQty} className={submitBtn}>
-          Add to cart
+          <Icon name="cart" />Add to cart
         </button>
         <button type="button" onClick={() => addToCart(true)} disabled={!validQty} className={`${secondaryBtn} w-full disabled:opacity-50`}>
-          Add and checkout
+          <Icon name="check" />Add and checkout
         </button>
       </div>
     </div>

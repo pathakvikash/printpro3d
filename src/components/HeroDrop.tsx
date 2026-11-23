@@ -1,5 +1,6 @@
 'use client';
 
+import Icon from './Icon';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
@@ -37,7 +38,7 @@ export default function HeroDrop() {
           onClick={() => input.current?.click()}
           className="mt-4 inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
-          Get an instant quote
+          <Icon name="bolt" className="mr-2 h-4 w-4" />Get an instant quote
         </button>
       </div>
       {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}

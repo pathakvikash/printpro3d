@@ -1,5 +1,6 @@
 'use client';
 
+import Icon from './Icon';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { CATALOG } from '@/lib/catalog';
@@ -230,7 +231,7 @@ function Drawer() {
             onClick={closeCart}
             className={secondaryBtn}
           >
-            Open in builder
+            <Icon name="wrench" />Open in builder
           </Link>
           <button
             type="button"
@@ -306,10 +307,10 @@ function Drawer() {
           <p className="text-gray-700 dark:text-gray-200">Your cart is empty.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href="/shop" onClick={closeCart} className={secondaryBtn}>
-              Browse ready items
+              <Icon name="tag" />Browse ready items
             </Link>
             <Link href="/quote" onClick={closeCart} className={secondaryBtn}>
-              Upload a file
+              <Icon name="upload" />Upload a file
             </Link>
           </div>
         </div>
@@ -439,7 +440,7 @@ function Drawer() {
               </p>
             )}
             <button ref={checkoutBtn} type="button" onClick={() => setCheckout(true)} className={submitBtn}>
-              Checkout
+              <Icon name="check" />Checkout
             </button>
           </div>
         )}

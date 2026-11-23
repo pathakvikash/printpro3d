@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Icon from '@/components/Icon';
 import { redirect } from 'next/navigation';
 import HomeShop from '@/components/HomeShop';
 import HeroPart from '@/components/HeroPart';
@@ -217,7 +218,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
             href="/quote"
             className="mt-8 inline-flex items-center justify-center px-8 py-4 rounded-md bg-white text-gray-900 font-semibold text-lg hover:bg-gray-100 transition-colors"
           >
-            Get an instant quote
+            <Icon name="bolt" className="mr-2 h-5 w-5" />Get an instant quote
           </Link>
         </div>
       </section>

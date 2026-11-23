@@ -1,5 +1,6 @@
 'use client';
 
+import Icon from './Icon';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -97,9 +98,9 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
             type="button"
             aria-haspopup="dialog"
             onClick={(e) => onView(item.id, e.currentTarget)}
-            className="absolute bottom-2 right-2 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           >
-            View in 3D
+            <Icon name="cube" className="h-3.5 w-3.5" />View in 3D
           </button>
         </div>
       ) : (
@@ -126,7 +127,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
             onClick={(e) => onView(item.id, e.currentTarget)}
             className={`${secondaryBtn} w-full`}
           >
-            View in 3D
+            <Icon name="cube" />View in 3D
           </button>
         )}
 
@@ -138,9 +139,9 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
               add({ kind: 'shop', id: item.id, qty });
               toast('Added to cart', true);
             }}
-            className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
           >
-            Add to cart
+            <Icon name="cart" />Add to cart
           </button>
         </div>
         {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
@@ -265,8 +266,8 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
                   </button>
                 ))}
               </div>
-              <button type="button" aria-pressed={sheet} onClick={() => setSheet((v) => !v)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">
-                Blueprint {sheet ? '↑' : '↓'}
+              <button type="button" aria-pressed={sheet} onClick={() => setSheet((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">
+                <Icon name="grid" />Blueprint {sheet ? '↑' : '↓'}
               </button>
             </div>
           </div>
@@ -293,15 +294,15 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
                   toast('Added to cart', true);
                   setAdded(true);
                 }}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               >
-                {added ? 'Added' : 'Add to cart'}
+                {added ? <><Icon name="check" />Added</> : <><Icon name="cart" />Add to cart</>}
               </button>
             </div>
             {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Link href={`/blueprint/${item.id}`} className={`${secondaryBtn} w-full`}>See the drawing</Link>
-              <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}>Customise in the builder</Link>
+              <Link href={`/blueprint/${item.id}`} className={`${secondaryBtn} w-full`}><Icon name="eye" />See the drawing</Link>
+              <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Customise in the builder</Link>
             </div>
           </div>
         </div>

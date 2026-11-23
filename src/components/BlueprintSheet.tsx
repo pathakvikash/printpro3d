@@ -1,8 +1,9 @@
 'use client';
 // Renders a blueprint SVG string (from lib/blueprint.ts) with PNG and print buttons. No three.js.
+import Icon from './Icon';
 import { useRef } from 'react';
 
-const btn = 'rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700';
+const btn = 'inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700';
 
 export default function BlueprintSheet({ svg, filename }: { svg: string; filename: string }) {
   const box = useRef<HTMLDivElement>(null);
@@ -36,8 +37,8 @@ export default function BlueprintSheet({ svg, filename }: { svg: string; filenam
       <div ref={box} tabIndex={0} aria-label="Blueprint sheet, scrolls sideways on small screens" className="bp-print overflow-x-auto rounded-xl border border-gray-300 dark:border-gray-700 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[760px]" dangerouslySetInnerHTML={{ __html: svg }} />
       <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 sm:hidden">Swipe the sheet sideways to see all of it.</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className={btn} onClick={png}>Download PNG</button>
-        <button type="button" className={btn} onClick={() => window.print()}>Print or save as PDF</button>
+        <button type="button" className={btn} onClick={png}><Icon name="download" />Download PNG</button>
+        <button type="button" className={btn} onClick={() => window.print()}><Icon name="print" />Print or save as PDF</button>
       </div>
     </div>
   );

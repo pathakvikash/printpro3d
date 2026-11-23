@@ -1,5 +1,6 @@
 'use client';
 
+import Icon from './Icon';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { describeStatus, ORDER_STAGES, ORDER_STATUSES, type TrackType } from '@/lib/tracking';
@@ -225,14 +226,14 @@ export default function TrackOrder() {
           <input id="track-id" value={id} onChange={(e) => setId(e.target.value)} required maxLength={64} className={input} />
         </div>
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={busy || !id.trim()} className={submitBtn}>{busy ? 'Looking...' : 'Track'}</button>
+        <button type="submit" disabled={busy || !id.trim()} className={submitBtn}><Icon name="search" />{busy ? 'Looking...' : 'Track'}</button>
       </form>
       <button
         type="button"
         onClick={() => setDemoStatus(stageStatus(DEMO_START_STAGE))}
         className={`${secondaryBtn} w-full`}
       >
-        See a demo order
+        <Icon name="play" />See a demo order
       </button>
       {result && <OrderView id={result.id} data={result.data} />}
     </div>
