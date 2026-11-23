@@ -109,6 +109,12 @@ test('normalizeCfg: strict rejects, lenient repairs', () => {
   assert.throws(() => normalizeCfg(t, { motor: 'n20', base: 4, extra: 1 }, true));
   assert.throws(() => normalizeCfg(t, { motor: 'n20' }, true));
   assert.throws(() => normalizeCfg(t, null, true));
+  // JSON bodies: __proto__/constructor arrive as own keys and are unknown fields; NaN-ish and huge numbers are refused
+  assert.throws(() => normalizeCfg(t, JSON.parse('{"motor":"n20","base":4,"__proto__":{"polluted":1}}'), true), /unknown config field "__proto__"/);
+  assert.throws(() => normalizeCfg(t, { motor: 'n20', base: 4, constructor: 1 }, true), /unknown/);
+  assert.equal(({} as Record<string, unknown>).polluted, undefined);
+  for (const base of [1e308, -1e308, Number.NaN, Infinity, '4', null]) assert.throws(() => normalizeCfg(t, { motor: 'n20', base }, true), /bad value/);
+  assert.throws(() => normalizeCfg(t, { motor: '<img src=x onerror=alert(1)>', base: 4 }, true), /bad value/);
   assert.deepEqual(normalizeCfg(t, { motor: 'x', base: 99 }), defaultCfg(t));
   assert.equal(normalizeCfg(t, { motor: 'tt', base: 4.26 }, true).base, 4.5); // snapped to the step
 });
@@ -138,7 +144,8 @@ test('order line: price comes from the config; a cart line cannot set it', () =>
   const other = { ...cheat, cfg: { ...cfg, len: 38 } };
   assert.equal(addLine(addLine([cheat], cheat), other).length, 2);
   assert.notEqual(lineKey(cheat), lineKey(other));
-  assert.equal(parseCart([cheat, { ...cheat, id: 'nope' }, { ...cheat, unitPrice: 'x' }, { ...cheat, cfg: { screw: 'M9' } }]).length, 2); // bad cfg is repaired to defaults, unknown id and bad price dropped
+  assert.equal(parseCart([cheat, { ...cheat, id: 'nope' }, { ...cheat, unitPrice: 'x' }, { ...cheat, cfg: { screw: 'M9' } }]).length, 1); // stale/bad cfg, unknown id and bad price are all dropped
+  assert.deepEqual(parseCart([{ ...cheat, cfg: { ...cfg, len: 38.4 } }]).map((l) => l.kind === 'tpl' && l.cfg.len), [38]); // in range: snapped, kept
   const a = { n: 1, kind: 'tpl' as const, tpl: t, cfg, qty: MAX_QTY };
   assert.throws(() => mergeChecked([a, { ...a, n: 2, qty: 1 }]), /over/);
   assert.equal(mergeChecked([{ ...a, qty: 1 }, { ...a, n: 2, qty: 2 }, { ...a, n: 3, cfg: { ...cfg, len: 38 }, qty: 1 }]).length, 2);

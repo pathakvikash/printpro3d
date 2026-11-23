@@ -39,7 +39,12 @@ export function parseCart(raw: unknown): CartLine[] {
     } else if (o.kind === 'tpl') {
       const t = templateById(o.id);
       const unit = o.unitPrice;
-      if (t && typeof unit === 'number' && Number.isFinite(unit) && unit >= 0) out.push({ kind: 'tpl', id: t.id, cfg: normalizeCfg(t, o.cfg), qty: o.qty, unitPrice: unit });
+      if (!t || typeof unit !== 'number' || !Number.isFinite(unit) || unit < 0) continue;
+      // strict: a config saved before the template's options changed is dropped, never silently swapped for defaults
+      // (the customer would order a different part than the one they saw)
+      try {
+        out.push({ kind: 'tpl', id: t.id, cfg: normalizeCfg(t, o.cfg, true), qty: o.qty, unitPrice: unit });
+      } catch {}
     } else if (o.kind === 'model') {
       const file = str(o.file, 200);
       const material = str(o.material, 20);
