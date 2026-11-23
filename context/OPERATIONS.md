@@ -34,7 +34,16 @@ Local data folders (gitignored): `uploads/`, `orders/`, `requests/`, `ai-jobs/`,
 ```bash
 npm run order:status -- <order-id> <status>   # also emails the customer
 npm run ai:models                             # models the configured provider offers
+npm run designs:prune                         # delete unordered design projects older than 30 days (run weekly)
 ```
+
+## Design projects (blueprint-first flow)
+
+Projects live in the `designs` namespace (`designs/<uuid>.json`); a finalized one also wrote its STL and `.stats.json` into `uploads/`. Lifecycle: draft -> approved -> finalized -> ordered. The customer approves; the owner still reviews the order at `pending_review`. Orders carry the project id and revision in the notes.
+
+Caps (env, see `.env.example`): `AI_REVISIONS_PER_PROJECT` (default 5 AI revisions per project), `AI_DAILY_PER_EMAIL` (default 20 AI calls per email per UTC day for this flow). A repeated request (same normalised text on the same blueprint) is served from `design-cache/` and does not count. `AI_DESIGN_TIER` picks the model tier (default `mid`). Without an AI key, templates and manual edits work and AI routes answer 503 "AI is not configured". The Meshy source is offered only when `MESHY_API_KEY` is set (`GET /api/designs` reports `meshy`). Uploaded meshes are scale-only (STL).
+
+`npm run designs:prune` deletes projects never ordered and older than 30 days, with their STL. Run it weekly (cron or by hand).
 
 ## Deploy (Vercel)
 

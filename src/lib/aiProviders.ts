@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { buildChatRequest, designModel, type ChatInput } from './aiBlueprint.ts';
 import { SYSTEM_PROMPT, anthropicHeaders, buildRequest, endpointFor, extractReplyText, modelFor, pickProvider, type DesignInput, type Env, type ProviderId } from './aiDesign.ts';
 
 const TIMEOUT_MS = 60_000;
@@ -30,7 +31,7 @@ async function post(req: { url: string; headers: Record<string, string>; body: u
 // The CLI's Read tool can read any absolute path, so this provider is for the owner's own local tests with the owner's own prompts only.
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as const;
 
-async function runCli(input: DesignInput, env: Env): Promise<string> {
+async function runCli(input: DesignInput, env: Env, system: string = SYSTEM_PROMPT): Promise<string> {
   if (env.NODE_ENV === 'production' || env.VERCEL || env.AI_ALLOW_CLI !== '1') throw new Error(NOT_CONFIGURED);
   const dir = await mkdtemp(path.join(tmpdir(), 'ai-design-'));
   try {
@@ -42,7 +43,7 @@ async function runCli(input: DesignInput, env: Env): Promise<string> {
       prompt = `First use the Read tool on the image file ${file}. Then answer with the JSON object only.`;
     }
     const args = ['-p', '--output-format', 'json', '--tools', 'Read', '--max-turns', '4', '--no-session-persistence', '--disable-slash-commands',
-      '--strict-mcp-config', '--model', modelFor('claude-cli', env)!, '--system-prompt', SYSTEM_PROMPT, '--', `${text}\n\n${prompt}`];
+      '--strict-mcp-config', '--model', modelFor('claude-cli', env)!, '--system-prompt', system, '--', `${text}\n\n${prompt}`];
     // only what the CLI needs to find its login; never ANTHROPIC_API_KEY
     const cliEnv = {} as NodeJS.ProcessEnv; // Next's types make NODE_ENV required; we deliberately omit it
     for (const k of ['PATH', 'HOME', 'CLAUDE_CONFIG_DIR']) if (env[k]) cliEnv[k] = env[k]!;
@@ -121,4 +122,15 @@ export async function listModels(env: Env): Promise<{ provider: ProviderId; mode
     return { id: m.id as string, ...(name ? { name } : {}), vision };
   });
   return { provider, models };
+}
+
+/** One text-only call with a caller-supplied system prompt and schema (blueprint flow). Returns the raw reply text. */
+export async function runChat(provider: ProviderId, chat: ChatInput, env: Env): Promise<string> {
+  if (provider === 'claude-cli') return runCli({ text: chat.user }, env, chat.system);
+  const model = designModel(provider, env);
+  if (!model) throw new Error(NOT_CONFIGURED);
+  const ep = provider === 'openai' ? endpointFor(env) : null;
+  if (provider === 'anthropic' ? !env.ANTHROPIC_API_KEY : !ep) throw new Error(NOT_CONFIGURED);
+  const req = buildChatRequest(provider, chat, { model, apiKey: provider === 'anthropic' ? env.ANTHROPIC_API_KEY : ep!.apiKey, baseUrl: ep?.baseUrl ?? '' });
+  return extractReplyText(provider, await post(req));
 }

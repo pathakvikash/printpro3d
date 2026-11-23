@@ -1,5 +1,5 @@
 // Guardrails for AI generation: prompt screening and a per-day usage ledger. Server only.
-// Env: AI_DAILY_PER_EMAIL (default 3), AI_DAILY_TOTAL (default 40).
+// Env: AI_DAILY_PER_EMAIL (default 3; 20 for the blueprint flow), AI_DAILY_TOTAL (default 40; 200 for the blueprint flow).
 import { getJson, putJson } from './store.ts';
 
 export const PROMPT_MIN = 3;
@@ -65,8 +65,10 @@ const intEnv = (k: string, d: number) => {
 export const normEmail = (e: string) => e.trim().toLowerCase();
 const day = (now: Date) => now.toISOString().slice(0, 10); // UTC day
 // each kind has its own ledger and its own limits. generate keeps the original file name, so existing counts still apply.
-export type LedgerKind = 'generate' | 'design';
-const key = (now: Date, kind: LedgerKind) => (kind === 'design' ? `design-${day(now)}.json` : `${day(now)}.json`);
+// 'project' = the blueprint-first flow (create/revise): 20 per email per day by default, same env overrides.
+export type LedgerKind = 'generate' | 'design' | 'project';
+const key = (now: Date, kind: LedgerKind) => (kind === 'generate' ? `${day(now)}.json` : `${kind}-${day(now)}.json`);
+const DEFAULTS: Record<LedgerKind, { email: number; total: number }> = { generate: { email: 3, total: 40 }, design: { email: 3, total: 40 }, project: { email: 20, total: 200 } };
 
 async function load(now: Date, kind: LedgerKind): Promise<Ledger> {
   const l = await getJson<Ledger>('ai-usage', key(now, kind));
@@ -74,9 +76,9 @@ async function load(now: Date, kind: LedgerKind): Promise<Ledger> {
   return { total: 0, emails: {} };
 }
 
-function verdict(l: Ledger, email: string): Limit {
-  const perEmail = intEnv('AI_DAILY_PER_EMAIL', 3);
-  const total = intEnv('AI_DAILY_TOTAL', 40);
+function verdict(l: Ledger, email: string, kind: LedgerKind): Limit {
+  const perEmail = intEnv('AI_DAILY_PER_EMAIL', DEFAULTS[kind].email);
+  const total = intEnv('AI_DAILY_TOTAL', DEFAULTS[kind].total);
   if (l.total >= total) return { ok: false, scope: 'total', limit: total };
   if ((l.emails[normEmail(email)] ?? 0) >= perEmail) return { ok: false, scope: 'email', limit: perEmail };
   return { ok: true };
@@ -84,7 +86,7 @@ function verdict(l: Ledger, email: string): Limit {
 
 /** Is one more generation allowed today for this email? Read only: use takeUsage to count one. */
 export async function checkLimit(email: string, now = new Date(), kind: LedgerKind = 'generate'): Promise<Limit> {
-  return verdict(await load(now, kind), email);
+  return verdict(await load(now, kind), email, kind);
 }
 
 let chain: Promise<unknown> = Promise.resolve();
@@ -97,7 +99,7 @@ let chain: Promise<unknown> = Promise.resolve();
 export function takeUsage(email: string, now = new Date(), kind: LedgerKind = 'generate'): Promise<Limit> {
   const run = async (): Promise<Limit> => {
     const l = await load(now, kind);
-    const v = verdict(l, email);
+    const v = verdict(l, email, kind);
     if (!v.ok) return v;
     const k = normEmail(email);
     l.total += 1;
