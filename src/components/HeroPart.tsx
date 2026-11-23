@@ -22,7 +22,7 @@ export default function HeroPart() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20 transition-opacity duration-1000 lg:opacity-100">
+    <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-1000 lg:opacity-100">
       {ready && <HeroScene />}
     </div>
   );

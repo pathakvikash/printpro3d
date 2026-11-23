@@ -20,7 +20,8 @@ export const DELIVERABLES = [
 ] as const;
 
 // exampleId is the id of the design in examples.ts that the item is printed from
-export type Item = { id: string; exampleId: string; name: string; category: string; price: number; material: string; description: string };
+export type Item = { id: string; exampleId: string; name: string; category: string; price: number; material: string; description: string; photo?: string; photoAlt?: string };
+// photo: optional real photo path under /photos/ (see public/photos/README.md); unset keeps the live 3D preview
 
 export const CATALOG: Item[] = [
   { id: 'pawn', exampleId: 'pawn', name: 'Chess-style pawn', category: 'game', price: 129, material: 'PLA', description: 'A pawn made of a round base, a tapered body, a collar and a ball head.' },

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Logo from './Logo';
 import { useCart } from './CartProvider';
 import { business, phoneHref } from '@/lib/contact';
 
@@ -64,8 +65,8 @@ export default function Navbar() {
     <nav className='sticky top-0 z-50 w-full bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6'>
         <div className='flex items-center justify-between h-16'>
-          <Link href='/' className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>
-            PrintPro<span className='text-indigo-500'>3D</span>
+          <Link href='/' aria-label='PrintPro3D home' className='text-gray-900 dark:text-white'>
+            <Logo size={28} />
           </Link>
 
           {/* Page links: desktop */}

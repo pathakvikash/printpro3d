@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { CATALOG, CATEGORIES, type Item } from '@/lib/catalog';
@@ -58,20 +59,34 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
 
   useEffect(() => {
     const el = box.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (item.photo || !el || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(([en]) => setVisible(item.id, en.isIntersecting), { rootMargin: '100px' });
     io.observe(el);
     return () => {
       io.disconnect();
       setVisible(item.id, false); // a filtered-out card must not keep a canvas slot
     };
-  }, [item.id, setVisible]);
+  }, [item.id, item.photo, setVisible]);
 
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <div ref={box} className="h-44 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950" aria-hidden>
-        {live && <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} />}
-      </div>
+      {item.photo ? (
+        <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-800">
+          <Image src={item.photo} alt={item.photoAlt ?? item.name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={(e) => onView(item.id, e.currentTarget)}
+            className="absolute bottom-2 right-2 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          >
+            View in 3D
+          </button>
+        </div>
+      ) : (
+        <div ref={box} className="h-44 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950" aria-hidden>
+          {live && <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} />}
+        </div>
+      )}
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -83,14 +98,16 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
         <p className="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300">{dims} · {item.material}</p>
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{money.format(item.price)} each</p>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={(e) => onView(item.id, e.currentTarget)}
-          className={`${secondaryBtn} w-full`}
-        >
-          View in 3D
-        </button>
+        {!item.photo && (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={(e) => onView(item.id, e.currentTarget)}
+            className={`${secondaryBtn} w-full`}
+          >
+            View in 3D
+          </button>
+        )}
 
         <div className="mt-auto flex items-center gap-3 pt-2">
           <QtyStepper name={item.name} qty={qty} onChange={setQty} />

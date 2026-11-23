@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from './Logo';
 import { business } from '@/lib/contact';
 
 const COLUMNS = [
@@ -13,8 +14,8 @@ export default function Footer() {
     <footer className="bg-gray-950 text-gray-300">
       <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row md:justify-between gap-8">
         <div>
-          <Link href="/" className="text-xl font-bold text-white">
-            PrintPro<span className="text-indigo-400">3D</span>
+          <Link href="/" aria-label="PrintPro3D home" className="inline-block text-white">
+            <Logo size={32} />
           </Link>
           <p className="mt-2 text-sm text-gray-400">Custom 3D prints and designs, from one piece to wholesale.</p>
         </div>
