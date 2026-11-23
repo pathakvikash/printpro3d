@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCart } from './CartProvider';
+import { business, phoneHref } from '@/lib/contact';
 
 const LINKS = [
   { href: '/shop', label: 'Shop' },
@@ -87,6 +88,11 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className='flex items-center gap-1 sm:gap-4'>
+            {business.phone && (
+              <a href={`tel:${phoneHref}`} className='hidden lg:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap'>
+                {business.phone}
+              </a>
+            )}
             {/* Theme toggle */}
             <button
               aria-label='Toggle theme'

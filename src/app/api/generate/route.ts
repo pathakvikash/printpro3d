@@ -21,7 +21,7 @@ let active = 0;
 export async function POST(request: Request) {
   const slow = await limited(request, 'ai');
   if (slow) return slow;
-  if (!meshyEnabled()) return err('AI generation is not available right now. Please use "I have an idea" and we will design it.', 503);
+  if (!meshyEnabled()) return err('AI generation is not available right now. Please use "I have an idea" and we will review it and send you a quote.', 503);
 
   const len = request.headers.get('content-length');
   if (len === null || !(Number(len) <= MAX_IMG + 1024 * 1024)) return err('Request too large', 413);
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
     if (!limit.ok) {
       return err(
         limit.scope === 'email'
-          ? `You have reached the daily limit of ${limit.limit} AI models. Try again tomorrow, or use "I have an idea" and we will design it.`
-          : 'We have reached our daily limit of AI models. Try again tomorrow, or use "I have an idea" and we will design it.',
+          ? `You have reached the daily limit of ${limit.limit} AI models. Try again tomorrow, or use "I have an idea" and we will review it and send you a quote.`
+          : 'We have reached our daily limit of AI models. Try again tomorrow, or use "I have an idea" and we will review it and send you a quote.',
         429
       );
     }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     console.error('Generate: Meshy create failed:', e instanceof Error ? e.message : e);
     if (status === 400 || status === 403) return err("We couldn't generate that. Try a different description or photo, or use \"I have an idea\".", 422);
     if (status === 429) return err('The generator is busy. Please try again in a few minutes.', 503);
-    return err('AI generation is not available right now. Please use "I have an idea" and we will design it.', 503);
+    return err('AI generation is not available right now. Please use "I have an idea" and we will review it and send you a quote.', 503);
   } finally {
     inFlight.delete(who);
     active--;

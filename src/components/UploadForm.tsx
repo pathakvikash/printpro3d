@@ -5,6 +5,7 @@ import ModelViewer from './ModelViewer';
 import QuoteOrder from './QuoteOrder';
 import type { MeshStats } from '@/lib/quote';
 import { canGoDirect } from '@/lib/directMode';
+import { takePendingFile } from '@/lib/pendingFile';
 import { BLOB_PREFIX, DIRECT_MIN, extOf, fileProblem, newUploadName } from '@/lib/uploadRules';
 
 const validateFile = (f: File): string | null => fileProblem(f.name, f.size);
@@ -106,6 +107,16 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
     autoStarted.current = true;
     void runUpload(initialFile);
   }, [initialFile, runUpload]);
+
+  // a file picked on the home page: validate and upload it like a dropped one
+  useEffect(() => {
+    if (initialFile) return;
+    const f = takePendingFile();
+    if (!f) return;
+    const err = validateFile(f);
+    if (err) setError(err);
+    else void runUpload(f);
+  }, [runUpload, initialFile]);
 
   // runs after the quote section has rendered (the ref keeps an inline callback from re-firing on every render)
   const onQuoteRef = useRef(onQuote);

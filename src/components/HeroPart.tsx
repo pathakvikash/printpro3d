@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // three.js loads only after the page is idle, and not for visitors who prefer reduced motion
 const HeroScene = dynamic(() => import('./HeroScene'), { ssr: false, loading: () => null });
 
-// Animated glass torus knot + particles behind the hero text (all screen sizes).
+// Slowly turning torus knot beside the hero text.
 export default function HeroPart() {
   const [ready, setReady] = useState(false);
 
@@ -22,7 +22,7 @@ export default function HeroPart() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-1000 lg:opacity-100">
+    <div aria-hidden className="pointer-events-none absolute inset-0 opacity-20 transition-opacity duration-1000 lg:opacity-100">
       {ready && <HeroScene />}
     </div>
   );

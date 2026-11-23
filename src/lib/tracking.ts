@@ -29,8 +29,8 @@ export const ORDER_STATUSES: Record<string, Entry> = {
 };
 
 export const REQUEST_STATUSES: Record<string, Entry> = {
-  new: { stage: 0, sentence: 'We received your request. A designer will look at it.' },
-  designing: { stage: 1, sentence: 'A designer is working on your model.' },
+  new: { stage: 0, sentence: 'We received your request. We will review it.' },
+  designing: { stage: 1, sentence: 'We are working on your request.' },
   quote_sent: { stage: 2, sentence: 'We sent you a design and a quote.' },
   approved: { stage: 3, sentence: 'You approved the design. We will start printing.' },
   cancelled: { stage: -1, sentence: 'This request was cancelled.' },

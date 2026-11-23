@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import HomeShop from '@/components/HomeShop';
 import HeroPart from '@/components/HeroPart';
+import HeroDrop from '@/components/HeroDrop';
 import { modelFor, pickProvider } from '@/lib/aiDesign';
-import { CATALOG } from '@/lib/catalog';
-import { BED_MM, MATERIALS, MAX_QTY, type MaterialKey } from '@/lib/quote';
+import { BED_MM, MATERIALS, type MaterialKey } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 
 // read per request: the AI choice depends on MESHY_API_KEY at runtime, not at build time
@@ -12,19 +12,19 @@ export const dynamic = 'force-dynamic';
 
 const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];
 
-const FACTS = [
-  { value: String(MATERIAL_KEYS.length), label: 'Plastics', note: MATERIAL_KEYS.join(', ') },
-  { value: String(CATALOG.length), label: 'Ready-made parts', note: 'Our own designs, printed to order' },
-  { value: `${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm`, label: 'Largest part', note: 'Print volume' },
-  { value: `1 to ${MAX_QTY}+`, label: 'Pieces per order', note: 'More on request' },
-];
+// only claims the code backs: owner reviews each order and sends the payment link (api/orders), bed size from BED_MM
+const TRUST = [
+  { title: 'Every order is reviewed', text: 'A person checks your file and price before anything is printed.' },
+  { title: 'Pay after we confirm', text: 'You get a payment link once we have confirmed the order. Nothing is charged at checkout.' },
+  { title: `Up to ${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm`, text: 'Largest part we can print in one piece.' },
+] as const;
 
 // old links were /?start=<step>; keep them working
 const START_ROUTES: Record<string, string> = { file: '/quote', idea: '/request', ai: '/ai', design: '/draw', shop: '/shop', build: '/build', track: '/track' };
 
 // three starting points, in the order a visitor is likely to be ready; each says what to bring and what happens next
 const STARTS = [
-  { href: '/quote', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Upload a file' },
+  { href: '/quote', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Get an instant quote' },
   {
     href: '/request',
     title: 'Have an idea?',
@@ -47,15 +47,9 @@ const MORE = [
 ] as const;
 
 const STEPS = [
-  { title: 'Start your way', text: 'Upload a file, describe an idea, or open one of our designs.' },
+  { title: 'Start your way', text: 'Upload a file, describe an idea, or pick a ready item.' },
   { title: 'Choose material and quantity', text: 'The price updates as you choose.' },
   { title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.' },
-];
-
-const CHECKS = [
-  'Instant price for most STL and OBJ files',
-  'No file? Describe it, or start from one of our designs',
-  'One piece up to 100+ units',
 ];
 
 // OWNER: confirm this statement matches how you handle files
@@ -75,66 +69,36 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   const more = MORE.filter((c) => !('needs' in c) || (c.needs === 'ai' ? aiEnabled : designEnabled));
   return (
     <>
-      {/* Hero: text first, one primary action, one text link. The 3D part is a client island (desktop only). */}
-      <section className="relative flex min-h-[calc(100svh-4rem)] items-center overflow-hidden bg-gradient-to-br from-gray-950 via-slate-900 to-indigo-950 text-white">
+      {/* Hero: plain copy, a file box that hands off to /quote, one text link. The 3D part is a lazy client island. */}
+      <section className="relative flex items-center overflow-hidden border-b border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white lg:min-h-[32rem]">
         <HeroPart />
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 lg:py-28">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
           <div className="max-w-xl">
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-300">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-400" />
-              Made-to-order 3D printing
+            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">3D printing to order, from one piece to a batch.</h1>
+            <p className="mt-5 text-lg text-gray-700 dark:text-gray-300">
+              Send us an STL or OBJ file and see the price for each material. We review your order, then print and ship it.
+            </p>
+            <div className="mt-8">
+              <HeroDrop />
             </div>
-            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Upload a file.
-              <br />
-              Get a price.
-              <br />
-              <span className="bg-gradient-to-r from-indigo-400 to-cyan-300 bg-clip-text text-transparent">We print it.</span>
-            </h1>
-            <ul className="mt-8 space-y-3 text-lg text-gray-300">
-              {CHECKS.map((c) => (
-                <li key={c} className="flex gap-3">
-                  <span aria-hidden className="text-indigo-400">–</span>
-                  <span>{c}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Link
-                href="/quote"
-                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-8 py-4 text-lg font-semibold text-white hover:bg-indigo-500 transition-colors"
-              >
-                Get an instant quote
-              </Link>
-              <Link
-                href="/build?example=shelf-bracket&price=1"
-                className="inline-flex items-center justify-center px-2 py-4 text-lg font-medium text-indigo-300 underline underline-offset-4 hover:text-white"
-              >
-                Try a sample
-              </Link>
-            </div>
-            <p className="mt-6 text-sm text-gray-400">{FILE_PROMISE}</p>
-          </div>
-        </div>
-        <div aria-hidden className="absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 sm:flex">
-          <span className="text-xs font-medium uppercase tracking-widest text-gray-400">Scroll</span>
-          <div className="flex h-8 w-5 justify-center rounded-full border-2 border-gray-700 pt-1.5">
-            <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
+            <p className="mt-5 text-sm text-gray-600 dark:text-gray-400">
+              Just looking?{' '}
+              <Link href="/build?example=shelf-bracket&price=1" className="font-medium text-indigo-700 underline underline-offset-4 hover:no-underline dark:text-indigo-400">Try a sample part</Link>
+              . {FILE_PROMISE}
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Facts: computed from the config, so they stay true when the price list or bed size changes */}
-      <section aria-label="At a glance" className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
-        <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-8 sm:px-6 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-gray-200 dark:lg:divide-gray-800">
-          {FACTS.map((f, i) => (
-            <div key={f.label} className={`${i === 0 ? '' : 'lg:pl-8'} ${i === FACTS.length - 1 ? '' : 'lg:pr-8'}`}>
-              <dt className="text-sm text-gray-500 dark:text-gray-400">{f.label}</dt>
-              <dd className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{f.value}</dd>
-              <dd className="mt-1 text-xs text-gray-500 dark:text-gray-400">{f.note}</dd>
+      <section aria-label="How we work" className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-3 md:gap-10">
+          {TRUST.map((t) => (
+            <div key={t.title}>
+              <p className="font-semibold text-gray-900 dark:text-white">{t.title}</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t.text}</p>
             </div>
           ))}
-        </dl>
+        </div>
       </section>
 
       <section aria-labelledby="start-heading" className="py-16 sm:py-20 bg-gray-50 dark:bg-gray-900">
@@ -240,15 +204,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       </section>
 
       {/* One closing call to action */}
-      <section className="py-20 bg-gradient-to-r from-indigo-600 to-indigo-500">
+      <section className="py-16 bg-gray-900 dark:bg-gray-900 border-t border-gray-800">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white">From one piece to wholesale</h2>
-          <p className="mt-4 text-lg text-indigo-100">
+          <h2 className="text-3xl font-bold text-white">Ready when you are</h2>
+          <p className="mt-3 text-lg text-gray-300">
             Enter a quantity to see the price. We check every order before we print it.
           </p>
           <Link
             href="/quote"
-            className="mt-8 inline-flex items-center justify-center px-8 py-4 rounded-xl bg-white text-indigo-600 font-semibold text-lg hover:bg-indigo-50 transition-all duration-300 shadow-xl"
+            className="mt-8 inline-flex items-center justify-center px-8 py-4 rounded-md bg-white text-gray-900 font-semibold text-lg hover:bg-gray-100 transition-colors"
           >
             Get an instant quote
           </Link>

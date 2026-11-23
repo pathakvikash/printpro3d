@@ -32,3 +32,17 @@ export function parseContact(get: (k: string) => unknown, opts: { addressRequire
   if (!EMAIL.test(c.email)) throw new Error('email is invalid');
   return c;
 }
+
+// Public business identity from env; every field is '' when unset, so callers render nothing.
+// NEXT_PUBLIC_* must be read as literal property accesses so Next inlines them into client code.
+const env = (v: string | undefined) => (v ?? '').trim();
+export const business = {
+  name: env(process.env.NEXT_PUBLIC_BUSINESS_NAME),
+  city: env(process.env.NEXT_PUBLIC_BUSINESS_CITY),
+  gstin: env(process.env.NEXT_PUBLIC_GSTIN),
+  phone: env(process.env.NEXT_PUBLIC_PHONE),
+  /** digits only, for wa.me */
+  whatsapp: env(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER).replace(/\D/g, ''),
+};
+/** tel: href digits (keeps a leading +) */
+export const phoneHref = business.phone.replace(/[^\d+]/g, '');

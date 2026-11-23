@@ -16,7 +16,7 @@ export default function AiPage() {
       ) : (
         <p className="text-gray-600 dark:text-gray-300">
           This is not available yet. You can{' '}
-          <Link href="/request" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">describe your idea</Link> and we design it for you.
+          <Link href="/request" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">describe your idea</Link> and we review it and send you a quote.
         </p>
       )}
     </PageShell>

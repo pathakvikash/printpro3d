@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     return err(
       process.env.NODE_ENV !== 'production'
         ? 'AI drawing is not set up. Set ANTHROPIC_API_KEY, or AI_PRESET or AI_BASE_URL with AI_MODEL (and AI_API_KEY for a keyed preset), then restart the server. Run npm run ai:models to see what is available.'
-        : 'AI drawing is not available right now. Please use "I have an idea" and we will design it.',
+        : 'AI drawing is not available right now. Please use "I have an idea" and we will review it and send you a quote.',
       503
     );
   }
@@ -118,8 +118,8 @@ export async function POST(request: Request) {
       if (!limit.ok) {
         return err(
           limit.scope === 'email'
-            ? `You have reached the daily limit of ${limit.limit} AI models. Try again tomorrow, or use "I have an idea" and we will design it.`
-            : 'We have reached our daily limit of AI models. Try again tomorrow, or use "I have an idea" and we will design it.',
+            ? `You have reached the daily limit of ${limit.limit} AI models. Try again tomorrow, or use "I have an idea" and we will review it and send you a quote.`
+            : 'We have reached our daily limit of AI models. Try again tomorrow, or use "I have an idea" and we will review it and send you a quote.',
           429
         );
       }
