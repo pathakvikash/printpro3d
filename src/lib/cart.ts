@@ -2,6 +2,8 @@
 // Pure: no React, no DOM, no fs. The browser keeps these in localStorage, with no accounts.
 // Prices shown in the browser are for display only; /api/orders recomputes every line itself.
 import { CATALOG } from './catalog.ts';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // not imported from aiJobs: that pulls the server store into the browser bundle
 import { MAX_QTY, MIN_ORDER, SETUP_FEE } from './quote.ts';
 import { cfgKey, normalizeCfg, templateById, type Cfg } from './templateDefs.ts';
 
@@ -14,13 +16,16 @@ export type CartLine =
   | { kind: 'tpl'; id: string; cfg: Cfg; qty: number; unitPrice: number }
   // a customer's own model (upload, builder or AI): `file` is the stored upload name,
   // `estimate` the line total shown when it was quoted (null = we quote it manually)
-  | { kind: 'model'; file: string; label: string; material: string; qty: number; estimate: number | null };
+  | { kind: 'model'; file: string; label: string; material: string; qty: number; estimate: number | null }
+  // a finalized design project (blueprint-first flow); the server prices it from the STL it built, `estimate` is display only
+  | { kind: 'design'; project: string; label: string; material: string; qty: number; estimate: number | null };
 
 const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_QTY;
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 export function lineKey(l: CartLine): string {
   if (l.kind === 'tpl') return `tpl:${l.id}:${cfgKey(templateById(l.id)!, l.cfg)}`;
+  if (l.kind === 'design') return `design:${l.project}:${l.material}`;
   return l.kind === 'shop' ? `shop:${l.id}` : `model:${l.file}:${l.material}`;
 }
 
@@ -45,6 +50,12 @@ export function parseCart(raw: unknown): CartLine[] {
       try {
         out.push({ kind: 'tpl', id: t.id, cfg: normalizeCfg(t, o.cfg, true), qty: o.qty, unitPrice: unit });
       } catch {}
+    } else if (o.kind === 'design') {
+      const project = str(o.project, 40);
+      const material = str(o.material, 20);
+      if (!UUID.test(project) || !material) continue;
+      const est = o.estimate;
+      out.push({ kind: 'design', project: project.toLowerCase(), label: str(o.label, 80) || 'Your design', material, qty: o.qty, estimate: typeof est === 'number' && Number.isFinite(est) && est >= 0 ? est : null });
     } else if (o.kind === 'model') {
       const file = str(o.file, 200);
       const material = str(o.material, 20);
@@ -71,7 +82,7 @@ export function addLine(lines: CartLine[], line: CartLine): CartLine[] {
   if (i < 0) return lines.length >= MAX_LINES ? lines : [...lines, line];
   const cur = lines[i];
   const next = { ...line, qty: Math.min(MAX_QTY, cur.qty + line.qty) } as CartLine;
-  if (next.kind === 'model' && cur.kind === 'model') next.estimate = null; // merged quantity: price confirmed by us
+  if ((next.kind === 'model' || next.kind === 'design') && next.kind === cur.kind) next.estimate = null; // merged quantity: price confirmed by us
   return lines.map((l, j) => (j === i ? next : l));
 }
 
@@ -80,7 +91,7 @@ export function setQty(lines: CartLine[], key: string, qty: number): CartLine[] 
   if (!isQty(qty)) return lines;
   return lines.map((l) => {
     if (lineKey(l) !== key) return l;
-    if (l.kind === 'model' && l.qty !== qty) return { ...l, qty, estimate: null };
+    if ((l.kind === 'model' || l.kind === 'design') && l.qty !== qty) return { ...l, qty, estimate: null };
     return { ...l, qty } as CartLine;
   });
 }

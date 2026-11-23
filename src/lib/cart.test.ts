@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addLine, cartTotal, lineKey, parseCart, parseSaved, removeLine, setQty, toggleSaved, MAX_LINES, type CartLine } from './cart.ts';
+import { addLine, cartTotal, lineKey, lineTotal, parseCart, parseSaved, removeLine, setQty, toggleSaved, MAX_LINES, type CartLine } from './cart.ts';
 import { CATALOG } from './catalog.ts';
 import { MAX_QTY } from './quote.ts';
 
@@ -72,4 +72,14 @@ test('saved list', () => {
   assert.deepEqual(parseSaved(['shop:pi-case', 'shop:pi-case', 'example:pawn', 'bad', 'shop:../x', 3]), ['shop:pi-case', 'example:pawn']);
   assert.deepEqual(toggleSaved(['shop:a'], 'shop:a'), []);
   assert.deepEqual(toggleSaved([], 'example:pawn'), ['example:pawn']);
+});
+
+test('design lines: parsed, keyed by project and material, estimate dropped when the quantity changes', () => {
+  const id = '11111111-2222-3333-4444-555555555555';
+  const [l] = parseCart([{ kind: 'design', project: id.toUpperCase(), material: 'PLA', qty: 2, estimate: 120, label: 'My bracket' }, { kind: 'design', project: 'nope', material: 'PLA', qty: 1 }]);
+  assert.equal(parseCart([{ kind: 'design', project: 'nope', material: 'PLA', qty: 1 }]).length, 0);
+  assert.equal(l.kind, 'design');
+  assert.equal(lineKey(l), `design:${id}:PLA`);
+  assert.equal(lineTotal(l), 120);
+  assert.equal(lineTotal(setQty([l], lineKey(l), 3)[0]), null);
 });
