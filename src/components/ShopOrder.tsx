@@ -3,10 +3,15 @@
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CATALOG, CATEGORIES, type Item } from '@/lib/catalog';
 import { exampleById, type Example } from '@/lib/examples';
-import { solidsSize } from '@/lib/playground';
+import { buildMesh, solidsSize } from '@/lib/playground';
+import { blueprint, blueprintData } from '@/lib/blueprint';
+import { LAYER_MM } from '@/lib/printSpec';
+import { MATERIALS, quote, type MaterialKey } from '@/lib/quote';
+import MaterialCards from './MaterialCards';
+import BlueprintSheet from './BlueprintSheet';
 import { money, secondaryBtn } from './ContactFields';
 import { QtyStepper, SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
@@ -23,6 +28,20 @@ const PRODUCTS: Product[] = CATALOG.flatMap((item) => {
   const s = ex ? solidsSize(ex.shapes) : null;
   return ex && s ? [{ item, ex, dims: `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)} mm` }] : [];
 });
+
+// the print mesh the price is computed from; built once per item, on first use
+const meshes = new Map<string, Float32Array | null>();
+const meshOf = (p: Product) => {
+  if (!meshes.has(p.item.id)) meshes.set(p.item.id, buildMesh(p.ex.shapes));
+  return meshes.get(p.item.id) ?? null;
+};
+// weight and layers come from the mesh, never typed in
+function specOf(p: Product, finish: string) {
+  const m = meshOf(p);
+  const D = m ? blueprintData(m, p.item.material) : null;
+  const grams = D?.stats && Object.hasOwn(MATERIALS, finish) ? quote(D.stats, finish, 1).grams : null;
+  return { volume: D?.stats?.volumeCm3 ?? null, grams, layers: D?.layers ?? null };
+}
 
 const catLabel = (id: string) => CATEGORIES.find((c) => c.id === id)?.label ?? id;
 const chipClass = (on: boolean) =>
@@ -54,6 +73,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
   const { item, ex, dims } = p;
   const { lines, add, toast } = useCart();
   const [qty, setQty] = useState(1);
+  const spec = useMemo(() => specOf(p, item.material), [p, item.material]);
   const box = useRef<HTMLDivElement>(null);
   const inCart = lines.find((l) => l.kind === 'shop' && l.id === item.id);
 
@@ -84,7 +104,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
         </div>
       ) : (
         <div ref={box} className="h-44 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950" aria-hidden>
-          {live && <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} />}
+          {live && <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} material={item.material as MaterialKey} />}
         </div>
       )}
       <div className="flex flex-1 flex-col gap-2 p-4">
@@ -97,6 +117,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300">{dims} · {item.material}</p>
+        {spec.grams != null && <p className="text-sm text-gray-500 dark:text-gray-400">about {spec.grams.toFixed(1)} g · {spec.layers} layers at {LAYER_MM} mm</p>}
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{money.format(item.price)} each</p>
         {!item.photo && (
           <button
@@ -137,6 +158,21 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
   const inCart = lines.find((l) => l.kind === 'shop' && l.id === item.id);
+  const [finish, setFinish] = useState(item.material as MaterialKey); // preview only; the part is sold in item.material
+  const [tab, setTab] = useState<'3d' | 'photo'>('3d');
+  const [sheet, setSheet] = useState(false);
+  const spec = useMemo(() => specOf(p, finish), [p, finish]);
+  const svg = useMemo(() => {
+    const m = sheet ? meshOf(p) : null;
+    return m ? blueprint(m, { name: item.name, id: item.id, material: item.material }) : null;
+  }, [sheet, p, item]);
+  const rows: [string, string][] = [
+    ['Size', dims],
+    ['Volume', spec.volume != null ? `${spec.volume.toFixed(2)} cm³` : 'n/a'],
+    ['Material', item.material],
+    ['Est. weight', spec.grams != null ? `${spec.grams.toFixed(1)} g in ${finish}` : 'n/a'],
+    ['Layers', spec.layers != null ? `${spec.layers} at ${LAYER_MM} mm` : 'n/a'],
+  ];
 
   // scroll lock, Escape, and a Tab loop inside the dialog; focus moves into the dialog and the opener gets it back in the parent's onClose
   useEffect(() => {
@@ -184,7 +220,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative flex max-h-[90vh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl bg-white dark:bg-gray-950 shadow-2xl sm:max-w-2xl sm:rounded-2xl"
+        className="relative flex max-h-[90vh] w-full flex-col overflow-y-auto overscroll-contain rounded-t-2xl bg-white dark:bg-gray-950 shadow-2xl sm:max-w-4xl sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3 p-5 pb-3">
           <div className="min-w-0">
@@ -207,35 +243,83 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
           </div>
         </div>
 
-        <div className="h-72 sm:h-96 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950">
-          <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} interactive />
-        </div>
-
-        <div className="space-y-3 p-5">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Drag to rotate. Scroll or pinch to zoom.</p>
-          <p className="text-gray-700 dark:text-gray-300">{item.description}</p>
-          <p className="text-sm text-gray-700 dark:text-gray-300">{dims} · {item.material}</p>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{money.format(item.price)} each</p>
-
-          <div className="flex items-center gap-3 pt-2">
-            <QtyStepper name={item.name} qty={qty} onChange={setQty} />
-            <button
-              type="button"
-              onClick={() => {
-                add({ kind: 'shop', id: item.id, qty });
-                toast('Added to cart', true);
-                setAdded(true);
-              }}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            >
-              {added ? 'Added' : 'Add to cart'}
-            </button>
+        <div className="grid md:grid-cols-[1.15fr_1fr]">
+          <div className="space-y-3 p-5 pt-0">
+            <div className="h-72 overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 sm:h-96">
+              {tab === 'photo' ? (
+                item.photo ? (
+                  <Image src={item.photo} alt={item.photoAlt ?? item.name} width={640} height={480} className="h-full w-full object-cover" />
+                ) : (
+                  <p className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-300">A photo of the real printed part will go here.</p>
+                )
+              ) : (
+                <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} interactive material={finish} />
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Drag to turn. Scroll or pinch to zoom. Layer lines are drawn at their true {LAYER_MM} mm here.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <div role="group" aria-label="Preview type" className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
+                {(['3d', 'photo'] as const).map((t) => (
+                  <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={`px-3 py-1.5 text-sm font-medium ${tab === t ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`}>
+                    {t === '3d' ? '3D' : 'Photo'}
+                  </button>
+                ))}
+              </div>
+              <button type="button" aria-pressed={sheet} onClick={() => setSheet((v) => !v)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">
+                Blueprint {sheet ? '↑' : '↓'}
+              </button>
+            </div>
           </div>
-          {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
-          <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}>
-            Customise this in the builder
-          </Link>
+
+          <div className="space-y-3 p-5 pt-0 md:pt-0">
+            <p className="text-gray-700 dark:text-gray-300">{item.description}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              {money.format(item.price)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">each · made to order</span>
+            </p>
+            <dl className="divide-y divide-gray-200 border-y border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 py-1.5">
+                  <dt className="text-gray-500 dark:text-gray-400">{k}</dt>
+                  <dd className="text-right font-mono text-gray-900 dark:text-gray-100">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex items-center gap-3 pt-1">
+              <QtyStepper name={item.name} qty={qty} onChange={setQty} />
+              <button
+                type="button"
+                onClick={() => {
+                  add({ kind: 'shop', id: item.id, qty });
+                  toast('Added to cart', true);
+                  setAdded(true);
+                }}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] bg-indigo-600 px-4 font-semibold text-white transition-colors hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+              >
+                {added ? 'Added' : 'Add to cart'}
+              </button>
+            </div>
+            {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href={`/blueprint/${item.id}`} className={`${secondaryBtn} w-full`}>See the drawing</Link>
+              <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}>Customise in the builder</Link>
+            </div>
+          </div>
         </div>
+
+        <section aria-labelledby={`${titleId}-mat`} className="border-t border-gray-200 p-5 dark:border-gray-800">
+          <h3 id={`${titleId}-mat`} className="text-lg font-semibold text-gray-900 dark:text-white">Pick a material, see it on the part</h3>
+          <p className="mb-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Choosing a material changes the finish on the 3D view above and the estimated weight of this part. Notes are the ones already on the materials page.
+          </p>
+          <MaterialCards partVolumeCm3={spec.volume ?? undefined} selected={finish} onSelect={setFinish} />
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Sold in {item.material}. Other finishes are a preview only.</p>
+        </section>
+
+        {sheet && svg && (
+          <div className="p-5 pt-0">
+            <BlueprintSheet svg={svg} filename={`${item.id}-blueprint`} />
+          </div>
+        )}
       </div>
     </div>
   );

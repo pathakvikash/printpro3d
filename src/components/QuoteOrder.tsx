@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { blueprint } from '@/lib/blueprint';
+import BlueprintSheet from './BlueprintSheet';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
@@ -12,11 +14,13 @@ const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];
 export default function QuoteOrder({
   file,
   stats,
+  positions,
   label: modelName = 'Your model',
   onAnother,
 }: {
   file: string;
   stats: MeshStats | null;
+  positions?: Float32Array | null; // triangle soup of the uploaded mesh, for the drawing
   label?: string;
   onAnother?: () => void;
 }) {
@@ -25,6 +29,7 @@ export default function QuoteOrder({
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
 
+  const sheet = useMemo(() => (positions && positions.length >= 9 ? blueprint(positions, { name: modelName, material }) : null), [positions, modelName, material]);
   const fits = stats ? fitsBed(stats.sizeMm) : false;
   const validQty = Number.isInteger(qty) && qty >= 1 && qty <= MAX_QTY;
   // live line total for one material at the current quantity; null means we quote it by hand
@@ -122,6 +127,14 @@ export default function QuoteOrder({
           })}
         </div>
       </fieldset>
+
+      {sheet && (
+        <section aria-labelledby="bp-h" className="space-y-3">
+          <h4 id="bp-h" className="font-semibold text-gray-900 dark:text-gray-100">Blueprint</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Three views drawn from your file, in mm. Check the size before you order.</p>
+          <BlueprintSheet svg={sheet} filename="blueprint" />
+        </section>
+      )}
 
       <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
         {price !== null

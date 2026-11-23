@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import HomeShop from '@/components/HomeShop';
 import HeroPart from '@/components/HeroPart';
 import HeroDrop from '@/components/HeroDrop';
+import Capabilities from '@/components/Capabilities';
 import { modelFor, pickProvider } from '@/lib/aiDesign';
 import { BED_MM, MATERIALS, type MaterialKey } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
@@ -100,6 +101,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           ))}
         </div>
       </section>
+
+      <Capabilities />
 
       <section aria-labelledby="start-heading" className="py-16 sm:py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">

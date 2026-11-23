@@ -43,7 +43,7 @@ export const EXAMPLES: Example[] = [
   },
   {
     id: 'pi-case', title: 'Small computer case base', category: 'enclosure',
-    blurb: 'An open box with four screw posts sized for a Raspberry Pi board, and a cable cut-out.',
+    blurb: 'An open tray sized for a Raspberry Pi board, with four mounting holes and a cable cut-out.',
     shapes: [
       pi('box', [90, 62, 12], [0, 0, 6]),
       pi('box', [86, 58, 12], [0, 0, 9], 'hole'),
@@ -60,7 +60,7 @@ export const EXAMPLES: Example[] = [
   },
   {
     id: 'phone-stand', title: 'Phone stand', category: 'gadget',
-    blurb: 'A sloped back and a front lip hold a phone upright, with a notch for the charging cable.',
+    blurb: 'A sloped back and a front lip hold a phone upright, with a hole in the base for the charging cable.',
     shapes: [
       stand('box', [70, 60, 5], [0, 0, 2.5]),
       stand('wedge', [40, 70, 60], [0, -10, 30], 'solid', [0, 0, 90]),
@@ -70,7 +70,7 @@ export const EXAMPLES: Example[] = [
   },
   {
     id: 'cable-clip', title: 'Cable clip', category: 'gadget',
-    blurb: 'A small open ring on a flat pad that holds a cable against a desk.',
+    blurb: 'A small open ring on a flat pad; the cable snaps in through the slot in the ring.',
     shapes: [
       clip('cylinder', [16, 16, 12], [0, 0, 6]),
       clip('box', [24, 22, 3], [0, 0, 1.5]),

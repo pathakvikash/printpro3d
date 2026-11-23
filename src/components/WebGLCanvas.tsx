@@ -3,20 +3,27 @@
 import { useEffect, useState, Component, ReactNode } from 'react';
 import { Canvas, CanvasProps } from '@react-three/fiber';
 
+// Probed once per page load, and the probe context is released at once: an unreleased probe per canvas mount
+// counts toward the browser's live-context limit (about 16), and past it the oldest real canvas goes blank.
+let probed: boolean | null = null;
+function probe(): boolean {
+  if (probed !== null) return probed;
+  try {
+    const c = document.createElement('canvas');
+    const gl = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    probed = !!gl;
+  } catch {
+    probed = false;
+  }
+  return probed;
+}
+
 function useWebGLSupport() {
   const [supported, setSupported] = useState(true);
 
   useEffect(() => {
-    try {
-      const c = document.createElement('canvas');
-      const gl =
-        c.getContext('webgl2') ||
-        c.getContext('webgl') ||
-        c.getContext('experimental-webgl');
-      if (!gl) setSupported(false);
-    } catch {
-      setSupported(false);
-    }
+    if (!probe()) setSupported(false);
   }, []);
 
   return supported;

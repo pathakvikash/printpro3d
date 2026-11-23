@@ -25,10 +25,10 @@ export type Item = { id: string; exampleId: string; name: string; category: stri
 
 export const CATALOG: Item[] = [
   { id: 'pawn', exampleId: 'pawn', name: 'Chess-style pawn', category: 'game', price: 129, material: 'PLA', description: 'A pawn made of a round base, a tapered body, a collar and a ball head.' },
-  { id: 'cable-clip', exampleId: 'cable-clip', name: 'Desk cable clip', category: 'gadget', price: 49, material: 'PETG', description: 'A small open ring on a flat pad that holds a cable against a desk.' },
-  { id: 'pi-case', exampleId: 'pi-case', name: 'Raspberry Pi case base', category: 'enclosure', price: 299, material: 'PETG', description: 'An open box with four screw posts sized for a Raspberry Pi board, and a cable cut-out; the lid is not included.' },
+  { id: 'cable-clip', exampleId: 'cable-clip', name: 'Desk cable clip', category: 'gadget', price: 49, material: 'PETG', description: 'A small open ring on a flat pad; the cable snaps in through the slot in the ring.' },
+  { id: 'pi-case', exampleId: 'pi-case', name: 'Raspberry Pi case base', category: 'enclosure', price: 299, material: 'PETG', description: 'An open tray sized for a Raspberry Pi board, with four mounting holes and a cable cut-out. The lid is not included.' },
   { id: 'spinner-toy', exampleId: 'spinner-toy', name: 'Spinner toy head', category: 'toy', price: 149, material: 'PLA', description: 'A three-bar spinner with a 3 mm hole in the middle for a motor shaft.' },
   { id: 'drone-plate', exampleId: 'drone-plate', name: 'Drone frame plate', category: 'drone', price: 349, material: 'ABS', description: 'An X-shaped frame plate with four motor mounts and shaft holes; hardware is not included.' },
-  { id: 'phone-stand', exampleId: 'phone-stand', name: 'Phone stand', category: 'gadget', price: 199, material: 'PLA', description: 'A sloped back and a front lip hold a phone upright, with a notch for the charging cable.' },
+  { id: 'phone-stand', exampleId: 'phone-stand', name: 'Phone stand', category: 'gadget', price: 199, material: 'PLA', description: 'A sloped back and a front lip hold a phone upright, with a hole in the base for the charging cable.' },
   { id: 'shelf-bracket', exampleId: 'shelf-bracket', name: 'Shelf bracket', category: 'gadget', price: 179, material: 'PETG', description: 'An L-shaped bracket with two screw holes in each leg.' },
 ];

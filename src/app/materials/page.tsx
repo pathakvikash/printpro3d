@@ -4,6 +4,7 @@ import PageShell from '@/components/PageShell';
 import { BED_MM, CURRENCY, MATERIALS, MAX_QTY, type MaterialKey } from '@/lib/quote';
 import { ALLOWED_EXTS, MAX_UPLOAD } from '@/lib/uploadRules';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
+import MaterialCards from '@/components/MaterialCards';
 
 export const metadata: Metadata = { title: 'Materials - PrintPro3D', description: 'The plastics we print in: PLA, PETG, ABS and TPU, with what each is good for.' };
 
@@ -39,31 +40,7 @@ export default function MaterialsPage() {
       </div>
       <p className="text-sm text-gray-600 dark:text-gray-400">Only STL and OBJ files get an instant price. Other file types are accepted and quoted by hand.</p>
       <h2 className="pt-4 text-2xl font-bold text-gray-900 dark:text-white">Compare materials</h2>
-      <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950">
-        <table className="w-full text-sm">
-          <caption className="sr-only">Materials compared. Words are relative, not measurements.</caption>
-          <thead className="border-b border-gray-200 dark:border-gray-800">
-            <tr>
-              <th scope="col" className={th}>Material</th>
-              <th scope="col" className={th}>Strength</th>
-              <th scope="col" className={th}>Flexibility</th>
-              <th scope="col" className={th}>Heat</th>
-              <th scope="col" className={th}>Typical use</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {KEYS.map((k) => (
-              <tr key={k}>
-                <th scope="row" className={th}>{MATERIAL_INFO[k].label}</th>
-                <td className={td}>{MATERIAL_INFO[k].strength}</td>
-                <td className={td}>{MATERIAL_INFO[k].flexibility}</td>
-                <td className={td}>{MATERIAL_INFO[k].heat}</td>
-                <td className={td}>{MATERIAL_INFO[k].use}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <MaterialCards />
       <p className="text-sm text-gray-600 dark:text-gray-400">The words compare the four materials with each other. They are not measurements.</p>
       <h2 className="pt-4 text-2xl font-bold text-gray-900 dark:text-white">Price per material</h2>
       <ul className="grid gap-4 sm:grid-cols-2">

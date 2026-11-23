@@ -28,6 +28,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState<{ file: string; name: string; stats: MeshStats | null } | null>(null);
+  const [positions, setPositions] = useState<Float32Array | null>(null); // from the preview, for the blueprint
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +37,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
     setError(null);
     setUploadedUrl(null);
     setUploaded(null);
+    setPositions(null);
     const err = validateFile(f);
     if (err) {
       setError(err);
@@ -97,6 +99,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
   const resetUpload = () => {
     setUploaded(null);
     setUploadedUrl(null);
+    setPositions(null);
     setError(null);
   };
 
@@ -257,13 +260,14 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
             </span>
           </div>
           <div className="h-[400px] rounded-xl overflow-hidden">
-            <ModelViewer url={uploadedUrl} />
+            <ModelViewer url={uploadedUrl} onPositions={setPositions} />
           </div>
           {uploaded && (
             <QuoteOrder
               key={uploaded.file}
               file={uploaded.file}
               stats={uploaded.stats}
+              positions={positions}
               label={initialFile ? 'Model from the builder' : uploaded.name}
               // the builder owns its own model, so only uploads can be reset from here
               onAnother={initialFile ? undefined : resetUpload}
