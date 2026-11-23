@@ -115,7 +115,7 @@ export default function MotorTest() {
   const warns: string[] = [];
   if (amps > limit) warns.push(`Current ${f(amps, 2)} A is over your ${limit} A limit`);
   if (p && throttle > 0 && tw < 2) warns.push(`Thrust-to-weight ${f(tw, 1)} is under 2 (4 motors, ${auw} g)`);
-  if (g?.stalled) warns.push('Stalled: the motor cannot turn this load; stall draws full current and overheats');
+  if (g?.stalled) warns.push('Stalled: the motor cannot turn this load; a stalled motor draws its highest current and overheats');
 
   return (
     <div className="space-y-4">
@@ -168,6 +168,7 @@ export default function MotorTest() {
             {p && <Stat label="Thrust-to-weight" value={f(tw, 1)} unit=": 1" />}
           </dl>
           {p && p.basis === 'model' && <p className="text-xs text-gray-500 dark:text-gray-400">Below the tested range these values are model estimates (thrust = k × rpm²), not measurements.</p>}
+          {g && <p className="text-xs text-gray-500 dark:text-gray-400">Model estimates, not measurements: a straight line between the datasheet no-load and stall points, with PWM duty treated as a lower voltage (a simplification).</p>}
           <div className="flex flex-wrap gap-2" role="status">
             {warns.map((w) => <Chip key={w} tone="warn">{w}</Chip>)}
             {!warns.length && <Chip tone="ok">No warnings at these settings</Chip>}
@@ -177,7 +178,7 @@ export default function MotorTest() {
       </div>
 
       <div className={`${card} text-sm text-gray-600 dark:text-gray-300 space-y-2`}>
-        <p className="font-medium text-gray-900 dark:text-white">±10–20% typical; manufacturer-claimed figures, not certified.</p>
+        <p className="font-medium text-gray-900 dark:text-white">±10–20% typical; figures from the maker datasheets and one independent bench test cited below, not certified.</p>
         <p>Real results vary with motor KV tolerance, battery sag, prop batch and temperature. {gear ? 'Gear-motor curves are a straight line between the datasheet no-load and stall points; PWM duty is treated as a lower effective voltage.' : 'Between the tested throttle points values are interpolated.'} This is a selection aid, not a flight-time promise.</p>
         <h2 className="pt-1 font-semibold text-gray-900 dark:text-white">Sources</h2>
         <ul className="list-disc pl-5 space-y-1">
