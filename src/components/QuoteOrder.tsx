@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { blueprint } from '@/lib/blueprint';
+import { analyzeMesh } from '@/lib/meshAnalysis';
 import Icon from './Icon';
 import BlueprintSheet from './BlueprintSheet';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
@@ -33,6 +34,7 @@ export default function QuoteOrder({
   const [added, setAdded] = useState(false);
 
   const sheet = useMemo(() => (positions && positions.length >= 9 ? blueprint(positions, { name: modelName, material }) : null), [positions, modelName, material]);
+  const found = useMemo(() => (positions ? analyzeMesh(positions) : null), [positions]);
   const fits = stats ? fitsBed(stats.sizeMm) : false;
   const validQty = Number.isInteger(qty) && qty >= 1 && qty <= MAX_QTY;
   // live line total for one material at the current quantity; null means we quote it by hand
@@ -118,6 +120,19 @@ export default function QuoteOrder({
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb}</p>
       </fieldset>
+
+      {found && (
+        <section aria-labelledby="det-h" className="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+          <h4 id="det-h" className="font-semibold text-gray-900 dark:text-gray-100">What we detected</h4>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700 dark:text-gray-300">
+            <li>Size: {found.sizeMm.x.toFixed(1)} × {found.sizeMm.y.toFixed(1)} × {found.sizeMm.z.toFixed(1)} mm, {found.triangles.toLocaleString()} triangles</li>
+            <li>{found.isClosed ? `Volume: ${found.volumeCm3!.toFixed(2)} cm³` : 'Not watertight (open surface), so we cannot give a volume'}</li>
+            <li>{found.pieces === 1 ? '1 piece' : `${found.pieces} separate pieces`}{found.throughHoles !== null && `, ${found.throughHoles} ${found.throughHoles === 1 ? 'opening' : 'openings'} through the part`}</li>
+            <li>{found.fitsBed ? 'Fits our print bed' : 'Does not fit our print bed'}. Orientation: {found.orientation}</li>
+          </ul>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{found.limits.join(' ')}</p>
+        </section>
+      )}
 
       {sheet && (
         <section aria-labelledby="bp-h" className="space-y-3">

@@ -6,30 +6,9 @@ import { mergeChecked } from './orderChecks.ts';
 import { MAX_QTY } from './quote.ts';
 import { buildTemplate, priceTemplate, templateMesh, templateOrderLine } from './templates.ts';
 import { fitsBed, meshStats, quote } from './quote.ts';
+import { analyzeMesh } from './meshAnalysis.ts';
 
-// pieces and through-holes of a closed triangle mesh: genus = pieces - (V - E + F) / 2
-function topology(p: Float32Array) {
-  const id = new Map<string, number>();
-  const parent: number[] = [];
-  const find = (a: number): number => (parent[a] === a ? a : (parent[a] = find(parent[a])));
-  const vid = (k: number) => {
-    const key = `${p[k]},${p[k + 1]},${p[k + 2]}`;
-    if (!id.has(key)) { id.set(key, id.size); parent.push(id.size - 1); }
-    return id.get(key)!;
-  };
-  const edges = new Set<string>();
-  let F = 0;
-  for (let i = 0; i + 8 < p.length; i += 9) {
-    const v = [vid(i), vid(i + 3), vid(i + 6)];
-    F++;
-    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
-      edges.add(v[a] < v[b] ? `${v[a]}|${v[b]}` : `${v[b]}|${v[a]}`);
-      parent[find(v[a])] = find(v[b]);
-    }
-  }
-  const pieces = new Set(parent.map((_, i) => find(i))).size;
-  return { pieces, genus: pieces - (id.size - edges.size + F) / 2 };
-}
+const topology = (p: Float32Array) => { const t = analyzeMesh(p)!; return { pieces: t.pieces, genus: t.throughHoles }; };
 
 const claim = (t: TemplateDef, cfg: Cfg) => {
   const b = buildTemplate(t, cfg);
