@@ -106,6 +106,9 @@ export function solidsSize(shapes: Shape[]): Size | null {
 
 /** Second attempt only, when the exact one is not closed: each side moves out this far (mm): solids 1 um, holes 3 um. Faces that merely touch or sit flush (a cone standing on a box,
  * a hole exactly as deep as its block) become real overlaps, because coplanar CSG leaves open edges. Far below printer resolution. */
+/** Shape ids starting with this are applied after all holes (see csg). */
+export const LATE = 'late';
+
 export const GROW = { solid: 1e-3, hole: 3e-3 };
 
 function brush(s: Shape, grow: boolean, i: number): Brush {
@@ -244,14 +247,19 @@ function bake(b: Brush): Brush {
 }
 
 function csg(shapes: Shape[], grow: boolean, repair: boolean): Float32Array | null {
-  const solids = shapes.filter((s) => s.mode === 'solid');
+  const solids = shapes.filter((s) => s.mode === 'solid' && !s.id.startsWith(LATE));
   const ev = new Evaluator() as Evaluator & { useCDTClipping: boolean }; // in the package source and README, missing from its .d.ts
   ev.attributes = ['position'];
   ev.useGroups = false;
   ev.useCDTClipping = true; // constrained-Delaunay triangulation of clipped faces: the default splitter leaves overlapping triangles on cylinder holes
   let acc = bake(brush(solids[0], grow, 0));
   solids.slice(1).forEach((s, i) => { acc = bake(ev.evaluate(acc, brush(s, grow, i + 1), ADDITION)); });
-  shapes.filter((s) => s.mode === 'hole').forEach((h, i) => { acc = bake(ev.evaluate(acc, brush(h, grow, i), SUBTRACTION)); });
+  const early = (m: Shape['mode']) => shapes.filter((s) => s.mode === m && !s.id.startsWith(LATE));
+  early('hole').forEach((h, i) => { acc = bake(ev.evaluate(acc, brush(h, grow, i), SUBTRACTION)); });
+  // late shapes go in after every other hole: standoffs and posts that stand inside a cavity, and their own pilot holes
+  const late = shapes.filter((s) => s.id.startsWith(LATE));
+  late.filter((s) => s.mode === 'solid').forEach((s, i) => { acc = bake(ev.evaluate(acc, brush(s, grow, i + 40), ADDITION)); });
+  late.filter((s) => s.mode === 'hole').forEach((h, i) => { acc = bake(ev.evaluate(acc, brush(h, grow, i + 60), SUBTRACTION)); });
   const tris = cleanTriangles(acc.geometry.attributes.position.array, acc.geometry.index?.array ?? null, repair);
   return tris.length ? tris : null;
 }

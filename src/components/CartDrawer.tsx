@@ -7,6 +7,7 @@ import { CATALOG } from '@/lib/catalog';
 import { cartTotal, lineKey, lineTotal, type CartLine } from '@/lib/cart';
 import { exampleById } from '@/lib/examples';
 import { MAX_QTY } from '@/lib/quote';
+import { templateById } from '@/lib/templateDefs';
 import { ContactFields, contactFrom, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart, type CartTab } from './CartProvider';
 
@@ -19,12 +20,14 @@ const qtyInput =
 type Order = { id: string; status: string; total: number | null; unpricedCount: number; currency: string };
 
 const shopItem = (id: string) => CATALOG.find((i) => i.id === id) ?? null;
-const lineName = (l: CartLine) => (l.kind === 'shop' ? (shopItem(l.id)?.name ?? l.id) : l.label);
+const lineName = (l: CartLine) => (l.kind === 'shop' ? (shopItem(l.id)?.name ?? l.id) : l.kind === 'tpl' ? (templateById(l.id)?.name ?? l.id) : l.label);
 // the order payload carries only what the server needs; it recomputes every price itself
 const toPayloadItem = (l: CartLine) =>
   l.kind === 'shop'
     ? { kind: 'shop' as const, id: l.id, qty: l.qty }
-    : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty };
+    : l.kind === 'tpl'
+      ? { kind: 'tpl' as const, id: l.id, cfg: l.cfg, qty: l.qty }
+      : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty };
 
 function QtyField({ name, value, onCommit }: { name: string; value: number; onCommit: (n: number) => void }) {
   // the draft lets the customer clear the box while typing; only valid whole numbers reach the cart
@@ -323,7 +326,9 @@ function Drawer() {
             const details =
               l.kind === 'shop'
                 ? `${shopItem(l.id)?.material ?? ''} · ${money.format(shopItem(l.id)?.price ?? 0)} each`
-                : `${l.material} · ${l.estimate !== null ? `Estimated ${money.format(l.estimate)}` : "We'll quote this one"}`;
+                : l.kind === 'tpl'
+                  ? `${templateById(l.id)?.material ?? ''} · your settings · ${money.format(l.unitPrice)} per piece before setup`
+                  : `${l.material} · ${l.estimate !== null ? `Estimated ${money.format(l.estimate)}` : "We'll quote this one"}`;
             return (
               <li key={key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">

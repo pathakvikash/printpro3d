@@ -6,6 +6,8 @@ import { CATALOG, type Item } from '@/lib/catalog';
 import { parseContact } from '@/lib/contact';
 import { MAX_LINES } from '@/lib/cart';
 import { notifyNewOrder, type OrderLine } from '@/lib/notify';
+import { normalizeCfg, templateById, type Cfg, type TemplateDef } from '@/lib/templateDefs';
+import { templateOrderLine } from '@/lib/templates';
 import { findJobByFile } from '@/lib/aiJobs';
 import { isModelFile, mergeChecked, type Checked } from '@/lib/orderChecks';
 import { getBytes, getJson, putJson } from '@/lib/store';
@@ -13,7 +15,7 @@ import { filled, limited } from '@/lib/spam';
 
 // ponytail: orders are JSON records in the store (local disk, or Vercel Blob); list/filter in the admin page is a full scan — move to a DB if volume grows
 
-type SavedLine = OrderLine & { stats?: MeshStats | null; quote?: ReturnType<typeof quote> | null };
+type SavedLine = OrderLine & { stats?: MeshStats | null; quote?: ReturnType<typeof quote> | null; cfg?: Cfg };
 
 const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_QTY;
 
@@ -38,9 +40,18 @@ function requestItems(body: Record<string, unknown>): unknown[] {
 function checkEntry(raw: unknown, n: number): Checked {
   const fail = (msg: string) => new Error(`item ${n}: ${msg}`);
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  if (o.kind !== 'shop' && o.kind !== 'model') throw fail('kind must be "shop" or "model"');
+  if (o.kind !== 'shop' && o.kind !== 'model' && o.kind !== 'tpl') throw fail('kind must be "shop", "tpl" or "model"');
   const qty = o.qty;
   if (!isQty(qty)) throw fail(`qty must be a whole number 1-${MAX_QTY}`);
+  if (o.kind === 'tpl') {
+    const tpl = templateById(o.id);
+    if (!tpl) throw fail('unknown template');
+    try {
+      return { n, kind: 'tpl', tpl, cfg: normalizeCfg(tpl, o.cfg, true), qty };
+    } catch (e) {
+      throw fail(e instanceof Error ? e.message : 'bad config');
+    }
+  }
   if (o.kind === 'shop') {
     const item = CATALOG.find((i) => i.id === o.id);
     if (!item) throw fail('unknown item');
@@ -57,6 +68,9 @@ function priceShop(item: Item, qty: number): SavedLine {
   // shop order: price comes from the catalogue, never from the client
   return { kind: 'shop', id: item.id, itemName: item.name, qty, material: item.material, total: item.price * qty };
 }
+
+// template order: the mesh is rebuilt here from the validated config and priced with quote(); nothing the browser says about price is read
+const priceTpl = (tpl: TemplateDef, cfg: Cfg, qty: number): SavedLine => templateOrderLine(tpl, cfg, qty);
 
 async function priceModel(file: string, material: string, qty: number): Promise<SavedLine> {
   if (file.endsWith('.stats.json') || !(await getBytes('uploads', file))) throw new Error('file not found');
@@ -119,7 +133,7 @@ export async function POST(request: Request) {
     const lines: SavedLine[] = [];
     for (const r of mergeChecked(reqs)) {
       try {
-        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : await priceModel(r.file, r.material, r.qty));
+        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : await priceModel(r.file, r.material, r.qty));
       } catch (e) {
         throw new Error(`item ${r.n}: ${e instanceof Error ? e.message : 'invalid'}`);
       }

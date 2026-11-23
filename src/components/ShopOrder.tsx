@@ -16,6 +16,8 @@ import BlueprintSheet from './BlueprintSheet';
 import { money, secondaryBtn } from './ContactFields';
 import { QtyStepper, SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
+import { TEMPLATES, templateById } from '@/lib/templateDefs';
+import { ComingSoon, TemplateCard, TemplateDialog } from './TemplateShop';
 
 // the 3D preview code loads only when a card first scrolls into view
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
@@ -346,11 +348,14 @@ export default function ShopOrder({ onWholesale, embedded = false, limit }: { on
     opener.current?.focus();
   }, []);
 
-  const chips = [{ id: 'all', label: 'All' }, ...CATEGORIES.filter((c) => PRODUCTS.some((p) => p.item.category === c.id))];
+  // templates are the shop on /shop; the home page (limit) keeps showing the fixed parts
+  const tpls = limit === undefined ? TEMPLATES.filter((t) => cat === 'all' || t.category === cat) : [];
+  const chips = [{ id: 'all', label: 'All' }, ...CATEGORIES.filter((c) => PRODUCTS.some((p) => p.item.category === c.id) || (limit === undefined && TEMPLATES.some((t) => t.category === c.id)))];
   const shown = PRODUCTS.filter((p) => cat === 'all' || p.item.category === cat).slice(0, limit);
   // at most six WebGL canvases: the open dialog takes one of them
   const live = new Set(visible.slice(0, openId ? MAX_CANVASES - 1 : MAX_CANVASES));
   const open = PRODUCTS.find((p) => p.item.id === openId);
+  const openTpl = templateById(openId);
 
   return (
     <div className="space-y-6">
@@ -364,10 +369,15 @@ export default function ShopOrder({ onWholesale, embedded = false, limit }: { on
         </div>
       )}
       <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${embedded ? 'lg:grid-cols-3' : ''}`}>
+        {tpls.map((t, i) => (
+          <TemplateCard key={t.id} t={t} index={i} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} onView={onView} />
+        ))}
         {shown.map((p) => (
           <ShopCard key={p.item.id} p={p} live={live.has(p.item.id)} reduceMotion={reduceMotion} setVisible={setVisible} onView={onView} />
         ))}
       </ul>
+      {openTpl && <TemplateDialog key={openTpl.id} t={openTpl} reduceMotion={reduceMotion} onClose={closeModal} />}
+      {limit === undefined && <ComingSoon />}
       {open && <ItemDialog key={open.item.id} p={open} reduceMotion={reduceMotion} onClose={closeModal} />}
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Need 100+?{' '}

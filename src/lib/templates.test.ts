@@ -1,0 +1,145 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { TEMPLATES, defaultCfg, normalizeCfg, templateById, cfgKey, type Cfg, type TemplateDef } from './templateDefs.ts';
+import { addLine, lineTotal, lineKey, parseCart, type CartLine } from './cart.ts';
+import { mergeChecked } from './orderChecks.ts';
+import { MAX_QTY } from './quote.ts';
+import { buildTemplate, priceTemplate, templateMesh, templateOrderLine } from './templates.ts';
+import { fitsBed, meshStats, quote } from './quote.ts';
+
+// pieces and through-holes of a closed triangle mesh: genus = pieces - (V - E + F) / 2
+function topology(p: Float32Array) {
+  const id = new Map<string, number>();
+  const parent: number[] = [];
+  const find = (a: number): number => (parent[a] === a ? a : (parent[a] = find(parent[a])));
+  const vid = (k: number) => {
+    const key = `${p[k]},${p[k + 1]},${p[k + 2]}`;
+    if (!id.has(key)) { id.set(key, id.size); parent.push(id.size - 1); }
+    return id.get(key)!;
+  };
+  const edges = new Set<string>();
+  let F = 0;
+  for (let i = 0; i + 8 < p.length; i += 9) {
+    const v = [vid(i), vid(i + 3), vid(i + 6)];
+    F++;
+    for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) {
+      edges.add(v[a] < v[b] ? `${v[a]}|${v[b]}` : `${v[b]}|${v[a]}`);
+      parent[find(v[a])] = find(v[b]);
+    }
+  }
+  const pieces = new Set(parent.map((_, i) => find(i))).size;
+  return { pieces, genus: pieces - (id.size - edges.size + F) / 2 };
+}
+
+const claim = (t: TemplateDef, cfg: Cfg) => {
+  const b = buildTemplate(t, cfg);
+  const mesh = templateMesh(b.shapes);
+  assert.ok(mesh, `${t.id} builds`);
+  const stats = meshStats(mesh);
+  assert.ok(stats, `${t.id} mesh is closed`);
+  return { b, mesh, stats };
+};
+
+test('every template default builds a closed mesh inside the bed, and its description matches the mesh', () => {
+  assert.equal(TEMPLATES.length, 8);
+  for (const t of TEMPLATES) {
+    const { b, mesh, stats } = claim(t, defaultCfg(t));
+    assert.ok(fitsBed(stats.sizeMm), `${t.id} fits the bed: ${JSON.stringify(stats.sizeMm)}`);
+    const top = topology(mesh);
+    assert.equal(top.pieces, b.parts, `${t.id} pieces`);
+    assert.equal(top.genus, b.holes, `${t.id} through-holes`);
+    if (b.holes) assert.ok(b.description.includes(`Openings through the part: ${b.holes}.`), t.id);
+    if (b.parts > 1) assert.ok(b.description.includes(`Prints as ${b.parts} separate pieces.`), t.id);
+    assert.ok(!/NaN|undefined/.test(b.description), t.id);
+    assert.equal(t.marketLinks.length, 0); // owner fills these in
+  }
+});
+
+test('config extremes and options still build closed meshes that fit and match', () => {
+  const edge = (t: TemplateDef, pick: 'min' | 'max'): Cfg =>
+    Object.fromEntries(t.fields.map((f) => [f.key, f.type === 'range' ? f[pick] : f.default]));
+  const cases: [string, Cfg][] = [];
+  for (const t of TEMPLATES) {
+    cases.push([t.id, edge(t, 'min')], [t.id, edge(t, 'max')]);
+    for (const f of t.fields) {
+      if (f.type === 'select') for (const o of f.options) cases.push([t.id, { ...defaultCfg(t), [f.key]: o.value }]);
+      if (f.type === 'bool') cases.push([t.id, { ...defaultCfg(t), [f.key]: !f.default }]);
+    }
+  }
+  for (const [id, raw] of cases) {
+    const t = templateById(id)!;
+    const cfg = normalizeCfg(t, raw, true);
+    const { b, mesh, stats } = claim(t, cfg);
+    const label = `${id} ${cfgKey(t, cfg)}`;
+    assert.ok(fitsBed(stats.sizeMm), `${label} fits: ${JSON.stringify(stats.sizeMm)}`);
+    const top = topology(mesh);
+    assert.deepEqual([top.pieces, top.genus], [b.parts, b.holes], label);
+  }
+});
+
+test('seeded random configs build closed, fitting meshes whose pieces and holes match the description', () => {
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  for (const t of TEMPLATES) {
+    for (let i = 0; i < 6; i++) {
+      const raw = Object.fromEntries(t.fields.map((f) => [f.key, f.type === 'range' ? f.min + rnd() * (f.max - f.min) : f.type === 'select' ? f.options[Math.floor(rnd() * f.options.length)].value : rnd() < 0.5]));
+      const cfg = normalizeCfg(t, raw, true);
+      const { b, mesh, stats } = claim(t, cfg);
+      assert.ok(fitsBed(stats.sizeMm), `${t.id} ${cfgKey(t, cfg)}`);
+      const top = topology(mesh);
+      assert.deepEqual([top.pieces, top.genus], [b.parts, b.holes], `${t.id} ${cfgKey(t, cfg)}`);
+    }
+  }
+});
+
+test('description numbers follow the config', () => {
+  const t = templateById('spacer-set')!;
+  const b = buildTemplate(t, normalizeCfg(t, { screw: 'M4', od: 5, len: 12, count: 3 }));
+  assert.ok(b.description.includes('3 round spacers') && b.description.includes('4.5 mm clearance hole') && b.description.includes('M4'));
+  assert.ok(b.description.includes('raised to 6.5 mm')); // 4.5 + 2 > 5
+  const e = templateById('enclosure-box')!;
+  const d = buildTemplate(e, normalizeCfg(e, { ...defaultCfg(e), l: 60, vents: true })).description;
+  assert.ok(d.includes('10 vent slots (5 in each long side)'), d); // floor((60 - 20) / 8) = 5 per side
+});
+
+test('normalizeCfg: strict rejects, lenient repairs', () => {
+  const t = templateById('motor-mount')!;
+  assert.throws(() => normalizeCfg(t, { motor: 'nope', base: 4 }, true));
+  assert.throws(() => normalizeCfg(t, { motor: 'n20', base: 99 }, true));
+  assert.throws(() => normalizeCfg(t, { motor: 'n20', base: 4, extra: 1 }, true));
+  assert.throws(() => normalizeCfg(t, { motor: 'n20' }, true));
+  assert.throws(() => normalizeCfg(t, null, true));
+  assert.deepEqual(normalizeCfg(t, { motor: 'x', base: 99 }), defaultCfg(t));
+  assert.equal(normalizeCfg(t, { motor: 'tt', base: 4.26 }, true).base, 4.5); // snapped to the step
+});
+
+test('server price: recomputed from the config, ignoring anything the client claims', () => {
+  const t = templateById('phone-stand-pro')!;
+  const small = priceTemplate(t.id, normalizeCfg(t, { ...defaultCfg(t), width: 50 }, true), 1);
+  const big = priceTemplate(t.id, normalizeCfg(t, { ...defaultCfg(t), width: 100 }, true), 1);
+  assert.ok(big.quote.total > small.quote.total, 'bigger config costs more');
+  assert.equal(small.quote.total, quote(small.stats, t.material, 1).total);
+  assert.equal(priceTemplate(t.id, defaultCfg(t), 5).quote.total, quote(priceTemplate(t.id, defaultCfg(t), 1).stats, t.material, 5).total);
+  assert.throws(() => priceTemplate('nope', {}, 1), /unknown template/);
+});
+
+test('order line: price comes from the config; a cart line cannot set it', () => {
+  const t = templateById('spacer-set')!;
+  const cfg = normalizeCfg(t, { screw: 'M3', od: 12, len: 40, count: 12 }, true);
+  const line = templateOrderLine(t, cfg, 3);
+  assert.equal(line.total, line.quote.total);
+  assert.equal(line.total, quote(priceTemplate(t.id, cfg, 3).stats, 'PETG', 3).total);
+  assert.ok(line.config.includes('Screw size: M3') && line.config.includes('Length: 40'));
+  // a cart line claiming unitPrice 0.01 is only a display figure; the server never reads it
+  const cheat: CartLine = { kind: 'tpl', id: t.id, cfg, qty: 3, unitPrice: 0.01 };
+  assert.ok((lineTotal(cheat) ?? 0) < line.total);
+  assert.notEqual(line.total, lineTotal(cheat));
+  // different settings are different cart lines; the same settings merge
+  const other = { ...cheat, cfg: { ...cfg, len: 38 } };
+  assert.equal(addLine(addLine([cheat], cheat), other).length, 2);
+  assert.notEqual(lineKey(cheat), lineKey(other));
+  assert.equal(parseCart([cheat, { ...cheat, id: 'nope' }, { ...cheat, unitPrice: 'x' }, { ...cheat, cfg: { screw: 'M9' } }]).length, 2); // bad cfg is repaired to defaults, unknown id and bad price dropped
+  const a = { n: 1, kind: 'tpl' as const, tpl: t, cfg, qty: MAX_QTY };
+  assert.throws(() => mergeChecked([a, { ...a, n: 2, qty: 1 }]), /over/);
+  assert.equal(mergeChecked([{ ...a, qty: 1 }, { ...a, n: 2, qty: 2 }, { ...a, n: 3, cfg: { ...cfg, len: 38 }, qty: 1 }]).length, 2);
+});

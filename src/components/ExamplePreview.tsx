@@ -9,10 +9,10 @@ import type { MaterialKey } from '@/lib/quote';
 const DEG = Math.PI / 180;
 
 /** The finished part (solids minus holes) as one print-ready geometry, or null if the shapes cannot be combined. */
-export function useBuiltGeometry(shapes: Shape[]) {
+export function useBuiltGeometry(shapes: Shape[], mesh?: Float32Array | null) {
   return useMemo(() => {
     try {
-      const tris = buildMesh(shapes);
+      const tris = mesh !== undefined ? mesh : buildMesh(shapes); // a ready-made mesh (templates) is drawn as given, so preview and price use the same one
       if (!tris) return null;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(tris, 3));
@@ -20,16 +20,16 @@ export function useBuiltGeometry(shapes: Shape[]) {
     } catch {
       return null;
     }
-  }, [shapes]);
+  }, [shapes, mesh]);
 }
 
 /** Live preview of an example as a printed part: layer lines, studio light, draggable turntable.
  * Static when the visitor prefers reduced motion. interactive (the dialog): zoom, Solid / Mesh / Layers, print bed. */
-export default function ExamplePreview({ shapes, reduceMotion, interactive = false, material = 'PETG' }: {
-  shapes: Shape[]; reduceMotion: boolean; interactive?: boolean; material?: MaterialKey;
+export default function ExamplePreview({ shapes, reduceMotion, interactive = false, material = 'PETG', mesh }: {
+  shapes: Shape[]; reduceMotion: boolean; interactive?: boolean; material?: MaterialKey; mesh?: Float32Array | null;
 }) {
   const size = solidsSize(shapes) ?? { x: 20, y: 20, z: 20 };
-  const built = useBuiltGeometry(shapes);
+  const built = useBuiltGeometry(shapes, mesh);
   return (
     <PrintStage size={size} material={material} interactive={interactive} reduceMotion={reduceMotion}>
       {built ? <PrintMesh geometry={built} /> : (

@@ -5,6 +5,7 @@ export const CATEGORIES = [
   { id: 'enclosure', label: 'Frames and enclosures for electronics' },
   { id: 'toy', label: 'Toys and moving toys' },
   { id: 'drone', label: 'Drone and RC bodies' },
+  { id: 'robotics', label: 'Robotics and hardware' },
   { id: 'other', label: 'Something else' },
 ] as const;
 export const QTY_BANDS = [

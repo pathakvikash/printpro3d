@@ -2,13 +2,16 @@
 // Pure: no React, no DOM, no fs. The browser keeps these in localStorage, with no accounts.
 // Prices shown in the browser are for display only; /api/orders recomputes every line itself.
 import { CATALOG } from './catalog.ts';
-import { MAX_QTY } from './quote.ts';
+import { MAX_QTY, MIN_ORDER, SETUP_FEE } from './quote.ts';
+import { cfgKey, normalizeCfg, templateById, type Cfg } from './templateDefs.ts';
 
 export const MAX_LINES = 20;
 export const MAX_SAVED = 50;
 
 export type CartLine =
   | { kind: 'shop'; id: string; qty: number }
+  // a parametric template with the customer's settings; `unitPrice` is the per-piece price shown when it was configured (display only, the server recomputes from `cfg`)
+  | { kind: 'tpl'; id: string; cfg: Cfg; qty: number; unitPrice: number }
   // a customer's own model (upload, builder or AI): `file` is the stored upload name,
   // `estimate` the line total shown when it was quoted (null = we quote it manually)
   | { kind: 'model'; file: string; label: string; material: string; qty: number; estimate: number | null };
@@ -17,6 +20,7 @@ const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 export function lineKey(l: CartLine): string {
+  if (l.kind === 'tpl') return `tpl:${l.id}:${cfgKey(templateById(l.id)!, l.cfg)}`;
   return l.kind === 'shop' ? `shop:${l.id}` : `model:${l.file}:${l.material}`;
 }
 
@@ -32,6 +36,10 @@ export function parseCart(raw: unknown): CartLine[] {
     if (o.kind === 'shop') {
       const id = str(o.id, 60);
       if (CATALOG.some((i) => i.id === id)) out.push({ kind: 'shop', id, qty: o.qty });
+    } else if (o.kind === 'tpl') {
+      const t = templateById(o.id);
+      const unit = o.unitPrice;
+      if (t && typeof unit === 'number' && Number.isFinite(unit) && unit >= 0) out.push({ kind: 'tpl', id: t.id, cfg: normalizeCfg(t, o.cfg), qty: o.qty, unitPrice: unit });
     } else if (o.kind === 'model') {
       const file = str(o.file, 200);
       const material = str(o.material, 20);
@@ -76,6 +84,7 @@ export const removeLine = (lines: CartLine[], key: string): CartLine[] => lines.
 
 // Display total of one line, or null when we will quote it manually.
 export function lineTotal(l: CartLine): number | null {
+  if (l.kind === 'tpl') return Math.round(Math.max(MIN_ORDER, SETUP_FEE + l.unitPrice * l.qty)); // same formula as quote(); display only
   if (l.kind === 'shop') {
     const item = CATALOG.find((i) => i.id === l.id);
     return item ? item.price * l.qty : null;
