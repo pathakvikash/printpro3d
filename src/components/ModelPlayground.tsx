@@ -138,7 +138,7 @@ export default function ModelPlayground() {
           <label className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-gray-200"><input type="checkbox" checked={spin} onChange={(e) => setSpin(e.target.checked)} />Auto-rotate</label>
         </div>
 
-        <div className={sideBySide ? 'grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' : 'space-y-4'}>
+        <div className={sideBySide ? 'grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' : 'space-y-4'}>
           <div className={mode === 'blueprint' ? 'hidden' : 'space-y-2'}>
             <div className="h-[340px] sm:h-[460px]">
               {file?.url ? (
