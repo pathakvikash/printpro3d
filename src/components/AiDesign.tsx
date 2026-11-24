@@ -89,7 +89,7 @@ export default function AiDesign({ onDesigner }: { onDesigner: () => void }) {
       } catch {
         return fail('We could not open the builder in this browser. Try again, or send your idea to our designer.');
       }
-      router.push('/build?from=ai'); // stays busy until the page changes
+      router.push('/playground?mode=build&from=ai'); // stays busy until the page changes
     } catch {
       if (!c.signal.aborted) fail(GENERIC); // an abort (Cancel or unmount) is silent
     }

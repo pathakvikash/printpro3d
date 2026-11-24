@@ -96,10 +96,10 @@ export default function BuildFlow() {
     return () => ctl.abort();
   }, [boot]);
 
-  // each step is its own history entry (?step=), so the browser Back button walks the steps before leaving /build
+  // each step is its own history entry (?step=), so the browser Back button walks the steps before leaving the builder
   const show = (s: Step) => {
     setStep(s);
-    router.push(`${pathname}?step=${s}`, { scroll: false });
+    router.push(`${pathname}?mode=build&step=${s}`, { scroll: false });
     top.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
   const go = (s: Step) => {
@@ -115,10 +115,10 @@ export default function BuildFlow() {
   // a project just opened (new or resumed): record its step in the URL without adding a history entry
   const projectId = project?.id;
   useEffect(() => {
-    if (projectId) router.replace(`${pathname}?step=${live.current.step}`, { scroll: false });
+    if (projectId) router.replace(`${pathname}?mode=build&step=${live.current.step}`, { scroll: false });
   }, [projectId, pathname, router]);
   const back = () => { if (window.history.length > 1) router.back(); else router.push('/shop'); };
-  const fresh = () => { router.replace(pathname, { scroll: false }); writeId(null); setDesigns(readList()); setListNote(''); setProject(null); setStats(null); setStep('plan'); setPending(null); };
+  const fresh = () => { router.replace(`${pathname}?mode=build`, { scroll: false }); writeId(null); setDesigns(readList()); setListNote(''); setProject(null); setStats(null); setStep('plan'); setPending(null); };
   const newDesign = () => {
     if (project && project.status !== 'ordered' && !window.confirm('Leave this design? It is not deleted: you can reopen it from My designs.')) return;
     fresh();

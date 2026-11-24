@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { analyzeMesh } from '@/lib/meshAnalysis';
+import Link from 'next/link';
 import Icon from './Icon';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
@@ -120,7 +121,7 @@ export default function QuoteOrder({
             );
           })}
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb} <Link href="/materials" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Compare materials</Link></p>
       </fieldset>
 
       {found && (

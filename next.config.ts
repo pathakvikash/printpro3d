@@ -2,11 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["three"],
-  // the blueprint-first flow lives at /build; Next keeps the query string on redirects. Old pages stay in the tree until the UI lands.
+  // Build lives inside the Playground (/playground?mode=build). Next merges the request's query string (example, sim, step, prompt, from) into these destinations.
   async redirects() {
     return [
-      { source: "/draw", destination: "/build", permanent: false },
-      { source: "/ai", destination: "/build", permanent: false },
+      { source: "/build", destination: "/playground?mode=build", permanent: false },
+      { source: "/draw", destination: "/playground?mode=build", permanent: false },
+      { source: "/ai", destination: "/playground?mode=build", permanent: false },
     ];
   },
 };

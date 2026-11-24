@@ -18,17 +18,17 @@ import { buildTemplate } from '@/lib/templates';
 import { buildOffThread } from '@/lib/buildOffThread';
 import { productById } from '@/lib/shopProducts';
 import type { Shape } from '@/lib/playground';
-import { money, secondaryBtn } from './ContactFields';
+import { money } from './ContactFields';
 import { useCart } from './CartProvider';
 import FlowStrip from '@/components/FlowStrip';
 import BoughtList from './BoughtList';
-import { addBtn, AddLabel, BackToShop, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
+import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
-type Part = { item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
+export type Part = { item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
 
 // everything about one kit item that does not need the mesh
 function describe(item: KitItem) {
@@ -38,7 +38,7 @@ function describe(item: KitItem) {
   return { name: p?.item.name ?? item.templateId, material: p?.item.material ?? '', shapes: p?.ex.shapes ?? [], template: false };
 }
 
-function useParts(kit: Kit): Part[] {
+export function useParts(kit: Kit): Part[] {
   const base = useMemo(() => kit.items.map((item) => ({ item, ...describe(item) })), [kit]);
   const [meshes, setMeshes] = useState<(Float32Array | null | undefined)[]>(() => kit.items.map(() => undefined));
   useEffect(() => {
@@ -63,7 +63,7 @@ function useParts(kit: Kit): Part[] {
 }
 
 // The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
-function FinishedBuild({ kit, parts }: { kit: Kit; parts: Part[] }) {
+export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]; focusId?: string | null }) {
   const built = useMemo(() => {
     if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
@@ -82,7 +82,7 @@ function FinishedBuild({ kit, parts }: { kit: Kit; parts: Part[] }) {
   return (
     <section aria-labelledby="kit-finished" className="space-y-2">
       <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
-      {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
+      {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
       <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.</p>
     </section>
   );
@@ -92,6 +92,18 @@ export function KitCard({ kit }: { kit: Kit }) {
   const descs = useMemo(() => kit.items.map((i) => ({ i, ...describe(i) })), [kit]);
   const names = descs.map((d) => `${d.i.qty > 1 ? `${d.i.qty} x ` : ''}${d.name}`);
   const sources = useMemo(() => descs.map((d) => ({ id: d.i.templateId, shapes: d.shapes, template: d.template })), [descs]);
+  const { lines, add, toast } = useCart();
+  const [added, setAdded] = useAdded();
+  const parts = useParts(kit); // unit prices for the cart lines come from the meshes, as on the kit page
+  const ready = parts.every((p) => p.unit != null);
+  const addAll = () => {
+    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0);
+    const why = kitBlocked(lines, mk);
+    if (why) { toast(why); return; }
+    mk.forEach(add);
+    toast('Kit added to cart', true);
+    setAdded(true);
+  };
   const rows: [string, string][] = [['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} kinds`], ['Bought separately', `${kit.boughtParts.length} items`]];
   return (
     <CardFrame
@@ -101,7 +113,7 @@ export function KitCard({ kit }: { kit: Kit }) {
       blurb={kit.blurb}
       rows={rows}
       preview={kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
-      actions={<Link href={`/shop/${kit.id}`} tabIndex={-1} className={`${secondaryBtn} w-full`}><Icon name="wrench" />See the kit</Link>}
+      actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={addAll} />}
     />
   );
 }

@@ -125,7 +125,7 @@ export default function StartPanel({ caps, initialPrompt, onProject }: { caps: C
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Or open an example in the free builder:{' '}
             {EXAMPLES.slice(0, 4).map((x, i) => (
-              <span key={x.id}>{i > 0 && ', '}<Link href={`/build?example=${x.id}`} className="underline hover:no-underline">{x.title}</Link></span>
+              <span key={x.id}>{i > 0 && ', '}<Link href={`/playground?mode=build&example=${x.id}`} className="underline hover:no-underline">{x.title}</Link></span>
             ))}.
           </p>
         </div>

@@ -237,7 +237,7 @@ function Drawer() {
         <p className="font-semibold text-gray-900 dark:text-gray-100">{ex.title}</p>
         <div className="flex flex-wrap items-center gap-4">
           <Link
-            href={`/build?example=${ex.id}`}
+            href={`/playground?mode=build&example=${ex.id}`}
             onClick={closeCart}
             className={secondaryBtn}
           >

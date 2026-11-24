@@ -1,16 +1,19 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
-import ModelPlayground from '@/components/ModelPlayground';
+import PlaygroundHub from '@/components/PlaygroundHub';
 
 export const metadata: Metadata = {
-  title: 'Model playground - PrintPro3D',
-  description: 'Spin, zoom and measure drone, RC and robotics parts, or your own STL/OBJ, with a blueprint and material previews. Then send it to Get a quote.',
+  title: 'Playground: inspect and build - PrintPro3D',
+  description: 'Inspect any shop part or kit in 3D with its blueprint, then modify it or build your own from shapes and simulate it. Then send it to Get a quote.',
 };
 
 export default function PlaygroundPage() {
   return (
-    <PageShell wide title="Model playground" lead="View a sample part or your own file in 3D, check its size on the blueprint, try materials and lighting, then send it to Get a quote.">
-      <ModelPlayground />
+    <PageShell wide title="Playground" lead="Inspect any part or kit in 3D with its drawing, then modify it or build your own and simulate it.">
+      <Suspense fallback={null}>
+        <PlaygroundHub />
+      </Suspense>
     </PageShell>
   );
 }

@@ -21,7 +21,7 @@ const TRUST = [
 ] as const;
 
 // old links were /?start=<step>; keep them working
-const START_ROUTES: Record<string, string> = { file: '/quote', idea: '/request', ai: '/ai', design: '/draw', shop: '/shop', build: '/build', track: '/track' };
+const START_ROUTES: Record<string, string> = { file: '/quote', idea: '/request', ai: '/ai', design: '/draw', shop: '/shop', build: '/playground?mode=build', track: '/track' };
 
 // three starting points, in the order a visitor is likely to be ready; each says what to bring and what happens next
 const STARTS = [
@@ -42,7 +42,7 @@ const STARTS = [
 
 // smaller, secondary tools; the AI ones appear only when their provider is configured
 const MORE = [
-  { href: '/build', label: 'Build from shapes' },
+  { href: '/playground?mode=build', label: 'Build from shapes' },
   { href: '/ai', label: 'Generate with AI', needs: 'ai' },
   { href: '/draw', label: 'Draw with AI', needs: 'design' },
 ] as const;
@@ -85,7 +85,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
             </div>
             <p className="mt-5 text-sm text-gray-600 dark:text-gray-400">
               Just looking?{' '}
-              <Link href="/build?example=shelf-bracket&price=1" className="font-medium text-indigo-700 underline underline-offset-4 hover:no-underline dark:text-indigo-400">Try a sample part</Link>
+              <Link href="/playground?mode=build&example=shelf-bracket&price=1" className="font-medium text-indigo-700 underline underline-offset-4 hover:no-underline dark:text-indigo-400">Try a sample part</Link>
               . {FILE_PROMISE}
             </p>
           </div>

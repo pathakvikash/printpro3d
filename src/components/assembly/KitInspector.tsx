@@ -1,0 +1,62 @@
+'use client';
+// Playground > Inspect for a kit: the finished assembled build next to its engineering (blueprint of the selected part,
+// a parts list with sizes). Selecting a part in the list tints it in the model and draws its blueprint.
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { blueprint, bounds } from '@/lib/blueprint';
+import type { Kit } from '@/lib/kits';
+import { FinishedBuild, useParts } from '../KitShop';
+import BoughtList from '../BoughtList';
+
+const BlueprintSheet = dynamic(() => import('../BlueprintSheet'), { ssr: false });
+const mm = (n: number) => n.toFixed(1);
+
+export default function KitInspector({ kit }: { kit: Kit }) {
+  const parts = useParts(kit);
+  const [sel, setSel] = useState<string | null>(null);
+  const id = sel ?? kit.items[0]?.templateId ?? null;
+  const cur = parts.find((p) => p.item.templateId === id);
+  const sheet = useMemo(() => (cur?.mesh ? blueprint(cur.mesh, { name: cur.name, material: cur.material }) : null), [cur]);
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+        <FinishedBuild kit={kit} parts={parts} focusId={id} />
+        <section aria-label="Blueprint of the selected part" className="space-y-2">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Blueprint: {cur?.name ?? '…'}</h2>
+          {sheet ? <BlueprintSheet svg={sheet} filename={`blueprint-${(cur?.name ?? 'part').replace(/\W+/g, '-').toLowerCase()}`} /> : <div role="status" aria-label="Drawing the blueprint" className="h-48 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />}
+        </section>
+      </div>
+      <section aria-label="Parts list" className="space-y-2">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Parts list</h2>
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <table className="w-full min-w-[520px] text-left text-sm">
+            <thead className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+              <tr><th className="px-3 py-2 font-semibold">Part</th><th className="px-3 py-2 font-semibold">Qty</th><th className="px-3 py-2 font-semibold">Material</th><th className="px-3 py-2 font-semibold">Size X × Y × Z (mm)</th></tr>
+            </thead>
+            <tbody>
+              {parts.map((p) => {
+                const on = p.item.templateId === id;
+                const s = p.mesh ? bounds(p.mesh).size : null;
+                return (
+                  <tr key={p.item.templateId} className={`border-t border-gray-200 dark:border-gray-700 ${on ? 'bg-indigo-50 dark:bg-indigo-950/40' : ''}`}>
+                    <td className="px-3 py-1">
+                      <button type="button" aria-pressed={on} onClick={() => setSel(p.item.templateId)} className="min-h-9 text-left font-medium text-gray-900 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-gray-100">{p.name}</button>
+                    </td>
+                    <td className="px-3 py-1 text-gray-800 dark:text-gray-200">{p.item.qty}</td>
+                    <td className="px-3 py-1 text-gray-800 dark:text-gray-200">{p.material}</td>
+                    <td className="px-3 py-1 font-mono text-gray-800 dark:text-gray-200">{s ? `${mm(s.x)} × ${mm(s.y)} × ${mm(s.z)}` : '…'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div><BoughtList items={kit.boughtParts} /></div>
+        <p className="text-sm text-gray-600 dark:text-gray-300"><Link href={`/shop/${kit.id}`} className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Open the kit page</Link> to see prices and add the whole kit to your cart.</p>
+      </div>
+    </div>
+  );
+}

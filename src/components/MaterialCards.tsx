@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { quote, MATERIALS, type MaterialKey } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 
@@ -56,6 +57,7 @@ export default function MaterialCards({ partVolumeCm3, selected, onSelect }: Pro
       </ul>
       <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
         Swatch colours are illustrative; the printed colour may differ.
+        {onSelect && <> <Link href="/materials" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Compare materials</Link></>}
       </p>
     </div>
   );

@@ -2,24 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Logo from './Logo';
 import { useCart } from './CartProvider';
 import { business, phoneHref } from '@/lib/contact';
 
 const LINKS = [
   { href: '/shop', label: 'Shop' },
-  { href: '/quote', label: 'Get a quote' },
-  { href: '/build', label: 'Build' },
   { href: '/playground', label: 'Playground' },
-  { href: '/materials', label: 'Materials' },
-  { href: '/how-it-works', label: 'How it works' },
-  { href: '/track', label: 'Track order' },
 ];
+// the account/settings menu; Theme is a button, added by the menu itself
+const MENU_LINKS = [
+  { href: '/track', label: 'Track order' },
+  { href: '/playground?mode=build', label: 'My designs' },
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/materials', label: 'Materials guide' },
+];
+const itemCls = 'block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-indigo-500';
+const iconBtn = 'rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
+  const [acct, setAcct] = useState(false);
+  const acctBox = useRef<HTMLDivElement>(null);
+  const acctBtn = useRef<HTMLButtonElement>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
   const { count, openCart } = useCart();
@@ -41,14 +48,21 @@ export default function Navbar() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme, mounted]);
 
-  // close the mobile panel on route change and on Escape
-  useEffect(() => setMenu(false), [pathname]);
+  // close the panels on route change; Escape closes either (the account menu hands focus back to its button)
+  useEffect(() => { setMenu(false); setAcct(false); }, [pathname]);
   useEffect(() => {
-    if (!menu) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false);
+    if (!menu && !acct) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMenu(false);
+      if (acct) { setAcct(false); acctBtn.current?.focus(); }
+    };
+    const onDown = (e: MouseEvent) => { if (acct && !acctBox.current?.contains(e.target as Node)) setAcct(false); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [menu]);
+    window.addEventListener('mousedown', onDown);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); };
+  }, [menu, acct]);
+  useEffect(() => { if (acct) acctBox.current?.querySelector<HTMLElement>('#account-menu a')?.focus(); }, [acct]);
 
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -95,29 +109,12 @@ export default function Navbar() {
                 {business.phone}
               </a>
             )}
-            {/* Theme toggle */}
-            <button
-              aria-label='Toggle theme'
-              onClick={toggleTheme}
-              className='rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
-            >
-              {mounted && theme === 'dark' ? (
-                <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.07l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.93l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z' />
-                </svg>
-              ) : (
-                <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z' />
-                </svg>
-              )}
-            </button>
-
             {/* Cart: opens the drawer */}
             <button
               type='button'
               onClick={() => openCart('cart')}
               aria-label={count > 0 ? `Open cart, ${count} ${count === 1 ? 'item' : 'items'}` : 'Open cart'}
-              className='relative rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+              className={`relative ${iconBtn}`}
             >
               <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z' />
@@ -132,11 +129,42 @@ export default function Navbar() {
               )}
             </button>
 
+            {/* Account / settings menu: desktop (the hamburger mirrors it on mobile) */}
+            <div ref={acctBox} className='relative hidden md:block'>
+              <button
+                ref={acctBtn}
+                type='button'
+                onClick={() => setAcct((o) => !o)}
+                aria-expanded={acct}
+                aria-controls='account-menu'
+                aria-label='Account and settings'
+                className={iconBtn}
+              >
+                <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0' />
+                </svg>
+              </button>
+              {acct && (
+                <ul id='account-menu' className='absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900'>
+                  {MENU_LINKS.map((l) => (
+                    <li key={l.href}>
+                      <Link href={l.href} className={itemCls}>{l.label}</Link>
+                    </li>
+                  ))}
+                  <li className='border-t border-gray-200 dark:border-gray-700 mt-1 pt-1'>
+                    <button type='button' onClick={toggleTheme} className={`${itemCls} w-full text-left`}>
+                      Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'} (switch)
+                    </button>
+                  </li>
+                </ul>
+              )}
+            </div>
+
             <Link
               href='/quote'
-              className='md:max-xl:hidden px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap'
+              className='px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
             >
-              Start a project
+              Get a quote
             </Link>
 
             {/* Hamburger: mobile */}
@@ -146,7 +174,7 @@ export default function Navbar() {
               aria-expanded={menu}
               aria-controls='mobile-menu'
               aria-label={menu ? 'Close menu' : 'Open menu'}
-              className='md:hidden rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+              className={`md:hidden ${iconBtn}`}
             >
               <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d={menu ? 'M6 6l12 12M6 18L18 6' : 'M4 6h16M4 12h16M4 18h16'} />
@@ -158,8 +186,8 @@ export default function Navbar() {
 
       {menu && (
         <ul id='mobile-menu' className='md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-2'>
-          {LINKS.map((l) => (
-            <li key={l.href}>
+          {[...LINKS, ...MENU_LINKS].map((l, i) => (
+            <li key={l.href} className={i === LINKS.length ? 'mt-1 border-t border-gray-200 pt-1 dark:border-gray-800' : undefined}>
               <Link
                 href={l.href}
                 aria-current={pathname === l.href ? 'page' : undefined}
@@ -169,6 +197,11 @@ export default function Navbar() {
               </Link>
             </li>
           ))}
+          <li className='mt-1 border-t border-gray-200 pt-1 dark:border-gray-800'>
+            <button type='button' onClick={toggleTheme} className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
+              Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'} (switch)
+            </button>
+          </li>
         </ul>
       )}
     </nav>

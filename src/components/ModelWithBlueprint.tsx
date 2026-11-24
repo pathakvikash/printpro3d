@@ -1,5 +1,5 @@
 'use client';
-// The one place a model is shown: the interactive 3D view AND its blueprint, both from the same triangle soup, so /quote and /build match.
+// The one place a model is shown: the interactive 3D view AND its blueprint, both from the same triangle soup, so /quote and the Playground match.
 // The blueprint is never a substitute for the 3D view. Size comes from bounds() over every vertex of the loaded geometry.
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';

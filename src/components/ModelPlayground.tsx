@@ -4,11 +4,14 @@
 // (The shape builder is Playground.tsx; this one only views.)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MaterialCards from './MaterialCards';
 import { LIGHTS, type LightKey } from '@/lib/lights';
 import { blueprint, bounds } from '@/lib/blueprint';
-import { SHOP_CATEGORIES, shopCat } from '@/lib/catalog';
+import { SHOP_CATEGORIES, shopCat, shopVisible } from '@/lib/catalog';
+import type { TemplateDef } from '@/lib/templateDefs';
+import type { Kit } from '@/lib/kits';
 import { MATERIALS, meshStats, type MaterialKey } from '@/lib/quote';
 import { setPendingFile } from '@/lib/pendingFile';
 import { ALLOWED_EXTS, extOf, fileProblem } from '@/lib/uploadRules';
@@ -16,9 +19,12 @@ import { ALLOWED_EXTS, extOf, fileProblem } from '@/lib/uploadRules';
 const ModelViewer = dynamic(() => import('./ModelViewer'), { ssr: false, loading: () => <div role="status" aria-label="Loading the 3D viewer" className="h-[340px] animate-pulse rounded-xl bg-gray-200 sm:h-[460px] dark:bg-gray-800" /> });
 const AssemblyDemo = dynamic(() => import('./assembly/AssemblyDemo'), { ssr: false, loading: () => <div role="status" aria-label="Loading the assembly demo" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
+const KitInspector = dynamic(() => import('./assembly/KitInspector'), { ssr: false, loading: () => <div role="status" aria-label="Loading the kit" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
+type Extra = { tpls: TemplateDef[]; kits: Kit[] }; // templates and kits are plain data: loaded with the samples, after the page shows
 type Lib = typeof import('@/lib/shopProducts'); // pulls three + the CSG: loaded after the page shows, not in its first load
 
-type Source = { kind: 'sample'; id: string } | { kind: 'file'; file: File; url: string | null };
+type ItemKind = 'sample' | 'tpl' | 'kit';
+type Source = { kind: ItemKind; id: string } | { kind: 'file'; file: File; url: string | null };
 type Mode = 'both' | 'model' | 'blueprint';
 const MODES: [Mode, string][] = [['model', '3D'], ['both', 'Side by side'], ['blueprint', 'Blueprint']];
 const KEYS = Object.keys(MATERIALS) as MaterialKey[];
@@ -30,6 +36,7 @@ const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-sm font-medi
 export default function ModelPlayground() {
   const router = useRouter();
   const [lib, setLib] = useState<Lib | null>(null);
+  const [extra, setExtra] = useState<Extra | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [loaded, setLoaded] = useState<Float32Array | null>(null); // the soup the viewer parsed from an uploaded file
   const [material, setMaterial] = useState<MaterialKey>('PLA');
@@ -45,12 +52,26 @@ export default function ModelPlayground() {
   const urlRef = useRef<string | null>(null);
 
   useEffect(() => { void import('@/lib/shopProducts').then(setLib); }, []);
+  useEffect(() => { void Promise.all([import('@/lib/templateDefs'), import('@/lib/kits')]).then(([t, k]) => setExtra({ tpls: shopVisible(t.TEMPLATES), kits: shopVisible(k.KITS) })); }, []);
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
 
   const products = lib?.PRODUCTS ?? [];
-  const current = source?.kind === 'sample' ? source : products[0] ? { kind: 'sample' as const, id: products[0].item.id } : null;
+  const current = products[0] ? { kind: 'sample' as const, id: products[0].item.id } : null;
   const active: Source | null = source ?? current;
   const product = active?.kind === 'sample' ? lib?.productById(active.id) : undefined;
+  const tpl = active?.kind === 'tpl' ? extra?.tpls.find((t) => t.id === active.id) : undefined;
+  const kit = active?.kind === 'kit' ? extra?.kits.find((k) => k.id === active.id) : undefined;
+  // a template at its default settings, built in the worker like the samples
+  const [tplBuilt, setTplBuilt] = useState<{ id: string; m: Float32Array | null } | null>(null);
+  useEffect(() => {
+    if (!tpl) return;
+    let on = true;
+    Promise.all([import('@/lib/templates'), import('@/lib/templateDefs'), import('@/lib/buildOffThread')])
+      .then(([t, d, b]) => b.buildOffThread(t.buildTemplate(tpl, d.normalizeCfg(tpl, d.defaultCfg(tpl))).shapes, true))
+      .then((m) => on && setTplBuilt({ id: tpl.id, m }), () => on && setTplBuilt({ id: tpl.id, m: null }));
+    return () => { on = false; };
+  }, [tpl]);
+  const tplMesh = tpl && tplBuilt?.id === tpl.id ? tplBuilt.m : null;
   // sample meshes are built in the worker: the CSG in render was a ~1.4 s main-thread task on a phone
   const [built, setBuilt] = useState<{ id: string; m: Float32Array | null } | null>(null);
   const cached = product && lib ? lib.cachedMesh(product) : undefined;
@@ -62,9 +83,10 @@ export default function ModelPlayground() {
   }, [product, lib, cached]);
   const mesh = cached ?? (built && built.id === product?.item.id ? built.m : null);
   const file = active?.kind === 'file' ? active : null;
-  const soup = file ? loaded : mesh;
+  const soup = file ? loaded : tpl ? tplMesh : mesh;
   const shown = soup && soup.length >= 9 ? soup : null;
-  const name = file ? file.file.name : product?.item.name ?? 'Sample model';
+  const itemId = product?.item.id ?? tpl?.id;
+  const name = file ? file.file.name : product?.item.name ?? tpl?.name ?? kit?.title ?? 'Sample model';
   const sheet = useMemo(() => (shown ? blueprint(shown, { name, material }) : null), [shown, name, material]);
   const size = useMemo(() => (shown ? bounds(shown).size : null), [shown]);
   const stats = useMemo(() => (shown ? meshStats(shown) : null), [shown]);
@@ -92,18 +114,25 @@ export default function ModelPlayground() {
   const send = useCallback(async () => {
     let f: File | null = null;
     if (file) f = file.file;
-    else if (mesh && product) {
+    else if (soup && itemId) {
       const { toStl } = await import('@/lib/playground');
-      f = new File([toStl(mesh) as BlobPart], `${product.item.id}.stl`, { type: 'model/stl' });
+      f = new File([toStl(soup) as BlobPart], `${itemId}.stl`, { type: 'model/stl' });
     }
     if (!f) return setNote('Pick a model first.');
     const err = fileProblem(f.name, f.size);
     if (err) return setNote(err);
     setPendingFile(f); // the same hand-off the home page uses: /quote uploads it and shows the price
     router.push('/quote');
-  }, [file, mesh, product, router]);
+  }, [file, soup, itemId, router]);
 
-  const group = (cat: string) => products.filter((p) => shopCat(p.item.id) === cat);
+  const group = (cat: string): { kind: ItemKind; id: string; name: string }[] => [
+    ...products.filter((p) => shopCat(p.item.id) === cat).map((p) => ({ kind: 'sample' as const, id: p.item.id, name: p.item.name })),
+    ...(extra?.tpls ?? []).filter((t) => shopCat(t.id) === cat).map((t) => ({ kind: 'tpl' as const, id: t.id, name: t.name })),
+    ...(extra?.kits ?? []).filter((k) => shopCat(k.id) === cat).map((k) => ({ kind: 'kit' as const, id: k.id, name: `${k.title} (kit)` })),
+  ];
+  // Modify this: catalogue samples open in the builder; templates and kits are configured on their shop page
+  const modifyHref = product ? `/playground?mode=build&example=${product.item.exampleId}` : tpl || kit ? `/shop/${tpl?.id ?? kit?.id}` : null;
+  const isActive = (k: ItemKind, id: string) => active?.kind === k && active.id === id;
   const sideBySide = mode === 'both';
 
   return (
@@ -117,7 +146,8 @@ export default function ModelPlayground() {
         >
           <input ref={input} type="file" accept={ALLOWED_EXTS.join(',')} className="sr-only" aria-label="Choose a 3D file" onChange={(e) => { take(e.target.files?.[0]); e.target.value = ''; }} />
           <button type="button" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500" onClick={() => input.current?.click()}>Upload your own</button>
-          <p className="text-sm text-gray-600 dark:text-gray-300">Drop an STL or OBJ here to view it. It stays in your browser until you send it to Get a quote.</p>
+          <p className="min-w-[12rem] flex-1 text-sm text-gray-600 dark:text-gray-300">Drop an STL or OBJ here to view it. It stays in your browser until you send it to Get a quote.</p>
+          <Link href="/playground?mode=build" className={btn}>Start from scratch</Link>
         </div>
         {SHOP_CATEGORIES.map((c) => {
           const list = group(c.id);
@@ -126,17 +156,25 @@ export default function ModelPlayground() {
               <h2 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{c.label}</h2>
               <ul className="flex flex-wrap gap-2">
                 {list.map((p) => (
-                  <li key={p.item.id}>
-                    <button type="button" aria-pressed={active?.kind === 'sample' && active.id === p.item.id} className={chip(active?.kind === 'sample' && active.id === p.item.id)} onClick={() => pick({ kind: 'sample', id: p.item.id })}>{p.item.name}</button>
+                  <li key={`${p.kind}:${p.id}`}>
+                    <button type="button" aria-pressed={isActive(p.kind, p.id)} className={chip(isActive(p.kind, p.id))} onClick={() => pick({ kind: p.kind, id: p.id })}>{p.name}</button>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null;
         })}
-        {!lib && <div role="status" aria-label="Loading sample models" className="h-8 w-2/3 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />}
+        {(!lib || !extra) && <div role="status" aria-label="Loading sample models" className="h-8 w-2/3 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />}
       </section>
 
+      {modifyHref && (
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{name}</h2>
+          <Link href={modifyHref} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Modify this</Link>
+        </div>
+      )}
+
+      {kit ? <KitInspector key={kit.id} kit={kit} /> : (<>
       <section aria-label="Viewer" className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <div role="group" aria-label="Layout" className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
@@ -155,7 +193,7 @@ export default function ModelPlayground() {
               {file?.url ? (
                 <ModelViewer key={file.url} url={file.url} material={material} onPositions={setLoaded} className="h-full" stage={stage} />
               ) : shown && !file ? (
-                <ModelViewer key={product?.item.id} positions={shown} material={material} className="h-full" stage={stage} />
+                <ModelViewer key={itemId} positions={shown} material={material} className="h-full" stage={stage} />
               ) : (
                 <div role="status" className={`flex h-full items-center justify-center rounded-xl px-6 text-center text-sm text-gray-600 dark:text-gray-300 ${file ? 'bg-gray-100 dark:bg-gray-800' : 'pp-skeleton'}`}>{file ? 'No preview for this file type.' : 'Loading the model…'}</div>
               )}
@@ -196,10 +234,11 @@ export default function ModelPlayground() {
       </section>
 
       <section aria-label="Send to Get a quote" className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-        <button type="button" onClick={() => void send()} disabled={!file && !mesh} className="rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">Send to Get a quote</button>
-        <p className="min-w-0 flex-1 text-sm text-gray-600 dark:text-gray-300">Sends {file ? file.file.name : product ? `${product.item.id}.stl` : 'the model'} exactly as shown, at its real size. Get a quote re-measures it and prices it.</p>
+        <button type="button" onClick={() => void send()} disabled={!file && !soup} className="rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">Send to Get a quote</button>
+        <p className="min-w-0 flex-1 text-sm text-gray-600 dark:text-gray-300">Sends {file ? file.file.name : itemId ? `${itemId}.stl` : 'the model'} exactly as shown, at its real size. Get a quote re-measures it and prices it.</p>
         {note && <p role="status" className="w-full text-sm text-amber-700 dark:text-amber-300">{note}</p>}
       </section>
+      </>)}
     </div>
   );
 }

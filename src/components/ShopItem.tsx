@@ -94,7 +94,7 @@ export default function ItemDetail({ p }: { p: Product }) {
             </button>
           </div>
           {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
-          <Link href={`/build?example=${item.exampleId}`} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Customise in the builder</Link>
+          <Link href={`/playground?mode=build&example=${item.exampleId}`} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Customise</Link>
         </div>
       </div>
 

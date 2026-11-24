@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { CATEGORY_LABEL, CATEGORY_ORDER, PARTS, REFERENCE_BADGE, isSourcedMotor } from '@/lib/parts';
 import PartThumb from './PartThumb';
+import { CardActions } from './ShopParts';
 
 export default function MotorShelf() {
   return (
@@ -25,8 +26,9 @@ export default function MotorShelf() {
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {p.source?.url ? <>Source: <a href={p.source.url} target="_blank" rel="noopener noreferrer" className="relative z-10 text-indigo-600 underline dark:text-indigo-400">{p.source.label}</a></> : p.source ? `Source: ${p.source.label}` : REFERENCE_BADGE}
                     </p>
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Enquire for price</p>
-                    {isSourcedMotor(p.id) && <Link href="/build?example=drone-plate&sim=1" className="relative z-10 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">Test it in Build →</Link>}
+                    <p className="w-fit rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">Price on request</p>
+                    {isSourcedMotor(p.id) && <Link href="/playground?mode=build&example=drone-plate&sim=1" className="relative z-10 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">Test it in Build →</Link>}
+                    <div className="relative z-10 mt-1 flex gap-2"><CardActions kind="part" id={p.id} /></div>
                   </div>
                 </li>
               ))}

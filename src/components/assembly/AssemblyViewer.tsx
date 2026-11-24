@@ -38,8 +38,8 @@ function Tag({ text, z }: { text: string; z: number }) {
   );
 }
 
-function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick }: {
-  parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; flat: Record<string, [number, number, number]>;
+function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick, marked }: {
+  marked?: (p: AssemblyPart) => boolean; parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; flat: Record<string, [number, number, number]>;
   targets: Targets; tags: boolean; reduce: boolean; onHover: (id: string | null) => void; onPick: (id: string) => void;
 }) {
   const invalidate = useThree((s) => s.invalidate);
@@ -103,7 +103,10 @@ function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick
                 {tags && <Tag text={`Bought · ${p.label}`} z={sz / 2 + 7} />}
               </>
             ) : geo ? (
-              <group position={[0, 0, lift]}><PrintMesh geometry={geo} material={p.material as Exclude<AssemblyPart['material'], 'bought'>} /></group>
+              <group position={[0, 0, lift]}>
+                <PrintMesh geometry={geo} material={p.material as Exclude<AssemblyPart['material'], 'bought'>} />
+                {marked?.(p) && <mesh geometry={geo}><meshBasicMaterial color="#6366f1" transparent opacity={0.45} depthWrite={false} polygonOffset polygonOffsetFactor={-2} /></mesh>}
+              </group>
             ) : null}
           </group>
         );
@@ -125,7 +128,8 @@ const Ico = ({ n }: { n: keyof typeof ICONS }) => (
 const btn = (on: boolean) => `flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50 ${on ? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`;
 
 /** geometries: builder key -> geometry, for parts whose `geometry` is a string (a part whose key is missing is skipped until it arrives). */
-export default function AssemblyViewer({ parts, geometries, className = 'h-[360px] sm:h-[480px]' }: { parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; className?: string }) {
+/** focusId: a part id, or a builder key, to tint in the model (set from outside, e.g. a parts list). */
+export default function AssemblyViewer({ parts, geometries, className = 'h-[360px] sm:h-[480px]', focusId }: { parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; className?: string; focusId?: string | null }) {
   const reduce = useReducedMotion();
   const [mode, setMode] = useState<AssemblyMode>('assembled');
   const [explode, setExplode] = useState(1); // slider, 0..1
@@ -153,7 +157,7 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
     <div className="space-y-3">
       <div className={`relative w-full overflow-hidden rounded-xl ${className}`}>
         <PrintStage size={size} interactive reduceMotion={reduce} stage={stage}>
-          <Scene parts={parts} geometries={geometries} flat={lay.positions} targets={targets} tags={mode !== 'assembled'} reduce={reduce} onHover={setHover} onPick={(id) => setPicked((c) => (c === id ? null : id))} />
+          <Scene parts={parts} geometries={geometries} flat={lay.positions} targets={targets} tags={mode !== 'assembled'} reduce={reduce} onHover={setHover} onPick={(id) => setPicked((c) => (c === id ? null : id))} marked={focusId ? (p) => p.id === focusId || p.geometry === focusId : undefined} />
         </PrintStage>
         <p role="status" aria-live="polite" className="pointer-events-none absolute left-2 top-2 max-w-[70%] rounded border border-gray-300/70 bg-white/90 px-2 py-1 text-xs font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-900/90 dark:text-gray-100">
           {shown ? `${shown.label} · ${shown.bought || shown.material === 'bought' ? 'bought separately, not printed' : `printed in ${shown.material}`}` : 'Hover or tap a part'}

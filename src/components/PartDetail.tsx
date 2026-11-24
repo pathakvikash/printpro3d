@@ -43,7 +43,7 @@ export default function PartDetail({ part }: { part: Part }) {
           {part.category === 'battery' && <p role="note" className="rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">{LIPO_NOTE}</p>}
           <Link href={`/request?part=${encodeURIComponent(part.id)}`} className={submitBtn}>Enquire about this part</Link>
           <p className="text-xs text-gray-500 dark:text-gray-400">Available from us — enquire for price. We reply with availability and the next steps.</p>
-          {isSourcedMotor(part.id) && <Link href="/build?example=drone-plate&sim=1" className="block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">Test it in Build →</Link>}
+          {isSourcedMotor(part.id) && <Link href="/playground?mode=build&example=drone-plate&sim=1" className="block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">Test it in Build →</Link>}
         </aside>
       </div>
       {kits.length > 0 && (

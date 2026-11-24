@@ -4,8 +4,8 @@ import { business } from '@/lib/contact';
 import { BASED_LINE } from '@/lib/business';
 
 const COLUMNS = [
-  { title: 'Order', links: [['/quote', 'Get a quote'], ['/request', 'Describe your idea'], ['/shop', 'Shop'], ['/build', 'Build it yourself'], ['/track', 'Track order']] },
-  { title: 'Learn', links: [['/materials', 'Materials'], ['/build', 'Build and simulate'], ['/how-it-works', 'How it works'], ['/about', 'About'], ['/contact', 'Contact']] },
+  { title: 'Order', links: [['/quote', 'Get a quote'], ['/request', 'Describe your idea'], ['/shop', 'Shop'], ['/playground?mode=build', 'Build it yourself'], ['/track', 'Track order']] },
+  { title: 'Learn', links: [['/materials', 'Materials'], ['/playground', 'Playground'], ['/how-it-works', 'How it works'], ['/about', 'About'], ['/contact', 'Contact']] },
 ] as const;
 
 export default function Footer() {
