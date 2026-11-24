@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, shopCat } from './catalog.ts';
 import { MAX_TPL_LINES, addLine, lineKey, type CartLine } from './cart.ts';
-import { KITS, kitBlocked, kitById, kitLines } from './kits.ts';
+import { KITS, boughtPartIds, boughtText, kitBlocked, kitById, kitLines, kitsUsingPart } from './kits.ts';
+import { partById } from './parts.ts';
 import { TEMPLATES, normalizeCfg, templateById } from './templateDefs.ts';
 import { priceTemplate } from './templates.ts';
 import { eulerQuat, type AssemblyPart, type V3 } from './assembly.ts';
@@ -13,7 +14,7 @@ test('kit ids are unique and do not clash with parts; each has a shop category a
   for (const k of KITS) {
     assert.equal(shopCat(k.id), k.category, k.id);
     assert.ok(k.boughtParts.length >= 4 && k.items.length >= 5, k.id);
-    assert.ok(!/[$₹]|https?:|\d+\s?(usd|inr)/i.test(k.blurb + k.boughtParts.join(' ')), `${k.id}: no prices or links`);
+    assert.ok(!/[$₹]|https?:|\d+\s?(usd|inr)/i.test(k.blurb + k.boughtParts.map(boughtText).join(' ')), `${k.id}: no prices or links`);
   }
   assert.equal(kitById('nope'), null);
 });
@@ -87,3 +88,8 @@ test('kit assemblies: the right parts, nominal sizes match the real meshes, prin
   }
 });
 const sizeOf = (k: (typeof KITS)[number], id: string) => k.assembly!().find((p) => p.geometry === id)!.size;
+
+test('bought-separately rows that reference a part point at a real part page', () => {
+  for (const k of KITS) for (const b of k.boughtParts) for (const id of boughtPartIds(b)) assert.ok(partById(id), `${k.id}: ${id}`);
+  assert.deepEqual(kitsUsingPart('stack-20x20', KITS).map((k) => k.id), ['fpv-3in-kit']);
+});

@@ -7,7 +7,15 @@ import type { AssemblyPart, PartMaterial, V3 } from './assembly.ts';
 
 // templateId is a template id (configured part, cart kind 'tpl') or a fixed catalogue id (cart kind 'shop', config ignored)
 export type KitItem = { templateId: string; config: Cfg; qty: number };
-export type Kit = { id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics'; items: KitItem[]; boughtParts: string[];
+/** A bought-separately line: plain text, or text plus the ids of its pages in parts.ts. */
+export type BoughtItem = string | { text: string; parts: string[] };
+/** For kits not in this file (src/lib/kits/*.ts): `withParts('4x motors ...', 'motor-1404')` gives a row that links to its part pages. */
+export const withParts = (text: string, ...parts: string[]): BoughtItem => ({ text, parts });
+export const boughtText = (b: BoughtItem) => (typeof b === 'string' ? b : b.text);
+export const boughtPartIds = (b: BoughtItem) => (typeof b === 'string' ? [] : b.parts);
+/** Kits (from the list given) whose bought-separately rows reference a part. */
+export const kitsUsingPart = <K extends { id: string; title: string; boughtParts: readonly BoughtItem[] }>(partId: string, kits: readonly K[]) => kits.filter((k) => k.boughtParts.some((b) => boughtPartIds(b).includes(partId)));
+export type Kit = { id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics'; items: KitItem[]; boughtParts: BoughtItem[];
   /** The finished build for the viewer. `sizes` = real mesh bounding boxes by template id (the page has them); missing ones use nominal ones. Printed parts carry geometry = template id. */
   assembly?: (sizes?: Sizes) => AssemblyPart[] };
 export type Sizes = Partial<Record<string, V3>>;
@@ -89,13 +97,13 @@ export const KITS: Kit[] = [
     items: [fixed('drone-plate'), tpl('drone-camera-mount', { cam: '19', pattern: '20' }), tpl('prop-guard', { prop: '3', motor: '12' }, 4), tpl('landing-gear'), tpl('battery-tray', { l: 65, w: 28, h: 20 }), tpl('gps-antenna-mount', { pattern: '20', puck: 25 })],
     assembly: fpvAssembly,
     boughtParts: [
-      '4x brushless motors (1404 class is typical for 3-inch props)',
-      '4x 3-inch propellers (a set of 4, typical)',
-      '1x flight controller and ESC on a 20 x 20 mm mounting pattern (typical for this size)',
-      '1x FPV camera, about 19 mm wide (typical)',
-      '1x GPS module with a puck about 25 mm across (typical)',
-      '1x LiPo battery that fits the tray (3S or 4S is typical)',
-      'M2 and M3 screws, nuts, a battery strap and zip ties',
+      withParts('4x brushless motors (1404 class is typical for 3-inch props)', 'motor-1404'),
+      withParts('4x 3-inch propellers (a set of 4, typical)', 'prop-3in'),
+      withParts('1x flight controller and ESC on a 20 x 20 mm mounting pattern (typical for this size)', 'stack-20x20'),
+      withParts('1x FPV camera, about 19 mm wide (typical)', 'camera-19'),
+      withParts('1x GPS module with a puck about 25 mm across (typical)', 'gps-puck-25'),
+      withParts('1x LiPo battery that fits the tray (3S or 4S is typical)', 'lipo-3s-4s'),
+      withParts('M2 and M3 screws, nuts, a battery strap and zip ties', 'screw-m2', 'screw-m3'),
     ],
   },
   {
@@ -104,11 +112,11 @@ export const KITS: Kit[] = [
     items: [tpl('robot-chassis', { drive: '4wd' }), tpl('motor-mount', { motor: 'tt' }, 4), tpl('motor-wheel', { shaft: 'tt' }, 4), tpl('servo-bracket', { servo: 'sg90' }), tpl('battery-tray', { l: 77, w: 40, h: 22 })],
     assembly: roverAssembly,
     boughtParts: [
-      '4x TT gear motors (typical 3-6 V hobby motors)',
-      '1x micro servo, SG90 class (typical 23 x 12.5 mm body)',
-      '1x motor driver board and 1x microcontroller board',
+      withParts('4x TT gear motors (typical 3-6 V hobby motors)', 'adafruit-tt-48'),
+      withParts('1x micro servo, SG90 class (typical 23 x 12.5 mm body)', 'servo-sg90'),
+      withParts('1x motor driver board and 1x microcontroller board', 'board-esp32-devkit'),
       '1x battery pack that fits the tray (for example 2 x 18650 cells in a holder)',
-      'M3 screws and nuts, standoffs, a battery strap and jumper wires',
+      withParts('M3 screws and nuts, standoffs, a battery strap and jumper wires', 'screw-m3'),
     ],
   },
 ];

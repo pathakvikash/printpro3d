@@ -265,7 +265,7 @@ const seg = (on: boolean) =>
   `px-2.5 py-1 text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${on ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`;
 
 /** Extras the /playground page turns on; every field is optional and the default is the old behaviour. */
-export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean };
+export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean; reference?: boolean /* a bought part's reference model: no print-material badge, layers or bed */ };
 
 /** Draggable turntable with studio light. `interactive` adds zoom and the Solid / Mesh / Layers + bed controls. */
 export function PrintStage({ size, material = 'PETG', interactive = false, reduceMotion, stage = {}, children }: {
@@ -327,9 +327,9 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
           maxPolarAngle={Math.PI}
         />
       </SafeCanvas>
-      <span className="pointer-events-none absolute right-2 top-2 rounded border border-gray-300/70 bg-white/80 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
+      {!stage.reference && <span className="pointer-events-none absolute right-2 top-2 rounded border border-gray-300/70 bg-white/80 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
         {material} · {interactive ? `${TRUE_LAYER_MM} mm layers (assumed)` : `layers drawn ${CARD_EXAGGERATION}× larger`}
-      </span>
+      </span>}
       {interactive && (
         <div role="toolbar" aria-label="Camera view" className="absolute left-2 top-10 flex flex-wrap gap-1">
           {([['front', 'Front'], ['side', 'Side'], ['top', 'Top'], ['bottom', 'Bottom'], ['reset', 'Reset']] as const).map(([dir, label]) => (
@@ -346,15 +346,15 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
       {interactive && (
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-3 gap-y-1 bg-white/80 px-2 py-1.5 backdrop-blur dark:bg-gray-900/80">
           <div role="group" aria-label="View" className="flex overflow-hidden rounded border border-gray-300 dark:border-gray-600">
-            {(['solid', 'mesh', 'layers'] as const).map((v) => (
+            {(stage.reference ? (['solid', 'mesh'] as const) : (['solid', 'mesh', 'layers'] as const)).map((v) => (
               <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={seg(view === v)}>
                 {v === 'solid' ? 'Solid' : v === 'mesh' ? 'Mesh' : 'Layers'}
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
+          {!stage.reference && <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
             <input type="checkbox" checked={bed} onChange={(e) => setBed(e.target.checked)} /> On the print bed (10 mm grid)
-          </label>
+          </label>}
           {view === 'layers' && (
             <label className="flex min-w-40 flex-1 items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
               <span className="whitespace-nowrap font-mono">Layer {layer} of {total}</span>

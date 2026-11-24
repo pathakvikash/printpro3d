@@ -88,7 +88,9 @@ function edges(p: ArrayLike<number>) {
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const f1 = (n: number) => n.toFixed(1);
 
-export function blueprint(positions: ArrayLike<number>, o: { name: string; id?: string; material: string }): string {
+/** reference: a bought part's reference sheet. Its rows and notes replace the print rows (weight, layers, bed) and the build-direction arrow is left out. */
+export type BlueprintReference = { rows: [string, string][]; notes: string[] };
+export function blueprint(positions: ArrayLike<number>, o: { name: string; id?: string; material: string; reference?: BlueprintReference }): string {
   const D = blueprintData(positions, o.material);
   const { size: s, min } = D;
   const k = Math.min(440 / (s.x + s.y), 320 / (s.y + s.z)); // px per mm
@@ -125,10 +127,10 @@ export function blueprint(positions: ArrayLike<number>, o: { name: string; id?: 
   });
   g += dimH(tx, tx + w, ty - 22, ty, f1(s.x)) + dimV(ty, ty + d, tx - 24, tx, f1(s.y));
   g += dimV(fy, base, tx - 24, tx, f1(s.z)) + dimH(sx, sx + d, base + 26, base, f1(s.y));
-  g += arr(sx + d / 2, base + 62, sx + d / 2, base + 40).replace(' marker-start="url(#bp-ar)"', '') + T(sx + d / 2 + 8, base + 58, 'build direction, base on bed', 't', 'start');
+  if (!o.reference) g += arr(sx + d / 2, base + 62, sx + d / 2, base + 40).replace(' marker-start="url(#bp-ar)"', '') + T(sx + d / 2 + 8, base + 58, 'build direction, base on bed', 't', 'start');
 
   const mat = D.grams == null ? o.material : `${o.material}, fill factor ${FILL_FACTOR}`;
-  const rows: [string, string][] = [
+  const rows: [string, string][] = o.reference ? [['PART', o.name], ['ITEM', o.id ?? 'custom'], ['BOUNDS', `${f1(s.x)} × ${f1(s.y)} × ${f1(s.z)} mm`], ...o.reference.rows] : [
     ['PART', o.name], ['ITEM', o.id ?? 'custom'], ['MATERIAL', mat],
     ['BOUNDS', `${f1(s.x)} × ${f1(s.y)} × ${f1(s.z)} mm`],
     ['VOLUME', D.stats ? `${D.stats.volumeCm3.toFixed(2)} cm³` : 'n/a (open mesh)'],
@@ -141,7 +143,7 @@ export function blueprint(positions: ArrayLike<number>, o: { name: string; id?: 
   const bx = sx + d + 40, by = 34, bw = 330;
   g += `<rect class="v" x="${bx}" y="${by}" width="${bw}" height="${rows.length * 22 + 8}"/>`;
   rows.forEach(([a, b], i) => { const y = by + 20 + i * 22; g += T(bx + 10, y, a, 'tk', 'start') + T(bx + 104, y, b, 't', 'start') + (i ? L(bx, y - 15, bx + bw, y - 15, 'e') : ''); });
-  ['All dimensions in mm. Third-angle projection.', 'Drawn from the mesh used for pricing.', NOTE].forEach((t, i) => { g += T(bx, by + rows.length * 22 + 26 + i * 15, t, 'tk', 'start'); });
+  ['All dimensions in mm. Third-angle projection.', ...(o.reference ? o.reference.notes : ['Drawn from the mesh used for pricing.', NOTE])].forEach((t, i) => { g += T(bx, by + rows.length * 22 + 26 + i * 15, t, 'tk', 'start'); });
   const VW = bx + bw + 16, VH = Math.max(base + 80, by + rows.length * 22 + 80);
   return `<svg class="bp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.round(VW)} ${Math.round(VH)}" role="img" aria-label="${esc(`Engineering drawing of ${o.name}: top, front and right views with dimensions in millimetres`)}">
 <defs><pattern id="bp-gr" width="15" height="15" patternUnits="userSpaceOnUse"><path class="g" d="M15 0H0V15" fill="none" stroke-width="1"/></pattern>

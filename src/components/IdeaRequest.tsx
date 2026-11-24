@@ -38,8 +38,8 @@ async function shrink(f: File): Promise<File> {
 }
 
 // replacement: opened from "Need a part reproduced?"; same form, with prompts for the original part
-export default function IdeaRequest({ replacement = false }: { replacement?: boolean }) {
-  const [category, setCategory] = useState(replacement ? 'other' : 'game');
+export default function IdeaRequest({ replacement = false, part }: { replacement?: boolean; part?: { id: string; title: string; lipo: boolean } }) {
+  const [category, setCategory] = useState(part ? 'robotics' : replacement ? 'other' : 'game');
   const [deliver, setDeliver] = useState('print');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +80,7 @@ export default function IdeaRequest({ replacement = false }: { replacement?: boo
     <form onSubmit={submit} className={card}>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{replacement ? 'Tell us about the original part' : 'Tell us what you need'}</h3>
 
+      {part?.lipo && <p role="note" className="rounded-lg bg-amber-50 p-2 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">Shipping of LiPo batteries is limited; enquire first.</p>}
       <div>
         <label htmlFor="category" className={label}>Category</label>
         <select id="category" name="category" value={category} onChange={(e) => setCategory(e.target.value)} className={input}>
@@ -88,7 +89,7 @@ export default function IdeaRequest({ replacement = false }: { replacement?: boo
       </div>
       <div>
         <label htmlFor="description" className={label}>Description</label>
-        <textarea id="description" name="description" required maxLength={2000} rows={5} placeholder={replacement ? 'What the part is, what it came from, what broke, and the sizes you can measure (hole spacing, thickness).' : PROMPTS[category]} className={input} />
+        <textarea id="description" name="description" required maxLength={2000} rows={5} defaultValue={part ? `Enquiry about: ${part.title} (${part.id})\nQuantity and what it is for: ` : undefined} placeholder={replacement ? 'What the part is, what it came from, what broke, and the sizes you can measure (hole spacing, thickness).' : PROMPTS[category]} className={input} />
       </div>
 
       <fieldset>

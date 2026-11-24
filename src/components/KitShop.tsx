@@ -21,7 +21,7 @@ import type { Shape } from '@/lib/playground';
 import { money, secondaryBtn } from './ContactFields';
 import { useCart } from './CartProvider';
 import FlowStrip from '@/components/FlowStrip';
-import Term from '@/components/Term';
+import BoughtList from './BoughtList';
 import { addBtn, AddLabel, BackToShop, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
@@ -140,11 +140,7 @@ export function KitDetail({ kit }: { kit: Kit }) {
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
           <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
-            <h2 id="kit-bought" className="text-sm font-semibold text-gray-900 dark:text-white">Bought separately</h2>
-            <p className="mb-2 mt-1 text-xs text-gray-600 dark:text-gray-400">We do not sell these. Specs are typical for this kind of build: check them against your parts.</p>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-gray-200">
-              {kit.boughtParts.map((b) => <li key={b}>{b.split(/\b(FC|ESC|AIO)\b/).map((w, i) => (w === 'FC' || w === 'ESC' || w === 'AIO' ? <Term key={i} k={w.toLowerCase() as 'fc'}>{w}</Term> : w))}</li>)}
-            </ul>
+            <BoughtList items={kit.boughtParts} />
           </div>
         </aside>
       </div>
