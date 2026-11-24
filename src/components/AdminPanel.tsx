@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
+import AdminAiSettings from './AdminAiSettings';
 
 // The admin token lives in sessionStorage only (gone when the tab closes) and goes out as an Authorization header, never in a URL.
 const KEY = 'printpro3d.admin';
@@ -89,6 +90,7 @@ export default function AdminPanel() {
         <button type="button" onClick={lock} className={secondaryBtn}><Icon name="lock" />Lock</button>
         <p className="text-sm text-gray-600 dark:text-gray-300">{records.length} record(s), newest first</p>
       </div>
+      <AdminAiSettings token={token} />
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
       {records.map((r) => (
         <Row key={`${r.type}-${r.id}`} r={r} token={token} statuses={statuses} onSaved={(status) => setRecords((all) => all && all.map((x) => (x === r ? { ...x, status } : x)))} />

@@ -1,24 +1,16 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import PageShell from '@/components/PageShell';
-import { AiGenerateRoute } from '@/components/RoutePages';
+import { AiChatRoute } from '@/components/RoutePages';
 
-export const metadata: Metadata = { title: 'Generate with AI - PrintPro3D', description: 'Describe a part or add a photo and get a 3D model to print.' };
-// the AI choice depends on MESHY_API_KEY at runtime
-export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Build with AI - PrintPro3D', description: 'Describe a part or add a photo, refine it in a chat, then edit, price and order it.' };
 
+// The same chat the header and floating "AI" buttons open; it asks /api/designs what is available (shape AI, Meshy).
 export default function AiPage() {
-  const enabled = Boolean(process.env.MESHY_API_KEY);
   return (
-    <PageShell title="Generate with AI" lead="Describe a part or add a photo and we generate a 3D model.">
-      {enabled ? (
-        <AiGenerateRoute />
-      ) : (
-        <p className="text-gray-600 dark:text-gray-300">
-          This is not available yet. You can{' '}
-          <Link href="/request" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">describe your idea</Link> and we review it and send you a quote.
-        </p>
-      )}
+    <PageShell title="Build with AI" lead="Describe a part or add a photo. Refine it in the chat, then edit, price and order it.">
+      <div className="h-[min(760px,calc(100vh-14rem))] min-h-[480px] overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950">
+        <AiChatRoute />
+      </div>
     </PageShell>
   );
 }

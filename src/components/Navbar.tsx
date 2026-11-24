@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
 import Logo from './Logo';
 import { useCart } from './CartProvider';
+import { OPEN_AI_CHAT } from './AiChatLauncher';
 import { business, phoneHref } from '@/lib/contact';
 
 const LINKS = [
@@ -111,6 +112,16 @@ export default function Navbar() {
                 {business.phone}
               </a>
             )}
+            {/* Build with AI: opens the chat panel; a plain link to /ai without JS or on /ai itself */}
+            <Link
+              href='/ai'
+              onClick={(e) => { if (pathname !== '/ai') { e.preventDefault(); window.dispatchEvent(new Event(OPEN_AI_CHAT)); } }}
+              aria-label='Build with AI'
+              title='Build with AI'
+              className='inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-indigo-300 px-2.5 sm:px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950/50 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
+            >
+              <Icon name='spark' className='h-4 w-4' />AI
+            </Link>
             {/* Cart: opens the drawer */}
             <button
               type='button'

@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import { CartProvider } from '@/components/CartProvider';
 import CartDrawer from '@/components/CartDrawer';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import AiChatLauncher from '@/components/AiChatLauncher';
 
 // Geist Mono stays: the `font-mono` class is used by CartDrawer (order id)
 const geistSans = Geist({
@@ -57,6 +58,7 @@ export default function RootLayout({
           <Footer />
           <CartDrawer />
           <WhatsAppButton />
+          <AiChatLauncher />
         </CartProvider>
       </body>
     </html>
