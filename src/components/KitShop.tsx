@@ -22,6 +22,7 @@ import { money, secondaryBtn } from './ContactFields';
 import { useCart } from './CartProvider';
 import { addBtn, AddLabel, BackToShop, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
+const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
@@ -86,7 +87,9 @@ function FinishedBuild({ kit, parts }: { kit: Kit; parts: Part[] }) {
 }
 
 export function KitCard({ kit }: { kit: Kit }) {
-  const names = kit.items.map((i) => `${i.qty > 1 ? `${i.qty} x ` : ''}${describe(i).name}`);
+  const descs = useMemo(() => kit.items.map((i) => ({ i, ...describe(i) })), [kit]);
+  const names = descs.map((d) => `${d.i.qty > 1 ? `${d.i.qty} x ` : ''}${d.name}`);
+  const sources = useMemo(() => descs.map((d) => ({ id: d.i.templateId, shapes: d.shapes, template: d.template })), [descs]);
   const rows: [string, string][] = [['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} kinds`], ['Bought separately', `${kit.boughtParts.length} items`]];
   return (
     <CardFrame
@@ -95,7 +98,7 @@ export function KitCard({ kit }: { kit: Kit }) {
       name={kit.title}
       blurb={kit.blurb}
       rows={rows}
-      preview={<div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
+      preview={kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
       actions={<Link href={`/shop/${kit.id}`} tabIndex={-1} className={`${secondaryBtn} w-full`}><Icon name="wrench" />See the kit</Link>}
     />
   );
