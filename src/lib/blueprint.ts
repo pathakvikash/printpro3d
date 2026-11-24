@@ -5,9 +5,9 @@ import { LAYER_MM } from './printSpec.ts';
 
 export const CREASE_DEG = 30;
 // Plain colours, no CSS variables, so the sheet renders the same in any SVG engine. Print swaps to the light set.
-const NAVY = { paper: '#0b1f3a', ink: '#dbe8ff', soft: '#7f9cc9', grid: '#16315a' };
-const PAPER = { paper: '#ffffff', ink: '#0b1f3a', soft: '#5b6f91', grid: '#dfe6f1' };
-const css = (c: typeof NAVY) => `.bp .p{fill:${c.paper}}.bp .g{stroke:${c.grid}}.bp .m{fill:${c.ink}}.bp .v,.bp .d{stroke:${c.ink}}.bp .e{stroke:${c.soft}}.bp text{fill:${c.ink}}.bp .tk{fill:${c.soft}}`;
+export const NAVY = { paper: '#0b1f3a', ink: '#dbe8ff', soft: '#7f9cc9', grid: '#16315a' };
+export const PAPER = { paper: '#ffffff', ink: '#0b1f3a', soft: '#5b6f91', grid: '#dfe6f1' };
+export const css = (c: typeof NAVY) => `.bp .p{fill:${c.paper}}.bp .g{stroke:${c.grid}}.bp .m{fill:${c.ink}}.bp .v,.bp .d{stroke:${c.ink}}.bp .e{stroke:${c.soft}}.bp text{fill:${c.ink}}.bp .tk{fill:${c.soft}}`;
 const NOTE = 'Not a tolerance guarantee.';
 
 type V3 = [number, number, number];
@@ -53,7 +53,7 @@ export function blueprintData(positions: ArrayLike<number>, material: string) {
 }
 
 /** Feature edges (crease over CREASE_DEG, open edges) plus silhouettes for each of the three view directions. */
-function edges(p: ArrayLike<number>) {
+export function edges(p: ArrayLike<number>) {
   const q = (v: number) => Math.round(v * 1000);
   const verts = new Map<string, V3>();
   const id = (k: number) => { const r: V3 = [p[k], p[k + 1], p[k + 2]]; const key = r.map(q).join(','); if (!verts.has(key)) verts.set(key, r); return key; };
@@ -85,8 +85,8 @@ function edges(p: ArrayLike<number>) {
   return out;
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const f1 = (n: number) => n.toFixed(1);
+export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export const f1 = (n: number) => n.toFixed(1);
 
 /** reference: a bought part's reference sheet. Its rows and notes replace the print rows (weight, layers, bed) and the build-direction arrow is left out. */
 export type BlueprintReference = { rows: [string, string][]; notes: string[] };
