@@ -138,3 +138,13 @@ test('review fixes: parts sit on real material, turned battery is checked turned
   assert.ok(m.posMm && 'spin' in m, m.reason);
   assert.deepEqual([m.posMm[0], m.posMm[1], m.spin], [88, 28, 'ccw']); // front-right of the frame, not of the bed
 });
+
+test('frame volume fractions match the real unit meshes (within tessellation)', async () => {
+  const { VOLUME } = await import('./placement.ts');
+  const { unitGeometry, KINDS } = await import('../playground.ts');
+  const { meshBody } = await import('../flight/mass.ts');
+  for (const k of KINDS) {
+    const g = unitGeometry(k), v = meshBody(g.attributes.position.array, g.index?.array, 1e9)!.massKg; // 1 mm3 at 1e9 kg/m3 = 1 kg
+    assert.ok(Math.abs(VOLUME[k] - v) / v < 0.03, `${k}: ${VOLUME[k]} vs mesh ${v}`);
+  }
+});

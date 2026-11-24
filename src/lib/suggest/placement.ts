@@ -14,7 +14,7 @@ export type Placement = {
 export type PlacementResult = Placement | { posMm: null; reason: string };
 
 export const CAMERA_TILT_DEG = 25, GRID_MM = 2, PAD_MIN_MM = 5;
-const VOLUME: Record<Shape['kind'], number> = { box: 1, cylinder: Math.PI / 4, sphere: Math.PI / 6, cone: Math.PI / 12, torus: 0.3, wedge: 0.5 };
+export const VOLUME: Record<Shape['kind'], number> = { box: 1, cylinder: Math.PI / 4, sphere: Math.PI / 6, cone: Math.PI / 12, torus: (3 * Math.PI ** 2) / 64, wedge: 0.5 }; // torus: tube 0.125 around R 0.375, stretched to a 1x1x1 box
 const round1 = (v: number) => Math.round(v * 10) / 10;
 const none = (reason: string): PlacementResult => ({ posMm: null, reason });
 
