@@ -41,6 +41,7 @@ export function mergeChecked(reqs: Checked[]): Checked[] {
   return out;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // not from aiJobs: that pulls in the store
 const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_QTY;
 
 // Strict check of one entry of the order request. Bad entries are rejected, never dropped: the customer must get what they asked for.
@@ -66,8 +67,8 @@ export function checkEntry(raw: unknown, n: number): Checked {
     return { n, kind: 'shop', item, qty };
   }
   if (o.kind === 'design') {
-    if (typeof o.project !== 'string' || typeof o.material !== 'string') throw fail('design needs a project and a material');
-    return { n, kind: 'design', project: o.project, material: o.material, qty };
+    if (typeof o.project !== 'string' || !UUID.test(o.project) || typeof o.material !== 'string') throw fail('design needs a project and a material');
+    return { n, kind: 'design', project: o.project.toLowerCase(), material: o.material, qty }; // lowercase: case variants of one id merge (MAX_QTY cap)
   }
   if (typeof o.file !== 'string' || typeof o.material !== 'string') throw fail('model needs a file and a material');
   const file = path.basename(o.file);

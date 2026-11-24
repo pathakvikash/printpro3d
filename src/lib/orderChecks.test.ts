@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isModelFile, mergeChecked, MAX_TPL_LINES, type Checked } from './orderChecks.ts';
+import { checkEntry, isModelFile, mergeChecked, MAX_TPL_LINES, type Checked } from './orderChecks.ts';
 import { CATALOG } from './catalog.ts';
 import { MAX_QTY } from './quote.ts';
 import { defaultCfg, TEMPLATES } from './templateDefs.ts';
@@ -30,4 +30,12 @@ test('merging sums duplicates and refuses a total over MAX_QTY', () => {
   assert.deepEqual(mergeChecked([shop(1, MAX_QTY)]).map((r) => r.qty), [MAX_QTY]);
   assert.throws(() => mergeChecked([shop(1, 60), shop(2, 41)]), { message: `item 2: quantity over ${MAX_QTY} after merging` });
   assert.throws(() => mergeChecked([model(1, MAX_QTY), model(2, 1)]), { message: `item 2: quantity over ${MAX_QTY} after merging` });
+});
+
+test('design lines: the project id must be a uuid and is lowercased, so case variants merge under the MAX_QTY cap', () => {
+  const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+  const d = (n: number, project: string) => checkEntry({ kind: 'design', project, material: 'PLA', qty: MAX_QTY }, n);
+  assert.equal((d(1, id.toUpperCase()) as { project: string }).project, id);
+  assert.throws(() => mergeChecked([d(1, id), d(2, id.toUpperCase())]), /quantity over/);
+  assert.throws(() => d(1, '../orders/x'), /design needs a project/);
 });
