@@ -73,10 +73,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
     <>
       {/* Hero: plain copy, a file box that hands off to /quote, one text link. The 3D part is a lazy client island. */}
       <section className="relative flex items-center overflow-hidden border-b border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-800 dark:bg-gray-950 dark:text-white lg:min-h-[32rem]">
+        <div aria-hidden className="pointer-events-none absolute inset-0 hidden dark:block" style={{ background: 'radial-gradient(60% 80% at 85% 20%, rgb(109 74 224 / 0.28), transparent 70%)' }} />
         <HeroPart />
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
           <div className="max-w-xl">
-            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">3D printing to order, from one piece to a batch.</h1>
+            <h1 className="pp-rise text-4xl font-bold leading-tight tracking-tight sm:text-5xl">3D printing to order, from one piece to a batch.</h1>
             <p className="mt-5 text-lg text-gray-700 dark:text-gray-300">
               Send us an STL or OBJ file and see the price for each material. We review your order, then print and ship it.
             </p>
@@ -95,7 +96,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       <section aria-label="How we work" className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-3 md:gap-10">
           {TRUST.map((t) => (
-            <div key={t.title}>
+            <div key={t.title} className="pp-lift rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
               <p className="font-semibold text-gray-900 dark:text-white">{t.title}</p>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t.text}</p>
             </div>
@@ -178,7 +179,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">How it works</h2>
           <ol className="mt-10 grid gap-10 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="border-t-2 border-indigo-600 pt-5">
+              <li key={s.title} className="pp-lift rounded-xl border border-gray-200 border-t-2 border-t-indigo-600 bg-white p-5 dark:border-gray-800 dark:border-t-indigo-500 dark:bg-gray-950">
                 <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
                 <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h3>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">{s.text}</p>

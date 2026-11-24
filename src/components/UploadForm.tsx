@@ -227,6 +227,9 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
         </div>
       )}
 
+      {/* ponytail: indeterminate, fetch gives no byte progress; real percent needs XHR/onUploadProgress */}
+      {uploading && <div role="progressbar" aria-label="Uploading your model" className="pp-bar" />}
+
       {/* Playground model: status while it uploads */}
       {initialFile && !uploadedUrl && !error && (
         <p role="status" className="text-center text-lg font-medium text-gray-700 dark:text-gray-200">Preparing your quote…</p>
@@ -256,7 +259,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
 
       {/* Preview */}
       {uploadedUrl && (
-        <div className="space-y-4">
+        <div className="pp-fade space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Your Model Preview</h3>
             <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium">

@@ -38,7 +38,7 @@ export default function MaterialCards({ partVolumeCm3, selected, onSelect }: Pro
               </span>
             </>
           );
-          const cls = `flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white text-left dark:bg-gray-950 ${
+          const cls = `flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white text-left transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 dark:bg-gray-950 ${
             selected === k ? 'border-indigo-600 ring-1 ring-indigo-600 dark:border-indigo-400 dark:ring-indigo-400' : 'border-gray-200 dark:border-gray-700'
           }`;
           return (
