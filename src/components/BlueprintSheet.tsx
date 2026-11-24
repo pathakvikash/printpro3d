@@ -33,7 +33,7 @@ export default function BlueprintSheet({ svg, filename }: { svg: string; filenam
 
   return (
     <div>
-      <style>{`@page{size:landscape;margin:10mm}@media print{body *{visibility:hidden}.bp-print,.bp-print *{visibility:visible}.bp-print{position:absolute;left:0;top:0;width:100%;border:0!important}}`}</style>
+      <style>{`@page{size:landscape;margin:10mm}@media print{body *{visibility:hidden}body *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *){display:none!important}.bp-print,.bp-print *{visibility:visible}.bp-print{position:absolute;left:0;top:0;width:100%;border:0!important}}`}</style>
       <div ref={box} tabIndex={0} aria-label="Blueprint sheet, scrolls sideways on small screens" className="bp-print overflow-x-auto rounded-xl border border-gray-300 dark:border-gray-700 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[760px]" dangerouslySetInnerHTML={{ __html: svg }} />
       <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 sm:hidden">Swipe the sheet sideways to see all of it.</p>
       <div className="mt-4 flex flex-wrap gap-2">
