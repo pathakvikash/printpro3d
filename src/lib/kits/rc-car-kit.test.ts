@@ -36,3 +36,16 @@ test('rc-car credit, licence files, assembly and bought parts', () => {
   for (const part of kit.printedParts) assert.ok(ids.includes(part.id), part.id);
   assert.ok(kit.boughtParts.length >= 4 && !/[$₹]|https?:/.test(JSON.stringify(kit.boughtParts)));
 });
+
+test('flagged kits (no real assembly data) only ever lay out printed parts on plates', async () => {
+  const { printPlates } = await import('../assembly.ts');
+  const { deskPetKit } = await import('./desk-pet-kit.ts');
+  for (const k of [kit, deskPetKit]) {
+    assert.equal(k.assemblyData, false);
+    const r = printPlates(k.assembly(), (k as { plates?: string[][] }).plates);
+    assert.deepEqual(r.parts.map((p) => p.id).sort(), k.printedParts.map((p) => p.id).sort(), 'every printed part, once, no bought parts');
+    assert.ok(r.parts.every((p) => p.explode.every((v) => v === 0) && p.rotation.every((v) => v === 0) && !p.joint && !p.spin));
+  }
+  assert.equal(printPlates(kit.assembly(), kit.plates).plates, 2);
+  assert.equal(printPlates(deskPetKit.assembly()).plates, 1);
+});

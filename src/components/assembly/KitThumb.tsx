@@ -11,13 +11,13 @@ import type { Cfg } from '@/lib/templateDefs';
 import { meshStats } from '@/lib/quote';
 import type { Kit } from '@/lib/kits';
 import type { Shape } from '@/lib/playground';
-import type { V3 } from '@/lib/assembly';
+import { printPlates, type V3 } from '@/lib/assembly';
 
 export type ThumbSource = { id: string; shapes: Shape[]; template: boolean; kit?: { key: string; cfg: Cfg } };
 
 const W = 800, H = 480, DEG = Math.PI / 180;
 const cache = new Map<string, string>();
-const KEY = (id: string) => `kitthumb:v1:${id}`;
+const KEY = (id: string) => `kitthumb:v2:${id}`;
 let queue: Promise<unknown> = Promise.resolve(); // one render at a time: never more than one throwaway context alive
 
 function render(kit: Kit, sources: ThumbSource[]): Promise<string | null> {
@@ -48,7 +48,8 @@ function render(kit: Kit, sources: ThumbSource[]): Promise<string | null> {
       const sun = new THREE.DirectionalLight(0xffffff, 1.4);
       sun.position.set(300, -400, 600);
       scene.add(sun);
-      for (const p of kit.assembly!(sizes)) {
+      const all = kit.assembly!(sizes);
+      for (const p of kit.assemblyData === false ? printPlates(all, kit.plates).parts : all) { // no real assembly data: the printed parts on their plates
         const geo = typeof p.geometry === 'string' ? geometries[p.geometry] : p.geometry;
         const g = new THREE.Group();
         g.position.set(...p.position);
@@ -120,7 +121,7 @@ export default function KitThumb({ kit, sources }: { kit: Kit; sources: ThumbSou
   return (
     <div ref={box} className="h-full w-full">
       {/* eslint-disable-next-line @next/next/no-img-element -- a data URL: nothing for next/image to optimise */}
-      {src ? <img src={src} alt={`Assembled ${kit.title}`} className="h-full w-full object-contain" /> : failed ? null : <div role="status" aria-label={`Building ${kit.title}`} className="h-full w-full animate-pulse bg-gray-200/60 dark:bg-gray-800/60" />}
+      {src ? <img src={src} alt={`${kit.assemblyData === false ? 'Print plates of' : 'Assembled'} ${kit.title}`} className="h-full w-full object-contain" /> : failed ? null : <div role="status" aria-label={`Building ${kit.title}`} className="h-full w-full animate-pulse bg-gray-200/60 dark:bg-gray-800/60" />}
     </div>
   );
 }

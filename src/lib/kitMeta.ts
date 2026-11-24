@@ -2,7 +2,7 @@
 // kits.test.ts checks it against KITS; when a kit changes, that test prints the new value to paste here.
 export type KitMeta = {
   id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics' | 'toys-hobby' | 'smart-home'; badge?: string;
-  design?: { author: string; licence: string }; products?: string[]; hasAssembly: boolean; parts: { name: string; qty: number }[]; bought: number;
+  design?: { author: string; licence: string }; products?: string[]; hasAssembly: boolean; assemblyData?: false; parts: { name: string; qty: number }[]; bought: number;
 };
 export const KIT_METAS: KitMeta[] = [
   {
@@ -213,6 +213,7 @@ export const KIT_METAS: KitMeta[] = [
       "licence": "GPL-3.0"
     },
     "hasAssembly": true,
+    "assemblyData": false,
     "parts": [
       {
         "name": "Chassis tray 1 (print at 0.15 mm)",
@@ -247,6 +248,7 @@ export const KIT_METAS: KitMeta[] = [
       "licence": "Apache-2.0"
     },
     "hasAssembly": true,
+    "assemblyData": false,
     "parts": [
       {
         "name": "Internal frame",

@@ -59,7 +59,7 @@ export default function KitInspector({ kit: top }: { kit: Kit }) {
       </section>
       {kit.credit && <CreditLine credit={kit.credit} files className="break-words" />}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div><BoughtList items={kit.boughtParts} /></div>
+        <div><BoughtList items={kit.boughtParts} title={kit.assemblyData === false ? 'Not printed — buy separately' : undefined} /></div>
         <p className="text-sm text-gray-600 dark:text-gray-300"><Link href={`/shop/${top.id}`} className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Open the kit page</Link> to see prices and add the whole kit to your cart.</p>
       </div>
     </div>

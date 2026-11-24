@@ -39,6 +39,6 @@ test('the shop lists 9 new parts and 8 kits per their categories (counts)', () =
 test('the light /shop card data (productCards.ts, kitMeta.ts) matches the real products and kits', () => {
   assert.deepEqual(PRODUCT_CARDS.map((p) => p.item.id), PRODUCTS.map((p) => p.item.id));
   const name = (i: { templateId: string; label?: string }) => isKitKey(i.templateId) ? (i.label ?? kitPartByKey(i.templateId)?.part.label ?? i.templateId) : templateById(i.templateId)?.name ?? productById(i.templateId)?.item.name ?? i.templateId;
-  const want = KITS.map((k) => ({ id: k.id, title: k.title, blurb: k.blurb, category: k.category, ...(k.badge ? { badge: k.badge } : {}), ...(k.credit ? { design: { author: k.credit.author, licence: k.credit.licence } } : {}), ...(k.variants ? { products: k.variants.map((v) => v.title) } : {}), hasAssembly: !!k.assembly, parts: k.items.map((i) => ({ name: name(i), qty: i.qty })), bought: k.boughtParts.length }));
+  const want = KITS.map((k) => ({ id: k.id, title: k.title, blurb: k.blurb, category: k.category, ...(k.badge ? { badge: k.badge } : {}), ...(k.credit ? { design: { author: k.credit.author, licence: k.credit.licence } } : {}), ...(k.variants ? { products: k.variants.map((v) => v.title) } : {}), hasAssembly: !!k.assembly, ...(k.assemblyData === false ? { assemblyData: false } : {}), parts: k.items.map((i) => ({ name: name(i), qty: i.qty })), bought: k.boughtParts.length }));
   assert.deepEqual(KIT_METAS, want, 'src/lib/kitMeta.ts is stale: paste JSON.stringify of the expected list into KIT_METAS');
 });

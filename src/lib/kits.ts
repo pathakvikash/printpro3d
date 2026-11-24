@@ -21,6 +21,10 @@ export const kitsUsingPart = <K extends { id: string; title: string; boughtParts
 export type KitCredit = { author: string; url: string; licence: string; files: string[] };
 export type Kit = { id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics' | 'toys-hobby' | 'smart-home'; items: KitItem[]; boughtParts: BoughtItem[];
   badge?: string; credit?: KitCredit; approximate?: boolean;
+  /** false: no real assembly data (positions are guesses). The shop shows the printed parts on print plates, never an assembled model. */
+  assemblyData?: false;
+  /** with assemblyData false: which printed parts (template ids) share a print plate; default one plate for all */
+  plates?: string[][];
   /** assembly bought-part id (exact, else without trailing digits) -> part page id, so the assembly drawing uses its reference model */
   refs?: Record<string, string>;
   /** a kit that is several products: each is a Kit of its own (own items and finished build); the kit page lets the customer pick */

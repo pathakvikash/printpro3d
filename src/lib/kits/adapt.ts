@@ -19,7 +19,7 @@ type PartDef = { id: string; label: string; material: PartMaterial; qty: (c: Cfg
 type Credit = { author: string; url: string; licence: string };
 type Bought = { name: string; spec: string; qty: number; typical: boolean | string };
 type Source = {
-  id: string; title: string; blurb: string; category: Kit['category']; badge?: string; credit?: Credit; approximate?: boolean;
+  id: string; title: string; blurb: string; category: Kit['category']; badge?: string; credit?: Credit; approximate?: boolean; assemblyData?: false; plates?: string[][];
   defaults: () => Cfg; fields: Field[]; validate: (raw: unknown) => Cfg; parts: PartDef[]; assembly: (c: Cfg) => AssemblyPart[]; bought: Bought[];
   /** assembly placeholder id (exact, else with trailing digits dropped) -> reference part page, for the assembly drawing */
   refs?: Record<string, string>;
@@ -53,12 +53,12 @@ const SOURCES: Source[] = [
     variants: [{ id: 'matrix', title: 'LED matrix frame', product: 'matrix', fields: ['grid', 'pitch'] }, { id: 'clock', title: 'Smart desk clock', product: 'clock', fields: ['display'] }, { id: 'lamp', title: 'Low-poly moon lamp', product: 'lamp', fields: ['lampD', 'facets'] }],
   },
   {
-    id: 'rc-car', title: RC.title, blurb: RC.blurb, category: 'drone-rc', credit: RC.credit, approximate: true,
+    id: 'rc-car', title: RC.title, blurb: RC.blurb, category: 'drone-rc', credit: RC.credit, approximate: true, assemblyData: RC.assemblyData, plates: RC.plates,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(RC.printedParts), assembly: () => RC.assembly(), bought: RC.boughtParts,
     refs: { servo: 'servo-sg90' },
   },
   {
-    id: 'desk-pet', title: PET.title, blurb: PET.blurb, category: 'robotics', credit: PET.credit, approximate: true,
+    id: 'desk-pet', title: PET.title, blurb: PET.blurb, category: 'robotics', credit: PET.credit, approximate: true, assemblyData: PET.assemblyData,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(PET.printedParts), assembly: () => PET.assembly(), bought: PET.boughtParts,
     refs: { servo: 'servo-sg90' },
   },
@@ -129,6 +129,7 @@ function toKit(s: Source, o: { id: string; title: string; product?: string; boug
     assembly: () => s.assembly(cfg).map((p) => ({ ...p, geometry: own(p.geometry) })),
     ...(s.credit ? { credit: { ...s.credit, files: s.parts.flatMap((p) => p.file ?? []) } } : {}),
     ...(s.approximate ? { approximate: true } : {}),
+    ...(s.assemblyData === false ? { assemblyData: false as const, ...(s.plates ? { plates: s.plates.map((g) => g.map((id) => kitPartKey(s.id, id))) } : {}) } : {}),
     ...(s.badge ? { badge: s.badge } : {}),
     ...(s.refs ? { refs: s.refs } : {}),
   };

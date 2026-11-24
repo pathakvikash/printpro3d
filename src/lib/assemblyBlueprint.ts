@@ -91,7 +91,7 @@ export function assemblyData(parts: AssemblyPart[], meshes: MeshMap, ref?: Bough
 
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-export function assemblyBlueprint(parts: AssemblyPart[], meshes: MeshMap, o: { name: string; ref?: BoughtRef }): string {
+export function assemblyBlueprint(parts: AssemblyPart[], meshes: MeshMap, o: { name: string; ref?: BoughtRef; plates?: boolean }): string {
   const D = assemblyData(parts, meshes, o.ref);
   const { min, size: s } = D.bounds;
   const k = Math.min(520 / (s.x + s.y), 360 / (s.y + s.z)); // px per mm
@@ -141,7 +141,7 @@ export function assemblyBlueprint(parts: AssemblyPart[], meshes: MeshMap, o: { n
   const info: [string, string][] = [
     ['KIT', trunc(o.name, 34)], ['ENVELOPE', `${f1(s.x)} × ${f1(s.y)} × ${f1(s.z)} mm`],
     ['PRINTED', `${D.printed.pieces} pieces, ${D.printed.cm3.toFixed(1)} cm³${D.printed.open ? '+' : ''}, ${f1(D.printed.grams)} g est.`],
-    ['BOUGHT', `${D.bought} pieces in ${D.bom.filter((r) => r.bought).length} kinds`],
+    ...(o.plates ? [] : [['BOUGHT', `${D.bought} pieces in ${D.bom.filter((r) => r.bought).length} kinds`] as [string, string]]),
   ];
   const bx = sx + d + 40, by = 34, bw = 440, rh = 20;
   let y = by;
@@ -155,10 +155,10 @@ export function assemblyBlueprint(parts: AssemblyPart[], meshes: MeshMap, o: { n
     g += L(bx, yy - 15, bx + bw, yy - 15, 'e') + T(bx + 10, yy, String(r.no), 't', 'start') + T(bx + 40, yy, trunc(r.name, 21), 't', 'start') + T(bx + 190, yy, String(r.qty), 't', 'start') + T(bx + 226, yy, r.material, 't', 'start') + T(bx + 300, yy, mm3(r.size), 't', 'start');
   });
   const ny = y + (n + 1) * rh + 24;
-  ['All dimensions in mm. Third-angle projection.', 'Assembly drawing — reference, not to scale for bought parts.', 'Dashed lines: bought parts, drawn at typical reference sizes.'].forEach((t, i) => { g += T(bx, ny + i * 15, t, 'tk', 'start'); });
+  (o.plates ? ['All dimensions in mm. Third-angle projection.', 'Print plate drawing: parts as printed, not assembled.'] : ['All dimensions in mm. Third-angle projection.', 'Assembly drawing — reference, not to scale for bought parts.', 'Dashed lines: bought parts, drawn at typical reference sizes.']).forEach((t, i) => { g += T(bx, ny + i * 15, t, 'tk', 'start'); });
   const VW = bx + bw + 16, VH = Math.max(base + 80, ny + 60);
   const bc = (c: typeof NAVY) => `.bp .b{stroke:${c.soft}}`;
-  return `<svg class="bp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.round(VW)} ${Math.round(VH)}" role="img" aria-label="${esc(`Assembly drawing of ${o.name}: top, front and right views of every part with numbered balloons and a bill of materials`)}">
+  return `<svg class="bp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.round(VW)} ${Math.round(VH)}" role="img" aria-label="${esc(`${o.plates ? 'Print plate drawing' : 'Assembly drawing'} of ${o.name}: top, front and right views of every part with numbered balloons and a bill of materials`)}">
 <defs><pattern id="bp-gr" width="15" height="15" patternUnits="userSpaceOnUse"><path class="g" d="M15 0H0V15" fill="none" stroke-width="1"/></pattern>
 <marker id="bp-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="m" d="M0 1.5L9 5L0 8.5z"/></marker>
 <style>${css(NAVY)}${bc(NAVY)}@media print{${css(PAPER)}${bc(PAPER)}}

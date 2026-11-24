@@ -129,15 +129,15 @@ const btn = (on: boolean) => `flex min-h-11 items-center whitespace-nowrap gap-1
 
 /** geometries: builder key -> geometry, for parts whose `geometry` is a string (a part whose key is missing is skipped until it arrives). */
 /** focusId: a part id, or a builder key, to tint in the model (set from outside, e.g. a parts list). */
-export default function AssemblyViewer({ parts, geometries, className = 'h-[360px] sm:h-[480px]', focusId }: { parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; className?: string; focusId?: string | null }) {
+export default function AssemblyViewer({ parts, geometries, className = 'h-[360px] sm:h-[480px]', focusId, plates }: { plates?: number /* kit without assembly data: parts already laid out on this many print plates; only Plates and Spin */; parts: AssemblyPart[]; geometries?: Record<string, THREE.BufferGeometry>; className?: string; focusId?: string | null }) {
   const reduce = useReducedMotion();
-  const [mode, setMode] = useState<AssemblyMode>('assembled');
+  const [mode, setMode] = useState<AssemblyMode>(plates ? 'unboxing' : 'assembled');
   const [explode, setExplode] = useState(1); // slider, 0..1
   const [fold, setFold] = useState(0); // slider, 0..1 of each joint's range
   const [spin, setSpin] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const lay = useMemo(() => flatLayLayout(parts, BED_MM), [parts]);
+  const lay = useMemo(() => (plates ? { positions: Object.fromEntries(parts.map((p) => [p.id, p.position])), fits: true, extent: { x: 0, y: 0 } } : flatLayLayout(parts, BED_MM)), [parts, plates]);
   const size = useMemo(() => { // room for every view, so the camera never has to move between them
     let x = 1, y = 1, z = 1;
     for (const p of parts) {
@@ -148,10 +148,10 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
     return { x: 1.5 * x, y: 1.5 * y, z: 0.7 * z }; // PrintStage frames 1.9x the largest side: roomy for one part, loose for a kit
   }, [parts, lay]);
   const targets = useMemo<Targets>(() => ({ e: mode === 'exploded' ? explode : 0, f: mode === 'unboxing' ? 1 : 0, j: fold, spin }), [mode, explode, fold, spin]);
-  const stage = useMemo(() => ({ pan: true, autoRotate: false }), []);
+  const stage = useMemo(() => (plates ? { pan: true, autoRotate: spin, bed: true, plates } : { pan: true, autoRotate: false }), [plates, spin]);
   const hasSpin = parts.some((p) => p.spin), hasJoint = parts.some((p) => p.joint);
   const shown = parts.find((p) => p.id === (hover ?? picked));
-  const MODES: [AssemblyMode, string][] = [['assembled', 'Assembled'], ['exploded', 'Exploded'], ['unboxing', 'Unboxing']];
+  const MODES: [AssemblyMode, string][] = plates ? [['unboxing', 'Plates']] : [['assembled', 'Assembled'], ['exploded', 'Exploded'], ['unboxing', 'Unboxing']];
 
   return (
     <div className="space-y-3">
@@ -170,7 +170,7 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
             <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={btn(mode === m)}><Ico n={m} />{label}</button>
           ))}
         </div>
-        {hasSpin && (
+        {(hasSpin || plates) && (
           <button type="button" aria-pressed={spin} disabled={reduce} title={reduce ? 'Off because your device asks for reduced motion' : undefined} onClick={() => setSpin((s) => !s)} className={btn(spin)}><Ico n="spin" />Spin</button>
         )}
       </div>
@@ -189,7 +189,7 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
           </label>
         )}
       </div>
-      {mode === 'unboxing' && !lay.fits && <p className="text-xs text-amber-700 dark:text-amber-300">These parts need more than one {BED_MM.x} mm bed.</p>}
+      {mode === 'unboxing' && !plates && !lay.fits && <p className="text-xs text-amber-700 dark:text-amber-300">These parts need more than one {BED_MM.x} mm bed.</p>}
 
       <ul aria-label="Parts" className="flex flex-wrap gap-2">
         {parts.map((p) => {

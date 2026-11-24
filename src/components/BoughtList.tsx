@@ -6,10 +6,10 @@ import { partById } from '@/lib/parts';
 import PartThumb from './PartThumb';
 import Term from './Term';
 
-export default function BoughtList({ items }: { items: BoughtItem[] }) {
+export default function BoughtList({ items, title = 'Bought separately' }: { items: BoughtItem[]; title?: string }) {
   return (
     <>
-      <h2 id="kit-bought" className="text-sm font-semibold text-gray-900 dark:text-white">Bought separately</h2>
+      <h2 id="kit-bought" className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h2>
       <p className="mb-2 mt-1 text-xs text-gray-600 dark:text-gray-400">Available from us — enquire for price. Specs are typical for this kind of build: check them against your parts.</p>
       <ul className="space-y-2.5 text-sm text-gray-800 dark:text-gray-200">
         {items.map((b) => {

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprintData } from '@/lib/blueprint';
 import { assemblyBlueprint } from '@/lib/assemblyBlueprint';
+import { printPlates } from '@/lib/assembly';
 import { partMesh } from '@/lib/partModels';
 import { partById } from '@/lib/parts';
 import { kitBlocked, kitById, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
@@ -104,7 +105,8 @@ export function FinishedBuild({ kit, parts, focusId, updating }: { kit: Kit; par
       geometries[p.item.templateId] = prepGeometry(g);
       sizes[p.item.templateId] = [st.sizeMm.x, st.sizeMm.y, st.sizeMm.z];
     }
-    return { geometries, assembly: kit.assembly(sizes) };
+    const all = kit.assembly(sizes);
+    return kit.assemblyData === false ? { geometries, ...(() => { const r = printPlates(all, kit.plates); return { assembly: r.parts, plates: r.plates }; })() } : { geometries, assembly: all, plates: 0 };
   }, [kit, parts]);
   const sheet = useMemo(() => {
     if (!built) return null;
@@ -117,20 +119,25 @@ export function FinishedBuild({ kit, parts, focusId, updating }: { kit: Kit; par
       const part = pid ? partById(pid) : null;
       return part ? partMesh(part) : null;
     };
-    return assemblyBlueprint(built.assembly, meshes, { name: kit.title, ref });
+    return assemblyBlueprint(built.assembly, meshes, { name: kit.title, ref, plates: !!built.plates });
   }, [built, parts, kit]);
   useEffect(() => () => { if (built) Object.values(built.geometries).forEach((g) => g.dispose()); }, [built]);
   if (!kit.assembly) return null;
+  const plates = kit.assemblyData === false; // no real assembly data: show what gets printed, never a guessed assembly
   return (
     <section aria-labelledby="kit-finished" className="space-y-2">
-      <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
-      {built ? <div className="relative"><AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} />{updating && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}</div> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
-      <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
+      <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">{plates ? 'What you\'ll print' : 'The finished build'}</h2>
+      {built ? <div className="relative"><AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} plates={built.plates || undefined} />{updating && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}</div> : <div role="status" aria-label={plates ? 'Laying out the print plates' : 'Building the finished model'} className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
+      {plates ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Shown as printed, not assembled.{(kit.plates?.length ?? 0) > 1 && ' Parts are laid out flat on two print plates.'}{kit.credit && <> <a href={kit.credit.url} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Assembly guide on the source project page →</a></>}</p>
+      ) : (
+        <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
+      )}
       {kit.credit && <CreditLine credit={kit.credit} />}
       {sheet && (
         <div className="space-y-2 pt-2">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Assembly drawing</h3>
-          <BlueprintSheet svg={sheet} filename={`assembly-${kit.id}`} />
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{plates ? 'Print plate drawing' : 'Assembly drawing'}</h3>
+          <BlueprintSheet svg={sheet} filename={`${plates ? 'print-plates' : 'assembly'}-${kit.id}`} />
         </div>
       )}
     </section>
@@ -291,7 +298,7 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. {settings ? 'Change the settings above before you add it.' : 'Open a part to change its settings before you add it.'}</p>
           <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
-            <BoughtList items={kit.boughtParts} />
+            <BoughtList items={kit.boughtParts} title={kit.assemblyData === false ? 'Not printed — buy separately' : undefined} />
           </div>
         </aside>
       </div>

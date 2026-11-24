@@ -34,6 +34,8 @@ export const credit = { author: 'dorianborian', url: 'https://github.com/dorianb
 
 // ponytail: the upstream CAD is STEP only (not read), so every position is APPROXIMATE, not the real fit. Add real poses by exporting the STEP to per-part transforms.
 export const approximate = true;
+// No real assembly data (the upstream assembly is STEP only, not read): the shop shows the printed parts on a print plate, never an assembled robot.
+export const assemblyData = false as const;
 export function assembly(): AssemblyPart[] {
   const parts: AssemblyPart[] = printedParts.map((p) => {
     const leg = /^[LR]/.test(p.id);
@@ -53,4 +55,4 @@ export function assembly(): AssemblyPart[] {
   return parts;
 }
 
-export const deskPetKit = { id: 'desk-pet', title: 'Sesame desk pet', category: 'robot', blurb: 'ESP32 desk quadruped on eight MG90S servos, with an OLED face. Open hardware, PLA.', printedParts, assembly, boughtParts, credit, approximate };
+export const deskPetKit = { id: 'desk-pet', title: 'Sesame desk pet', category: 'robot', blurb: 'ESP32 desk quadruped on eight MG90S servos, with an OLED face. Open hardware, PLA.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };

@@ -35,6 +35,10 @@ const bought = (id: string, label: string, size: V3, position: V3, explode: V3, 
 
 // ponytail: upstream ships print trays and no assembly info, so every position is APPROXIMATE (a stacked layout, not the real fit).
 export const approximate = true;
+// No real assembly data (upstream: print trays, assembly "coming soon"): the shop shows the printed parts on print plates, never an assembled car.
+export const assemblyData = false as const;
+// zcar prints as two prearranged trays (0.15 mm and 0.1 mm layers); the small gear files have no tray and sit with tray 2.
+export const plates = [['tray1'], ['tray2', 'pinion', 'gear', 'motor-mount']];
 export function assembly(): AssemblyPart[] {
   const p = (i: number): Printed => printedParts[i];
   const part = (i: number, position: V3, explode: V3, extra: Partial<AssemblyPart> = {}): AssemblyPart =>
@@ -51,4 +55,4 @@ export function assembly(): AssemblyPart[] {
   ];
 }
 
-export const rcCarKit = { id: 'rc-car', title: '1/28 RC car (zcar)', category: 'rc', blurb: 'Open-hardware 1/28 RC chassis with independent front suspension and Ackermann steering. Fits MINI-Z body shells.', printedParts, assembly, boughtParts, credit, approximate };
+export const rcCarKit = { id: 'rc-car', title: '1/28 RC car (zcar)', category: 'rc', blurb: 'Open-hardware 1/28 RC chassis with independent front suspension and Ackermann steering. Fits MINI-Z body shells.', printedParts, assembly, boughtParts, credit, approximate, assemblyData, plates };

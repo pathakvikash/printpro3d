@@ -100,3 +100,24 @@ export function flatLayLayout(parts: AssemblyPart[], bed = { x: 220, y: 220 }, g
   for (const v of Object.values(positions)) { v[0] -= extent.x / 2; v[1] -= extent.y / 2; } // the block sits centred on the origin
   return { positions, fits: extent.x <= bed.x && extent.y <= bed.y, extent };
 }
+
+export const PLATE_GAP = 30; // mm between two print plates drawn side by side
+
+/** A kit without real assembly data: only its printed parts, flat as printed, each group (`groups`: part ids or geometry keys; default all)
+ * on its own bed, the beds side by side along x. No bought parts, no explode, no joints, no spin. `plates` = number of beds. */
+export function printPlates(parts: AssemblyPart[], groups?: string[][], bed = { x: 220, y: 220 }): { parts: AssemblyPart[]; plates: number } {
+  const printed = parts.filter((p) => !p.bought && p.material !== 'bought');
+  const key = (p: AssemblyPart) => (typeof p.geometry === 'string' ? p.geometry : p.id);
+  const rest = printed.filter((p) => !groups?.some((g) => g.includes(p.id) || g.includes(key(p))));
+  const sets = [...(groups ?? []).map((g) => printed.filter((p) => g.includes(p.id) || g.includes(key(p)))), ...(rest.length || !groups ? [rest] : [])].filter((s) => s.length);
+  const out: AssemblyPart[] = [];
+  sets.forEach((set, i) => {
+    const lay = flatLayLayout(set, bed);
+    const dx = (i - (sets.length - 1) / 2) * (bed.x + PLATE_GAP);
+    for (const p of set) {
+      const [x, y, z] = lay.positions[p.id];
+      out.push({ id: p.id, label: p.label, geometry: p.geometry, material: p.material, size: p.size, position: [x + dx, y, z], rotation: [0, 0, 0], explode: [0, 0, 0] });
+    }
+  });
+  return { parts: out, plates: sets.length };
+}

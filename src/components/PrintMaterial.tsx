@@ -9,6 +9,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, Line, OrbitControls } from '@react-three/drei';
 import { toCreasedNormals } from 'three-stdlib';
 import SafeCanvas from './WebGLCanvas';
+import { PLATE_GAP } from '@/lib/assembly';
 import { BED_MM, type MaterialKey } from '@/lib/quote';
 import type { LightKey } from '@/lib/lights';
 
@@ -151,7 +152,7 @@ export function Shadow({ scale, dark, z = 0 }: { scale: number; dark: boolean; z
 }
 
 /** The 220 mm printer bed with a 10 mm grid. */
-function Bed({ dark }: { dark: boolean }) {
+function Bed({ dark, x = 0 }: { dark: boolean; x?: number }) {
   const grid = useMemo(() => {
     const g = new THREE.GridHelper(BED_MM.x, BED_MM.x / 10, 0x7f8794, 0x7f8794);
     g.rotation.x = Math.PI / 2;
@@ -163,13 +164,13 @@ function Bed({ dark }: { dark: boolean }) {
   }, [dark]);
   useEffect(() => () => { grid.geometry.dispose(); (grid.material as THREE.Material).dispose(); }, [grid]); // primitives are not auto-disposed
   return (
-    <>
+    <group position={[x, 0, 0]}>
       <mesh position={[0, 0, -0.03]}>
         <planeGeometry args={[BED_MM.x, BED_MM.y]} />
         <meshBasicMaterial color={dark ? '#0b0d11' : '#c9c6bd'} transparent opacity={0.55} />
       </mesh>
       <primitive object={grid} />
-    </>
+    </group>
   );
 }
 
@@ -265,7 +266,7 @@ const seg = (on: boolean) =>
   `min-h-10 whitespace-nowrap px-2.5 py-1 text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${on ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`;
 
 /** Extras the /playground page turns on; every field is optional and the default is the old behaviour. */
-export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean; reference?: boolean /* a bought part's reference model: no print-material badge, layers or bed */ };
+export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean; bed?: boolean /* start with the bed drawn */; plates?: number /* beds side by side (kit print plates) */; reference?: boolean /* a bought part's reference model: no print-material badge, layers or bed */ };
 
 /** Draggable turntable with studio light. `interactive` adds zoom and the Solid / Mesh / Layers + bed controls. */
 export function PrintStage({ size, material = 'PETG', interactive = false, reduceMotion, stage = {}, children }: {
@@ -278,7 +279,7 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
 }) {
   const dark = useDark();
   const [view, setView] = useState<View>('solid');
-  const [bed, setBed] = useState(false);
+  const [bed, setBed] = useState(!!stage.bed);
   const layerMm = interactive ? TRUE_LAYER_MM : TRUE_LAYER_MM * CARD_EXAGGERATION;
   const total = Math.max(1, Math.round(size.z / TRUE_LAYER_MM));
   const [picked, setLayer] = useState<number | null>(null); // null = top layer, so a taller part is not left clipped
@@ -310,7 +311,7 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
       >
         <StudioLight dark={dark} light={stage.light} />
         <StageCtx.Provider value={ctx}>{children}</StageCtx.Provider>
-        <HideUnderBed>{bed ? <Bed dark={dark} /> : <Shadow scale={maxDim * 2.6} dark={dark} />}</HideUnderBed>
+        <HideUnderBed>{bed ? Array.from({ length: stage.plates ?? 1 }, (_, i) => <Bed key={i} dark={dark} x={(i - ((stage.plates ?? 1) - 1) / 2) * (BED_MM.x + PLATE_GAP)} />) : <Shadow scale={maxDim * 2.6} dark={dark} />}</HideUnderBed>
         {stage.dims && <DimBox size={size} />}
         <FitCamera dist={dist} target={target} home={home} resetKey={stage.resetKey} />
         <ViewRig cmd={cmd} target={target} home={home} dist={dist} instant={reduceMotion} />
