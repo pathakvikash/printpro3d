@@ -19,7 +19,7 @@ import { ContactFields, FieldError, contactFrom, input, invalidProps, label, mon
 import Icon from './Icon';
 import ShippingFields from './ShippingFields';
 
-type Order = { id: string; status: string; total: number | null; unpricedCount: number; currency: string };
+type Order = { id: string; status: string; total: number | null; unpricedCount: number; reviewCount?: number; provisional?: boolean; currency: string };
 type Vals = Record<string, string>;
 
 const card = 'rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900';
@@ -278,7 +278,8 @@ function Success({ order }: { order: Order }) {
       {copyNote && <p role="status" className="text-xs">{copyNote}</p>}
       <p className="font-semibold">Keep this id: you need it to track your order.</p>
       {typeof order.total === 'number' ? <p>Total: {money.format(order.total)}</p> : <p>We will quote these items.</p>}
-      {order.unpricedCount > 0 && <p>Plus {itemsText(order.unpricedCount)} we will quote separately.</p>}
+      {order.unpricedCount - (order.reviewCount ?? 0) > 0 && <p>Plus {itemsText(order.unpricedCount - (order.reviewCount ?? 0))} we will quote separately.</p>}
+      {order.provisional && <p>Some parts will be priced on review.</p>}
       <p>We&apos;ll confirm your order and send a payment link.</p>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link href={`/track?id=${encodeURIComponent(order.id)}`} aria-label="Track this order" title="Track this order" className={`${submitBtn} sm:w-auto`}><Icon name="search" />Track</Link>

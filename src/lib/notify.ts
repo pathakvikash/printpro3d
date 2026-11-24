@@ -24,6 +24,8 @@ export type OrderLine = {
   qty: number;
   material: string;
   total: number | null; // null = needs a manual quote
+  priceStatus?: 'review'; // the server could not price this line in time or the build failed: owner prices it by hand
+  reviewReason?: string;
   id?: string; // catalogue id, shop lines
   notes?: string; // model lines: the customer's notes from My items (never priced)
   itemName?: string; // shop, template and kit lines; model lines: the customer's label (name and colour note)
@@ -48,13 +50,14 @@ export type OrderNotice = {
   notes: string;
   total: number | null; // sum of priced lines, null when none is priced
   unpricedCount: number;
+  provisional?: boolean; // some lines are priced on review: total covers the priced lines only
   currency: string;
 };
 
 const money = (currency: string, n: number) => `${currency} ${n}`;
 
 function lineText(l: OrderLine, currency: string): string[] {
-  const price = l.total === null ? 'needs a manual quote' : money(currency, l.total);
+  const price = l.priceStatus === 'review' ? `NEEDS MANUAL PRICING (${l.reviewReason ?? 'review'})` : l.total === null ? 'needs a manual quote' : money(currency, l.total);
   if (l.kind === 'shop') return [`${l.qty}x ${l.itemName ?? l.id} — ${price}`];
   if (l.kind === 'tpl' || l.kind === 'kit') return [`${l.qty}x ${l.itemName ?? l.id} (${l.config ?? ''}) — ${price}`];
   if (l.kind === 'design') {
@@ -87,6 +90,7 @@ export async function notifyNewOrder(order: OrderNotice): Promise<boolean> {
         '',
         `Estimated total (priced lines only): ${order.total === null ? 'manual quote needed' : money(order.currency, order.total)}`,
         ...(order.unpricedCount > 0 ? [`${order.unpricedCount} line(s) need a manual quote`] : []),
+        ...(order.provisional ? ['TOTAL IS PROVISIONAL. Price these lines by hand before sending the payment link:', ...order.lines.filter((l) => l.priceStatus === 'review').map((l) => `  - ${l.qty}x ${l.itemName ?? l.id}`)] : []),
         '',
         `Customer: ${order.name}`,
         `Email: ${order.email}`,

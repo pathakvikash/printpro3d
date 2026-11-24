@@ -6,17 +6,15 @@ import { parseContact } from '@/lib/contact';
 import { parseShipping } from '@/lib/shipping';
 import { MAX_LINES } from '@/lib/cart';
 import { notifyNewOrder } from '@/lib/notify';
-import type { Cfg, TemplateDef } from '@/lib/templateDefs';
-import { templateOrderLine } from '@/lib/templates';
 import { checkEntry, mergeChecked } from '@/lib/orderChecks';
-import { designNotes, priceDesign, priceKit, priceModel, type SavedLine } from '@/lib/orderPricing';
+import { designNotes, newBudget, priceDesign, priceKit, priceModel, priceTpl, type SavedLine } from '@/lib/orderPricing';
 import { markOrdered } from '@/lib/designProjects';
 import { putJson } from '@/lib/store';
 import { filled, limited } from '@/lib/spam';
 
 // ponytail: orders are JSON records in the store (local disk, or Vercel Blob); list/filter in the admin page is a full scan — move to a DB if volume grows
 
-export const maxDuration = 60; // seconds: template lines are rebuilt with CSG here (MAX_TPL_LINES caps it)
+export const maxDuration = 60; // seconds: template and kit lines are rebuilt with CSG here; orderPricing's 40 s budget keeps the order inside it
 
 // `items` is the cart. A legacy single-item body ({ file | item, qty, ...contact }) becomes a one-entry list.
 function requestItems(body: Record<string, unknown>): unknown[] {
@@ -38,9 +36,6 @@ function priceShop(item: Item, qty: number): SavedLine {
   // shop order: price comes from the catalogue, never from the client
   return { kind: 'shop', id: item.id, itemName: item.name, qty, material: item.material, total: item.price * qty };
 }
-
-// template order: the mesh is rebuilt here from the validated config and priced with quote(); nothing the browser says about price is read
-const priceTpl = (tpl: TemplateDef, cfg: Cfg, qty: number): SavedLine => templateOrderLine(tpl, cfg, qty);
 
 export async function POST(request: Request) {
   const slow = await limited(request, 'submit');
@@ -66,10 +61,12 @@ export async function POST(request: Request) {
     const fields = { ...parseContact((k) => body[k]), ...parseShipping((k) => body[k]) };
     const reqs = requestItems(body).map((raw, i) => checkEntry(raw, i + 1));
 
+    // template and kit parts are rebuilt from the validated config; nothing the browser says about price is read. Parts out of budget or failing to build become 'review' lines.
+    const budget = newBudget();
     const lines: SavedLine[] = [];
     for (const r of mergeChecked(reqs)) {
       try {
-        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : r.kind === 'kit' ? await priceKit(r.id, r.cfg, r.qty) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : { ...(await priceModel(r.file, r.material, r.qty)), ...(r.label ? { itemName: r.label } : {}), ...(r.notes ? { notes: r.notes } : {}) });
+        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? await priceTpl(r.tpl, r.cfg, r.qty, budget) : r.kind === 'kit' ? await priceKit(r.id, r.cfg, r.qty, budget) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : { ...(await priceModel(r.file, r.material, r.qty)), ...(r.label ? { itemName: r.label } : {}), ...(r.notes ? { notes: r.notes } : {}) });
       } catch (e) {
         throw new Error(`item ${r.n}: ${e instanceof Error ? e.message : 'invalid'}`);
       }
@@ -77,6 +74,8 @@ export async function POST(request: Request) {
 
     const priced = lines.filter((l) => l.total !== null);
     const unpricedCount = lines.length - priced.length;
+    const reviewCount = lines.filter((l) => l.priceStatus === 'review').length;
+    const provisional = reviewCount > 0;
     const total = priced.length ? priced.reduce((sum, l) => sum + (l.total ?? 0), 0) : null;
 
     const id = crypto.randomUUID();
@@ -91,12 +90,14 @@ export async function POST(request: Request) {
       notes: [fields.notes, designNotes(lines)].filter(Boolean).join('\n\n'),
       total,
       unpricedCount,
+      reviewCount,
+      provisional,
       currency: CURRENCY,
     };
     await putJson('orders', `${id}.json`, order);
     for (const l of lines) if (l.kind === 'design' && l.project) await markOrdered(l.project).catch(() => {});
     await notifyNewOrder(order); // never throws; the order is already saved
-    return NextResponse.json({ id, status, total, unpricedCount, currency: CURRENCY });
+    return NextResponse.json({ id, status, total, unpricedCount, reviewCount, provisional, currency: CURRENCY });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Invalid order' }, { status: 400 });
   }

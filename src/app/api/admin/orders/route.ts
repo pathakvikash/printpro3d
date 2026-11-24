@@ -12,7 +12,7 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : n
 
 // What the admin page shows for one stored order or request. Files are names only: download goes through /api/admin/files.
 function view(type: TrackType, r: Rec) {
-  const items: { name: string; qty: number; material?: string; total?: number | null; file?: string; aiPrompt?: string }[] = [];
+  const items: { name: string; qty: number; material?: string; total?: number | null; file?: string; aiPrompt?: string; review?: boolean }[] = [];
   const files: string[] = [];
   if (type === 'request') {
     for (const n of Array.isArray(r.images) ? r.images : []) if (typeof n === 'string') files.push(n);
@@ -28,6 +28,7 @@ function view(type: TrackType, r: Rec) {
         total: num(l.total),
         file,
         aiPrompt: str(l.aiPrompt) || undefined,
+        review: l.priceStatus === 'review' || undefined,
       });
       if (file) files.push(file);
     }
@@ -40,6 +41,7 @@ function view(type: TrackType, r: Rec) {
     total: num(r.total),
     currency: str(r.currency),
     unpricedCount: num(r.unpricedCount),
+    provisional: r.provisional === true,
     contact: { name: str(r.name), email: str(r.email), phone: str(r.phone), address: str(r.address), notes: str(r.notes) },
     items,
     files,

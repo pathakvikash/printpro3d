@@ -10,7 +10,7 @@ const KEY = 'printpro3d.admin';
 const read = () => { try { return sessionStorage.getItem(KEY) ?? ''; } catch { return ''; } };
 const write = (v: string) => { try { if (v) sessionStorage.setItem(KEY, v); else sessionStorage.removeItem(KEY); } catch {} };
 
-type Item = { name: string; qty: number; material?: string; total?: number | null; file?: string; aiPrompt?: string };
+type Item = { name: string; qty: number; material?: string; total?: number | null; file?: string; aiPrompt?: string; review?: boolean };
 type Rec = {
   type: 'order' | 'request';
   id: string;
@@ -19,6 +19,7 @@ type Rec = {
   total: number | null;
   currency: string;
   unpricedCount: number | null;
+  provisional?: boolean;
   contact: { name: string; email: string; phone: string; address: string; notes: string };
   items: Item[];
   files: string[];
@@ -187,7 +188,7 @@ function Row({ r, token, statuses, onSaved }: { r: Rec; token: string; statuses:
           {r.items.map((it, i) => (
             <li key={i}>
               {it.qty} x {it.name}{it.material ? `, ${it.material}` : ''}:{' '}
-              {typeof it.total === 'number' ? money.format(it.total) : 'needs a manual quote'}
+              {it.review ? 'PRICE ON REVIEW: price by hand' : typeof it.total === 'number' ? money.format(it.total) : 'needs a manual quote'}
               {it.aiPrompt ? ` (AI prompt: "${it.aiPrompt}")` : ''}
             </li>
           ))}
@@ -195,7 +196,7 @@ function Row({ r, token, statuses, onSaved }: { r: Rec; token: string; statuses:
       )}
       {r.type === 'order' && (
         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          Total: {r.total === null ? 'manual quote needed' : money.format(r.total)}
+          Total: {r.total === null ? 'manual quote needed' : money.format(r.total)}{r.provisional ? ' (provisional)' : ''}
           {r.unpricedCount ? ` (${r.unpricedCount} line(s) still need a quote)` : ''}
         </p>
       )}
