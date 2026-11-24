@@ -81,7 +81,7 @@ export default function Navbar() {
 
   return (
     <nav className='sticky top-0 z-50 w-full bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6'>
+      <div className='max-w-7xl mx-auto px-3 sm:px-6'>
         <div className='flex items-center justify-between h-16'>
           <Link href='/' aria-label='PrintPro3D home' className='text-gray-900 dark:text-white'>
             <Logo size={28} />
@@ -106,7 +106,7 @@ export default function Navbar() {
           </ul>
 
           {/* Right side */}
-          <div className='flex items-center gap-1 sm:gap-4'>
+          <div className='flex items-center gap-0.5 sm:gap-4'>
             {business.phone && (
               <a href={`tel:${phoneHref}`} className='hidden xl:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap'>
                 {business.phone}
@@ -118,7 +118,7 @@ export default function Navbar() {
               onClick={(e) => { if (pathname !== '/ai') { e.preventDefault(); window.dispatchEvent(new Event(OPEN_AI_CHAT)); } }}
               aria-label='Build with AI'
               title='Build with AI'
-              className='inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-indigo-300 px-2.5 sm:px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950/50 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
+              className='inline-flex min-h-10 items-center gap-1 sm:gap-1.5 rounded-xl border border-indigo-300 px-2 sm:px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950/50 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
             >
               <Icon name='spark' className='h-4 w-4' />AI
             </Link>

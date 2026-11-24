@@ -221,7 +221,7 @@ export default function AiChatDialog({ onClose }: { onClose: () => void }) {
     const opener = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    box.current?.querySelector<HTMLElement>('textarea, button')?.focus();
+    (box.current?.querySelector<HTMLElement>('textarea') ?? box.current?.querySelector<HTMLElement>('button'))?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
       if (e.key !== 'Tab' || !box.current) return;

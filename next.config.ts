@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/build", destination: "/playground?mode=build", permanent: false },
       { source: "/draw", destination: "/playground?mode=build", permanent: false },
-      { source: "/ai", destination: "/playground?mode=build", permanent: false },
+      // /ai is the "Build with AI" chat page (header and floating AI buttons open the same chat as a panel)
     ];
   },
 };

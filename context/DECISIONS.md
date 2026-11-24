@@ -32,6 +32,8 @@
 | TypeScript held at 6.0 | typescript-eslint does not support 7 yet |
 | One repo per project: no `printpro3d-v2` | Push to the existing repo; the stray v2 repo is to be deleted by the owner |
 | Layer height 0.2 mm assumed in quotes and copy | Not in code; owner to confirm |
+| AI chat over the existing `/api/design` pipeline, not a new one; refine = previous shapes + change, re-validated server side (2026-11-24) | One trust boundary and one set of limits (aiGuard ledger `design`, honeypot, per-IP `ai` bucket, 600-char prompt, 12 KB shapes); `/ai` stopped redirecting to `/build` and is the chat page |
+| Owner AI settings in the store override env; keys never leave env (2026-11-24) | Switch provider/model without a redeploy; nothing secret is stored or sent to the browser |
 
 ## Owner standing instructions
 
