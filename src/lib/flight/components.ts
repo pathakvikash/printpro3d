@@ -5,9 +5,14 @@ import type { Vec3 } from './mass.ts';
 export const MAX_MOTORS = 8, MAX_COMPONENTS = 12, MAX_POS_MM = 1000, MAX_MASS_G = 5000;
 /** Frame: x right, y forward, z up, origin anywhere (trim works about the CG). */
 export type Motor = { id: string; pos: Vec3; spin: 'cw' | 'ccw'; motorId: string };
-export type MassComponent = { id: string; name: string; massG: number | null; pos: Vec3 };
+/** yawDeg (-180..180, about z) and tiltDeg (-90..90, about x) are the optional angle of an accepted suggestion; absent = unturned (older saves). */
+export type MassComponent = { id: string; name: string; massG: number | null; pos: Vec3; yawDeg?: number; tiltDeg?: number };
+/** A design is either all propeller motors (drone) or all gear motors (ground vehicle). null for an unknown id. */
+export const motorKind = (motorId: string): 'prop' | 'gear' | null => MOTORS.find((m) => m.id === motorId)?.kind ?? null;
 
+// A stack is an ESC plus an FC board: the sum of the two typical values below. Must stay above the single-part patterns.
 const TYPICAL: [RegExp, number][] = [
+  [/stack|\besc\b.*(\bfc\b|flight ?controller)|(\bfc\b|flight ?controller).*\besc\b/i, 23],
   [/battery|lipo/i, 160], [/flight ?controller|\bfc\b/i, 8], [/\besc\b/i, 15], [/receiver|\brx\b/i, 3], [/camera/i, 20], [/vtx|transmitter/i, 8],
 ];
 /** Rough typical mass for a part name. ALWAYS an estimate: weigh the real part. null when the name is unknown. */
@@ -31,8 +36,8 @@ export function quadX(xMm: number, yMm: number, motorId: string, mirror = false)
 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
-function keys(o: Record<string, unknown>, allowed: string[], what: string) {
-  for (const k of Object.keys(o)) if (!allowed.includes(k)) throw new Error(`${what}: unknown key "${k}"`);
+function keys(o: Record<string, unknown>, allowed: string[], what: string, optional: string[] = []) {
+  for (const k of Object.keys(o)) if (!allowed.includes(k) && !optional.includes(k)) throw new Error(`${what}: unknown key "${k}"`);
   for (const k of allowed) if (!(k in o)) throw new Error(`${what}: missing "${k}"`);
 }
 const num = (x: unknown, lo: number, hi: number, what: string) => {
@@ -58,21 +63,26 @@ export function parseComponents(raw: unknown): { motors: Motor[]; components: Ma
   if (!Array.isArray(motors) || motors.length < 1 || motors.length > MAX_MOTORS) throw new Error(`motors: 1-${MAX_MOTORS} required`);
   if (!Array.isArray(components) || components.length > MAX_COMPONENTS) throw new Error(`components: at most ${MAX_COMPONENTS}`);
   const mi = new Set<string>(), ci = new Set<string>();
+  // a design is a drone (prop motors) or a ground vehicle with ONE gear motor model (ground mode reads one torque-speed line)
+  if (new Set(motors.map((m) => { const id = isObj(m) && typeof m.motorId === 'string' ? m.motorId : ''; return motorKind(id) === 'gear' ? id : motorKind(id); })).size > 1) throw new Error('motors: do not mix propeller motors and gear motors, or two gear motor models, in one design');
   return {
     motors: motors.map((m, i): Motor => {
       const w = `motors[${i}]`;
       if (!isObj(m)) throw new Error(`${w} must be an object`);
       keys(m, ['id', 'pos', 'spin', 'motorId'], w);
       if (m.spin !== 'cw' && m.spin !== 'ccw') throw new Error(`${w}.spin must be "cw" or "ccw"`);
-      if (typeof m.motorId !== 'string' || !MOTORS.some((x) => x.id === m.motorId && x.kind === 'prop')) throw new Error(`${w}.motorId is not a known propeller motor`);
+      if (typeof m.motorId !== 'string' || !motorKind(m.motorId)) throw new Error(`${w}.motorId is not a known motor`);
       return { id: id(m.id, mi, w), pos: pos(m.pos, `${w}.pos`), spin: m.spin, motorId: m.motorId };
     }),
     components: components.map((c, i): MassComponent => {
       const w = `components[${i}]`;
       if (!isObj(c)) throw new Error(`${w} must be an object`);
-      keys(c, ['id', 'name', 'massG', 'pos'], w);
+      keys(c, ['id', 'name', 'massG', 'pos'], w, ['yawDeg', 'tiltDeg']);
       if (typeof c.name !== 'string' || !c.name || c.name.length > 60) throw new Error(`${w}.name must be 1-60 characters`);
-      return { id: id(c.id, ci, w), name: c.name, massG: c.massG === null ? null : num(c.massG, 0, MAX_MASS_G, `${w}.massG`), pos: pos(c.pos, `${w}.pos`) };
+      const out: MassComponent = { id: id(c.id, ci, w), name: c.name, massG: c.massG === null ? null : num(c.massG, 0, MAX_MASS_G, `${w}.massG`), pos: pos(c.pos, `${w}.pos`) };
+      if ('yawDeg' in c) out.yawDeg = num(c.yawDeg, -180, 180, `${w}.yawDeg`);
+      if ('tiltDeg' in c) out.tiltDeg = num(c.tiltDeg, -90, 90, `${w}.tiltDeg`);
+      return out;
     }),
   };
 }

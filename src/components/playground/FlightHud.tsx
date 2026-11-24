@@ -6,6 +6,11 @@ import { G, makeRotor, maxThrustN, operating, type Basis } from '@/lib/flight/ro
 import { trim, type TrimResult } from '@/lib/flight/trim';
 import type { MassComponent, Motor } from '@/lib/flight/components';
 import type { Body } from '@/lib/flight/mass';
+import { CRR_ASSUMED, type GroundOut } from '@/lib/flight/ground';
+import type { GearRun } from '@/lib/motors';
+
+export const GROUND_ACCURACY = 'Indicative estimate, not a guarantee. Motor figures are the maker\'s own (about ±20%) at the stated voltage, with a straight-line torque-speed curve assumed. Rolling resistance is assumed. No battery sag, gearbox losses, tyre slip, drag or wheel and motor inertia, so real speed will be lower. Printed-part mass assumes uniform 40% fill; motors, wheels and wiring are not in the mass unless you add them as a Payload part.';
+export type GroundView = { res: GroundOut | null; wheelMm: number; onWheelMm: (mm: number) => void; run: GearRun };
 
 export const ACCURACY = 'Indicative estimate, not a flight guarantee. Thrust and current come from one independent bench test (±10–20%, about 16 V). Torque, response and battery sag are modelled with assumed values. No drag, ground effect or frame flex. Printed-part mass assumes uniform 40% fill; thin arms may weigh more.';
 
@@ -19,14 +24,14 @@ const field = 'w-16 rounded border border-gray-300 bg-white px-1 py-0.5 text-xs 
 const num = (s: string) => { const v = parseFloat(s); return Number.isFinite(v) && v > 0 ? v : undefined; };
 const f1 = (n: number) => n.toFixed(1);
 
-export default function FlightHud({ motors, components, frame, frameMm, frameState }: {
-  motors: Motor[]; components: MassComponent[]; frame: Body | null; frameMm: { x: number; y: number } | null; frameState: 'building' | 'ready';
+export default function FlightHud({ motors, components, frame, frameMm, frameState, ground = null }: {
+  ground?: GroundView | null; motors: Motor[]; components: MassComponent[]; frame: Body | null; frameMm: { x: number; y: number } | null; frameState: 'building' | 'ready';
 }) {
   const [open, setOpen] = useState(true);
   const [mah, setMah] = useState('');
   const [cells, setCells] = useState('4');
   const [esc, setEsc] = useState('');
-  const full = motors.length >= 3;
+  const full = !ground && motors.length >= 3;
 
   const res = useMemo<{ t: TrimResult } | { err: string } | null>(() => {
     if (!full) return null;
@@ -44,6 +49,7 @@ export default function FlightHud({ motors, components, frame, frameMm, frameSta
   }
   if ((num(cells) ?? 4) !== 4) extra.push('Bench data is 4S (about 16 V); other cell counts are not modelled.');
 
+  if (ground) return <GroundHud g={ground} n={motors.length} frameState={frameState} />;
   return (
     <div className="absolute left-2 top-2 z-10 max-h-[calc(100%-1rem)] w-[min(24rem,calc(100%-1rem))] overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 text-xs text-gray-800 shadow-lg dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-100">
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between text-sm font-semibold">
@@ -95,6 +101,45 @@ export default function FlightHud({ motors, components, frame, frameMm, frameSta
             </ul>
           )}
           <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">{ACCURACY}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const box = 'absolute left-2 top-2 z-10 max-h-[calc(100%-1rem)] w-[min(24rem,calc(100%-1rem))] overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 text-xs text-gray-800 shadow-lg dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-100';
+
+/** Ground vehicle numbers: all from groundAt (flight/ground.ts), shown with the same measured/assumed tags and accuracy line as the drone. */
+function GroundHud({ g, n, frameState }: { g: GroundView; n: number; frameState: 'building' | 'ready' }) {
+  const [open, setOpen] = useState(true);
+  const [wheel, setWheel] = useState(String(g.wheelMm));
+  const r = g.res;
+  return (
+    <div className={box}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between text-sm font-semibold">
+        Simulation: ground vehicle <span aria-hidden>{open ? '–' : '+'}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <p>{n} driven wheel{n === 1 ? '' : 's'}, motor figures at {g.run.volts} V: {g.run.noLoadRpm} rpm no-load, {g.run.stallKgCm} kg·cm stall.</p>
+          <label className="flex items-center gap-2">Wheel diameter (mm)
+            <input className={field} inputMode="decimal" value={wheel} aria-label="Wheel diameter in mm"
+              onChange={(e) => { setWheel(e.target.value); const v = parseFloat(e.target.value); if (Number.isFinite(v) && v >= 10 && v <= 300) g.onWheelMm(v); }} />
+            <span className="text-gray-500">default from the wheel template</span>
+          </label>
+          {!r && <p className="text-amber-800 dark:text-amber-200">Add the mass of your parts (Battery, Payload ...) or a solid frame to get numbers. Total mass is 0 g now{frameState === 'building' ? ' (frame mass loading)' : ''}.</p>}
+          {r && (
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+              <dt>Top speed, flat <Tag b="model" /></dt><dd className="font-medium">{r.moves ? `${r.topSpeedMs.toFixed(2)} m/s (${(r.topSpeedMs * 3.6).toFixed(1)} km/h)` : 'does not move'}</dd>
+              <dt>Max slope <Tag b="model" /></dt><dd className="font-medium">{r.moves ? (r.maxSlopeDeg >= 90 ? 'torque is not the limit (grip is)' : `${r.maxSlopeDeg.toFixed(1)}° (${r.maxGradePct.toFixed(0)}% grade)`) : '0°'}</dd>
+              <dt>Time to 90% of top speed <Tag b="model" /></dt><dd className="font-medium">{r.t90S === null ? 'n/a' : `${r.t90S.toFixed(2)} s`}</dd>
+              <dt>Rolling resistance <Tag b="assumed" /></dt><dd className="font-medium">coefficient {CRR_ASSUMED} ({r.rollingN.toFixed(2)} N)</dd>
+              <dt>No-load speed</dt><dd className="font-medium">{r.noLoadMs.toFixed(2)} m/s</dd>
+              <dt>Stall force</dt><dd className="font-medium">{r.stallForceN.toFixed(2)} N</dd>
+            </dl>
+          )}
+          {r && !r.moves && <Chip>Stall force is below the rolling resistance: this vehicle is too heavy for these motors and wheels.</Chip>}
+          <p className="text-[11px] leading-snug text-gray-500 dark:text-gray-400">{GROUND_ACCURACY}</p>
         </div>
       )}
     </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Edges, Html, OrbitControls, TransformControls } from '@react-three/drei';
-import type { ThreeEvent } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import SafeCanvas from '../WebGLCanvas';
 import { BED_MM } from '@/lib/quote';
@@ -21,9 +21,9 @@ const DEG = Math.PI / 180;
 export type Placing = { kind: 'motor'; spin: 'cw' | 'ccw'; motorId: string } | { kind: 'mass'; name: string };
 /** A suggested spot drawn as a ghost: strong = the armed suggestion, faint = the hint shown for a part picked with the chips. */
 export type Hint = { pos: Vec3; yawDeg: number; tiltDeg: number; glyph: Placing; strong: boolean };
-export type Angles = Record<string, { yawDeg: number; tiltDeg: number }>;
 export type SimView = { cg: Vec3; arrows: { pos: Vec3; thrustN: number; maxN: number }[] };
 const BELL_R = 14, BELL_H = 12, PROP_Z = 14; // mm: a 2306-class bell, prop disc just above it
+const isGear = (motorId: string) => MOTORS.some((x) => x.id === motorId && x.kind === 'gear');
 const propMm = (motorId: string) => { const m = MOTORS.find((x) => x.id === motorId); return m && m.kind === 'prop' ? propDiameterMm(m.prop) : 127; };
 const r = (v: number, k = 1000) => Math.round(v * k) / k;
 
@@ -112,6 +112,33 @@ function MotorGlyph({ spin, motorId, ghost, faint, selected }: { spin: 'cw' | 'c
   );
 }
 
+/** Gear motor: a yellow can along x with the wheel (diameter wheelMm, 10 mm wide, spokes so the turn shows) on the outer side. spin = rad/s, 0 = still. */
+function GearGlyph({ pos, wheelMm, spin, ghost, selected }: { pos: Vec3; wheelMm: number; spin: number; ghost?: boolean; selected?: boolean }) {
+  const wheel = useRef<THREE.Group>(null);
+  useFrame((_, dt) => { if (wheel.current && spin) wheel.current.rotation.x += spin * Math.min(dt, 0.05); });
+  const side = pos[0] >= 0 ? 1 : -1, op = ghost ? 0.5 : 1, R = wheelMm / 2;
+  return (
+    <group position={[0, 0, 6]}>
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[6, 6, 24, 20]} />
+        <meshStandardMaterial color={selected ? '#fde68a' : '#eab308'} transparent={ghost} opacity={op} />
+      </mesh>
+      <group position={[side * 22, 0, 0]} ref={wheel}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[R, R, 10, 40]} />
+          <meshStandardMaterial color="#374151" transparent opacity={ghost ? 0.4 : 0.9} />
+        </mesh>
+        {[0, Math.PI / 2].map((a) => (
+          <mesh key={a} rotation={[a, 0, 0]} position={[side * 5.2, 0, 0]}>
+            <boxGeometry args={[0.6, 2 * R * 0.9, 3]} />
+            <meshBasicMaterial color="#f9fafb" />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
 /** A mass part drawn as its real-size box (ESC 30x30x6, battery 60x30x20 ...), centred on its position, turned by yaw and tilted. */
 function MassGlyph({ name, massG, estimate, ghost, faint, selected, yawDeg = 0, tiltDeg = 0 }: { name: string; massG: number | null; estimate: boolean; ghost?: boolean; faint?: boolean; selected?: boolean; yawDeg?: number; tiltDeg?: number }) {
   const [w, d, h] = dimsFor(name) ?? [24, 14, 8];
@@ -162,11 +189,11 @@ function SimOverlay({ view }: { view: SimView }) {
   );
 }
 
-export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose, parts, partSel, onSelectPart, onMovePart, placing, mounts, onPlace, locked, sim, estimated, hints = [], angles = {} }: {
+export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose, parts, partSel, onSelectPart, onMovePart, placing, mounts, onPlace, locked, sim, estimated, hints = [], wheelMm = 65, wheelSpin = 0 }: {
   shapes: Shape[]; selectedId: string | null; tool: Tool;
   onSelect: (id: string | null) => void; onPose: (id: string, pose: Pose) => void;
   parts: Parts; partSel: string | null; onSelectPart: (id: string) => void; onMovePart: (id: string, pos: Vec3) => void;
-  placing: Placing | null; mounts: Vec3[]; onPlace: (pos: Vec3) => void; locked: boolean; sim: SimView | null; estimated: string[]; hints?: Hint[]; angles?: Angles;
+  placing: Placing | null; mounts: Vec3[]; onPlace: (pos: Vec3) => void; locked: boolean; sim: SimView | null; estimated: string[]; hints?: Hint[]; wheelMm?: number; wheelSpin?: number;
 }) {
   const [obj, setObj] = useState<THREE.Object3D | null>(null);
   const [ghost, setGhost] = useState<{ pos: Vec3; snapped: boolean } | null>(null);
@@ -215,18 +242,18 @@ export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, on
       </group>
       {parts.motors.map((m) => (
         <group key={m.id} ref={selObj(m.id)} position={m.pos} onClick={pick(m.id)}>
-          <MotorGlyph spin={m.spin} motorId={m.motorId} selected={m.id === partSel} />
+          {isGear(m.motorId) ? <GearGlyph pos={m.pos} wheelMm={wheelMm} spin={wheelSpin} selected={m.id === partSel} /> : <MotorGlyph spin={m.spin} motorId={m.motorId} selected={m.id === partSel} />}
         </group>
       ))}
       {parts.components.map((c) => (
         <group key={c.id} ref={selObj(c.id)} position={c.pos} onClick={pick(c.id)}>
-          <MassGlyph name={c.name} massG={c.massG} estimate={estimated.includes(c.id)} selected={c.id === partSel} {...angles[c.id]} />
+          <MassGlyph name={c.name} massG={c.massG} estimate={estimated.includes(c.id)} selected={c.id === partSel} yawDeg={c.yawDeg} tiltDeg={c.tiltDeg} />
         </group>
       ))}
       {showGhost && (
         <group position={placing.kind === 'mass' ? [ghost.pos[0], ghost.pos[1], ghost.pos[2] + massHalfHeight(placing.name)] : ghost.pos} raycast={() => null}>
           {placing.kind === 'motor'
-            ? <MotorGlyph spin={placing.spin} motorId={placing.motorId} ghost />
+            ? (isGear(placing.motorId) ? <GearGlyph pos={ghost.pos} wheelMm={wheelMm} spin={0} ghost /> : <MotorGlyph spin={placing.spin} motorId={placing.motorId} ghost />)
             : <MassGlyph name={placing.name} massG={null} estimate={false} ghost />}
           {ghost.snapped && (
             <mesh position={[0, 0, 0.3]}>

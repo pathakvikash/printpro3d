@@ -1,7 +1,7 @@
 // Optional AI layer for "Suggested next". The rules always produce the candidates; the model may only re-rank, reword and propose a spot.
 // Every proposal is re-checked (applyAiPlan -> validateSuggestion). Any failure returns null so the caller silently keeps the rules. Server only.
 import { parseDesign, type Shape } from '../playground.ts';
-import { parseComponents } from '../flight/components.ts';
+import { motorKind, parseComponents } from '../flight/components.ts';
 import type { Parts } from '../flight/layout.ts';
 import { MOTORS } from '../motors.ts';
 import { suggestItems, type SuggestItem } from './plan.ts';
@@ -29,6 +29,7 @@ export function parseBody(body: Record<string, unknown>): { shapes: Shape[]; par
     // parseComponents needs one motor; validate the components with a stand-in and keep the real motors validated the same way
     const stand = { id: 'x', pos: [0, 0, 0], spin: 'cw', motorId: MOTORS.find((m) => m.kind === 'prop')!.id };
     const ok = parseComponents({ motors: motors.length ? motors : [stand], components: raw.components });
+    if (ok.motors.some((m) => motorKind(m.motorId) !== 'prop')) return null; // suggestions are drone-only (the rules would call the hover solver)
     return { shapes, parts: { motors: motors.length ? ok.motors : [], components: ok.components } };
   } catch {
     return null;

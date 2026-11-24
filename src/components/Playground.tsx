@@ -5,13 +5,14 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
 import Icon from './Icon';
-import PlaygroundScene, { type Angles, type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import PlaygroundScene, { type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
 import SuggestBar, { ArmedPanel } from './playground/SuggestBar';
 import { MASS_NAME, kindOfMassName, massHalfHeight, mergeAi, nudge, suggestItems, type SuggestItem } from '@/lib/suggest/plan';
 import { suggestPlacement, type Placement } from '@/lib/suggest/placement';
 import type { PartKind } from '@/lib/suggest/validate';
 import { MOTORS, type PropMotor } from '@/lib/motors';
-import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, typicalMass } from '@/lib/flight/components';
+import { DEFAULT_WHEEL_MM, groundAt, groundMassKg, topRun, gearMotor } from '@/lib/flight/ground';
+import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, motorKind, typicalMass } from '@/lib/flight/components';
 import { meshBody, printedDensity, type Body, type Vec3 } from '@/lib/flight/mass';
 import { trim } from '@/lib/flight/trim';
 import { propDiameterMm } from '@/lib/flight/rotor';
@@ -30,6 +31,7 @@ import {
 const KEY = 'printpro3d.playground.v1';
 const AI_KEY = 'printpro3d.aidesign.v1'; // written by the Draw it with AI form
 const PROP_MOTOR = MOTORS.find((m): m is PropMotor => m.kind === 'prop')!;
+const GEAR_MOTORS = MOTORS.filter((m) => m.kind === 'gear');
 const FlightHud = dynamic(() => import('./playground/FlightHud'), { ssr: false });
 const clampPos = (v: number) => Math.max(-MAX_POS_MM, Math.min(MAX_POS_MM, v));
 const asV3 = (p: Vec3): V3 => ({ x: p[0], y: p[1], z: p[2] });
@@ -159,7 +161,8 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const [dismissed, setDismissed] = useState(false);
   const [armed, setArmed] = useState<{ kind: PartKind; place: Placement | null; reason: string } | null>(null);
   const [armNote, setArmNote] = useState<string | null>(null);
-  const [angles, setAngles] = useState<Angles>({}); // yaw / tilt of accepted suggestions: shown on the canvas, not saved (a part stores its position only)
+  const [gearId, setGearId] = useState(GEAR_MOTORS[0].id);
+  const [wheelMm, setWheelMm] = useState(DEFAULT_WHEEL_MM);
   const [aiRes, setAiRes] = useState<{ key: string; items: SuggestItem[] } | null>(null);
   const aiOff = useRef(false); // the server said no AI key: stop asking
   const [simulate, setSimulate] = useState(() => wantSim && h.now.parts.motors.length > 0);
@@ -193,6 +196,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const mounts = useMemo(() => mountPoints(shapes), [shapes]);
   const startPlace = (p: Placing) => {
     if (locked) return;
+    if (p.kind === 'motor' && parts.motors.some((m) => m.motorId !== p.motorId)) { setNote('Do not mix motor models: a design is a drone (propeller motors) or a ground vehicle with one gear motor model. Delete the other motors first.'); return; }
     if (p.kind === 'motor' && parts.motors.length >= MAX_MOTORS) { setNote(`That is the limit: ${MAX_MOTORS} motors.`); return; }
     if (p.kind === 'mass' && parts.components.length >= MAX_COMPONENTS) { setNote(`That is the limit: ${MAX_COMPONENTS} parts.`); return; }
     setPlacing((cur) => (cur?.kind === p.kind && (p.kind === 'motor' || (cur as Placing & { name: string }).name === p.name) ? null : p));
@@ -349,17 +353,24 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const names = shapes.map((s, i) => `${LABEL[s.kind]} ${shapes.slice(0, i + 1).filter((o) => o.kind === s.kind).length}`);
   const fits = size ? fitsBed(size) : false;
   const frameReady = frame?.of === shapes;
+  const isGround = parts.motors.length > 0 && parts.motors.every((m) => motorKind(m.motorId) === 'gear');
   const sim = useMemo<SimView | null>(() => {
-    if (!simulate || parts.motors.length < 3 || !frameReady) return null;
+    if (!simulate || isGround || parts.motors.length < 3 || !frameReady) return null;
     try {
       const t = trim({ motors: parts.motors, components: parts.components, frame: frame?.body ?? undefined });
       return { cg: [t.cgMm[0], t.cgMm[1], t.cgMm[2]], arrows: parts.motors.map((m, i) => ({ pos: m.pos, thrustN: t.motors[i].thrustN, maxN: t.motors[i].maxThrustN })) };
     } catch { return null; }
-  }, [simulate, parts, frame, frameReady]);
+  }, [simulate, isGround, parts, frame, frameReady]);
   const spinNow = nextSpin(parts.motors);
+  const gres = useMemo(() => {
+    const gm = isGround ? gearMotor(parts.motors[0].motorId) : null;
+    const massKg = groundMassKg(parts.components, frame?.of === shapes ? frame.body : null);
+    if (!gm || !(massKg > 0) || !(wheelMm > 0)) return null;
+    try { return groundAt({ run: topRun(gm), motors: parts.motors.length, wheelMm, massKg }); } catch { return null; }
+  }, [isGround, parts, frame, shapes, wheelMm]);
 
   // ---- suggestions: rules always, AI re-ranking when the server has a key ----
-  const droneish = from?.category === 'drone' || wantSim || parts.motors.length > 0 || parts.components.length > 0;
+  const droneish = !isGround && (from?.category === 'drone' || wantSim || parts.motors.length > 0 || parts.components.length > 0); // suggestions are drone-only
   const rules = useMemo(() => (!project && !locked && droneish ? suggestItems(shapes, parts, { category: 'drone' }) : []), [project, locked, droneish, shapes, parts]);
   const designKey = useMemo(() => (rules.length ? JSON.stringify([shapes, parts]) : ''), [rules, shapes, parts]);
   const items = aiRes && aiRes.key === designKey ? aiRes.items : rules;
@@ -379,7 +390,6 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     return () => { clearTimeout(t); ctl.abort(); };
   }, [rules, designKey, shapes, parts]);
   useEffect(() => { setArmed(null); setArmNote(null); }, [shapes, parts]);
-  useEffect(() => { if (example && example.id !== loadedExample.current) setAngles({}); }, [example]);
 
   const commitPlace = (kind: PartKind, place: Placement): boolean => {
     if (locked) return false;
@@ -388,8 +398,8 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     let next = out.parts;
     const id = out.id, spin = place.spin;
     if (kind === 'motor' && spin) next = patchMotor(next, id, (m) => ({ ...m, spin }));
+    if (kind !== 'motor' && (place.yawDeg || place.tiltDeg)) next = patchMass(next, id, (c) => ({ ...c, yawDeg: place.yawDeg, tiltDeg: place.tiltDeg })); // saved with the part
     commitParts(() => next);
-    if (kind !== 'motor') setAngles((a) => ({ ...a, [id]: { yawDeg: place.yawDeg, tiltDeg: place.tiltDeg } }));
     setPartSel(id); setSelectedId(null); setPlacing(null);
     return true;
   };
@@ -446,7 +456,11 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             ))}
           </div>
           {!project && <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
-            <button type="button" aria-pressed={placing?.kind === 'motor'} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} className={btnOn(placing?.kind === 'motor')}>+ Motor</button>
+            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} className={btnOn(placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id)}>+ Motor</button>
+            <select aria-label="Gear motor" value={gearId} disabled={locked} onChange={(e) => setGearId(e.target.value)} className={`${btn} max-w-[11rem] truncate`}>
+              {GEAR_MOTORS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === gearId} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: 'cw', motorId: gearId })} className={btnOn(placing?.kind === 'motor' && placing.motorId === gearId)}>+ Gear motor + wheel</button>
             {MASS_PARTS.map((n) => {
               const act = placing?.kind === 'mass' && placing.name === n;
               return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} className={btnOn(act)}>+ {n === 'Flight controller' ? 'FC' : n}</button>;
@@ -458,7 +472,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
           {placing && (
             <p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
               {placing.kind === 'motor'
-                ? 'Move over the model and click to place the motor. It snaps to a mount point (top of a cylinder or a hole) within 8 mm. Press Esc to cancel.'
+                ? `Move over the model and click to place the ${motorKind(placing.motorId) === 'gear' ? 'gear motor (its wheel sits at the motor)' : 'motor'}. It snaps to a mount point (top of a cylinder or a hole) within 8 mm. Press Esc to cancel.`
                 : `Move over the model and click to place the ${placing.name}. Press Esc to cancel.`}
               {picked && (
                 <span className="mt-1 flex flex-wrap items-center gap-2">
@@ -473,10 +487,10 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             <PlaygroundScene
               shapes={shapes} selectedId={sel?.id ?? null} tool={tool} onSelect={selectShape} onPose={pose}
               parts={parts} partSel={partSel} onSelectPart={selectPart} onMovePart={movePart}
-              placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated} hints={hints} angles={angles}
+              placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated} hints={hints} wheelMm={wheelMm} wheelSpin={simulate && gres?.moves ? Math.min(gres.omegaTop, 8) : 0}
             />
             {simulate && (
-              <FlightHud motors={parts.motors} components={parts.components} frame={frame?.body ?? null} frameMm={size ? { x: size.x, y: size.y } : null} frameState={frameReady ? 'ready' : 'building'} />
+              <FlightHud ground={isGround ? { res: gres, wheelMm, onWheelMm: setWheelMm, run: topRun(gearMotor(parts.motors[0].motorId)!) } : null} motors={parts.motors} components={parts.components} frame={frame?.body ?? null} frameMm={size ? { x: size.x, y: size.y } : null} frameState={frameReady ? 'ready' : 'building'} />
             )}
           </div>
 
@@ -529,17 +543,19 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               {motor && (
                 <>
                   <h3 className={heading}>Motor {motor.id}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{MOTORS.find((x) => x.id === motor.motorId)?.name}, {propDiameterMm(PROP_MOTOR.prop).toFixed(0)} mm prop. Not part of the printed model.</p>
-                  <div className="flex gap-2" role="group" aria-label="Spin direction">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{MOTORS.find((x) => x.id === motor.motorId)?.name}, {motorKind(motor.motorId) === 'gear' ? `${wheelMm} mm wheel (set in Simulate)` : `${propDiameterMm(PROP_MOTOR.prop).toFixed(0)} mm prop`}. Not part of the printed model.</p>
+                  {motorKind(motor.motorId) === 'prop' && <div className="flex gap-2" role="group" aria-label="Spin direction">
                     {(['cw', 'ccw'] as const).map((d) => (
                       <button key={d} type="button" aria-pressed={motor.spin === d} onClick={() => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, spin: d })))} className={`${btnOn(motor.spin === d)} flex-1`}>
                         Spin {d === 'cw' ? 'CW' : 'CCW'}
                       </button>
                     ))}
-                  </div>
+                  </div>}
                   <PosRow value={motor.pos} onChange={(pos) => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, pos })), `mp${motor.id}`)} />
-                  <button type="button" onClick={() => commitParts((p) => makeQuad(p, motor.id))} className={`${btn} w-full`}>Make 4 (quad-X)</button>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Quad-X copies this motor&rsquo;s distance from the centre to all four corners and replaces the motors you have.</p>
+                  {motorKind(motor.motorId) === 'prop' && <>
+                    <button type="button" onClick={() => commitParts((p) => makeQuad(p, motor.id))} className={`${btn} w-full`}>Make 4 (quad-X)</button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Quad-X copies this motor&rsquo;s distance from the centre to all four corners and replaces the motors you have.</p>
+                  </>}
                 </>
               )}
               {mass && (

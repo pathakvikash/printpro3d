@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addMass, addMotor, loadParts, makeQuad, mountPoints, NO_PARTS, pushHistory, redoHistory, savedParts, snapToMount, undoHistory, type History } from './layout.ts';
+import { addMass, addMotor, patchMass, loadParts, makeQuad, mountPoints, NO_PARTS, pushHistory, redoHistory, savedParts, snapToMount, undoHistory, type History } from './layout.ts';
 import { EXAMPLES } from '../examples.ts';
 import { MAX_MOTORS } from './components.ts';
 
@@ -46,4 +46,14 @@ test('history covers parts: undo and redo restore them', () => {
   assert.equal(h.now.parts.motors.length, 0);
   h = redoHistory(h);
   assert.equal(h.now.parts.motors.length, 1);
+});
+
+test('a turned part keeps its angle through savedParts/loadParts; gear-only designs persist too', () => {
+  let p = addMotor(NO_PARTS, [0, 0, 0], M).parts;
+  const id = addMass(p, 'Battery', [0, 0, 5]);
+  p = patchMass(id.parts, id.id!, (c) => ({ ...c, yawDeg: 90, tiltDeg: 25 }));
+  const back = loadParts(savedParts(p));
+  assert.equal(back.components[0].yawDeg, 90); assert.equal(back.components[0].tiltDeg, 25);
+  const g = addMotor(NO_PARTS, [10, 0, 0], 'adafruit-tt-48').parts;
+  assert.deepEqual(loadParts(savedParts(g)), g);
 });
