@@ -9,6 +9,8 @@ import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart } from './CartProvider';
 import Term from './Term';
+import { loadItems, storeItems } from './myItemsStore';
+import { saveItem, type MyItem } from '@/lib/myItems';
 
 // illustrative colours, same as MaterialCards
 const SWATCH: Record<MaterialKey, string> = { PLA: '#bfb49c', PETG: '#3f86ad', ABS: '#4a4f57', TPU: '#c2553f' };
@@ -56,6 +58,16 @@ export default function QuoteOrder({
     add(project ? { kind: 'design', project, label: modelName, material, qty, estimate: price } : { kind: 'model', file, label: modelName, material, qty, estimate: price });
     setAdded(true);
     if (checkout) openCart('cart', 'checkout');
+  };
+
+  // saved in this browser only; Order again later goes through the normal cart and the server reprices
+  const [colour, setColour] = useState('');
+  const [notes, setNotes] = useState('');
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const saveItemHere = () => {
+    const item: MyItem = { id: `${file}:${material}`, name: modelName, file, material, colour, qty: validQty ? qty : 1, notes, stats };
+    const ok = storeItems(saveItem(loadItems(), item));
+    setSavedMsg(ok ? 'Saved to My items.' : 'Could not save: your browser blocked storage.');
   };
 
   if (added) {
@@ -124,6 +136,19 @@ export default function QuoteOrder({
         <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb} <Link href="/materials" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Compare materials</Link></p>
       </fieldset>
 
+      {!project && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="qcolour" className={label}>Colour note (optional)</label>
+            <input id="qcolour" value={colour} maxLength={40} onChange={(e) => setColour(e.target.value)} className={input} />
+          </div>
+          <div>
+            <label htmlFor="qnotes" className={label}>Notes (optional)</label>
+            <input id="qnotes" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className={input} />
+          </div>
+        </div>
+      )}
+
       {found && (
         <section aria-labelledby="det-h" className="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
           <h4 id="det-h" className="font-semibold text-gray-900 dark:text-gray-100">What we detected</h4>
@@ -161,6 +186,12 @@ export default function QuoteOrder({
           <Icon name="check" />Checkout
         </button>
       </div>
+      {!project && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+          <button type="button" onClick={saveItemHere} aria-label="Save to My items" title="Save to My items (kept in this browser)" className={`${secondaryBtn} !w-auto`}><Icon name="save" />Save</button>
+          {savedMsg && <><span role="status">{savedMsg}</span><Link href="/my-items" aria-label="View My items" title="View My items" className={`${secondaryBtn} !w-auto`}><Icon name="cube" />Items</Link></>}
+        </div>
+      )}
     </div>
   );
 }

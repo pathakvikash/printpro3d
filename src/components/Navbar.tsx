@@ -16,6 +16,7 @@ const LINKS = [
 const MENU_LINKS = [
   { href: '/track', label: 'Track order' },
   { href: '/playground?mode=build', label: 'My designs' },
+  { href: '/my-items', label: 'My items' },
   { href: '/how-it-works', label: 'How it works' },
   { href: '/materials', label: 'Materials guide' },
 ];

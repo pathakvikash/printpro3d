@@ -331,6 +331,9 @@ function Drawer() {
             <Link href="/quote" onClick={closeCart} aria-label="Upload a file" title="Upload a file" className={secondaryBtn}>
               <Icon name="upload" />Upload
             </Link>
+            <Link href="/my-items" onClick={closeCart} aria-label="My items" title="My items" className={secondaryBtn}>
+              <Icon name="cube" />Saved
+            </Link>
           </div>
         </div>
       ) : (
