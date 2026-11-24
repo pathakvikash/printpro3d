@@ -276,7 +276,7 @@ export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, on
       ))}
       {sim && <SimOverlay view={sim} />}
       {obj && !locked && !placing && (partSel || selectedId) && <TransformControls object={obj} mode={partSel ? 'translate' : tool} onMouseUp={grab} />}
-      <OrbitControls makeDefault target={[0, 0, 15]} maxPolarAngle={Math.PI / 2 - 0.02} enableDamping={false} />
+      <OrbitControls makeDefault target={[0, 0, 15]} maxPolarAngle={Math.PI} enableDamping={false} />
     </SafeCanvas>
   );
 }

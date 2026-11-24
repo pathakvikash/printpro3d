@@ -3,9 +3,9 @@
 // Print-like preview kit: FDM material presets with layer-line shading, studio light, a draggable turntable stage
 // and the Solid / Mesh / Layers + print-bed toggles. Procedural only: no HDRI or texture downloads.
 // All geometry here is millimetres, Z up, the part standing on z = 0.
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, Line, OrbitControls } from '@react-three/drei';
 import { toCreasedNormals } from 'three-stdlib';
 import SafeCanvas from './WebGLCanvas';
@@ -194,6 +194,47 @@ function FitCamera({ dist, target, home, resetKey = 0 }: { dist: number; target:
   return null;
 }
 
+const VIEWS = {
+  front: [0, -1, 0.001], side: [1, 0, 0.001], top: [0, -0.001, 1], bottom: [0, -0.001, -1], // not exactly on the up axis: OrbitControls degenerates there
+} as const;
+export type ViewDir = keyof typeof VIEWS | 'reset';
+
+/** Eased camera move to a named view (instant under reduced motion). cmd.n changes on each click so the same view can be re-picked. */
+function ViewRig({ cmd, target, home, dist, instant }: { cmd: { dir: ViewDir; n: number } | null; target: THREE.Vector3; home: THREE.Vector3; dist: number; instant: boolean }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as { update?: () => void; target?: THREE.Vector3 } | null;
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!cmd) return;
+    const to = new THREE.Vector3(...(cmd.dir === 'reset' ? home.clone().sub(target).toArray() : VIEWS[cmd.dir])).normalize();
+    const from = camera.position.clone().sub(target);
+    const r0 = from.length();
+    from.normalize();
+    controls?.target?.copy(target);
+    const t0 = performance.now();
+    const ms = instant ? 0 : 450;
+    let raf = 0;
+    const step = (now: number) => {
+      const k = ms ? Math.min(1, (now - t0) / ms) : 1;
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      camera.position.copy(target).addScaledVector(from.clone().lerp(to, e).normalize(), r0 + (dist - r0) * e);
+      controls?.update?.();
+      invalidate();
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [cmd, camera, controls, target, home, dist, instant, invalidate]);
+  return null;
+}
+
+/** Hides the bed / shadow blob once the camera is under the bed plane so they never hide the model from below. */
+function HideUnderBed({ children }: { children: ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ camera }) => { if (ref.current) ref.current.visible = camera.position.z > 0; });
+  return <group ref={ref}>{children}</group>;
+}
+
 /** The part's overall bounding box (X red, Y green, Z blue) so the size is visible on the model itself. */
 function DimBox({ size }: { size: { x: number; y: number; z: number } }) {
   const lines = useMemo(() => {
@@ -248,6 +289,10 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   const target = useMemo(() => new THREE.Vector3(0, 0, size.z / 2), [size.z]);
   const home = useMemo(() => new THREE.Vector3(d * 0.8, -d, d * 0.75 + size.z / 2), [d, size.z]);
   const ctx: Ctx = { material, layerMm, view, clipZ: view === 'layers' ? layer * TRUE_LAYER_MM + 0.01 : 1e4 };
+  const [cmd, setCmd] = useState<{ dir: ViewDir; n: number } | null>(null);
+  const [stopped, setStopped] = useState<boolean | null>(null); // the user took over: the auto-turn stops
+  const wantSpin = stage.autoRotate ?? !reduceMotion;
+  const touched = stopped === wantSpin; // re-arms when the spin toggle changes
   const [onControls, setControls] = useState<{ domElement: HTMLElement } | null>(null);
   useEffect(() => {
     // vertical swipes still scroll the page on touch screens; sideways drags turn the part
@@ -265,23 +310,39 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
       >
         <StudioLight dark={dark} light={stage.light} />
         <StageCtx.Provider value={ctx}>{children}</StageCtx.Provider>
-        {bed ? <Bed dark={dark} /> : <Shadow scale={maxDim * 2.6} dark={dark} />}
+        <HideUnderBed>{bed ? <Bed dark={dark} /> : <Shadow scale={maxDim * 2.6} dark={dark} />}</HideUnderBed>
         {stage.dims && <DimBox size={size} />}
         <FitCamera dist={dist} target={target} home={home} resetKey={stage.resetKey} />
+        <ViewRig cmd={cmd} target={target} home={home} dist={dist} instant={reduceMotion} />
         <OrbitControls
+          onStart={() => setStopped(wantSpin)}
           ref={(c) => setControls(c as unknown as { domElement: HTMLElement } | null)}
           makeDefault
           target={target}
-          enablePan={!!stage.pan}
+          enablePan={interactive || !!stage.pan}
           enableZoom={interactive}
-          autoRotate={stage.autoRotate ?? !reduceMotion}
+          autoRotate={wantSpin && !touched}
           autoRotateSpeed={1.2}
-          maxPolarAngle={Math.PI / 2 - 0.04}
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI}
         />
       </SafeCanvas>
       <span className="pointer-events-none absolute right-2 top-2 rounded border border-gray-300/70 bg-white/80 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
         {material} · {interactive ? `${TRUE_LAYER_MM} mm layers (assumed)` : `layers drawn ${CARD_EXAGGERATION}× larger`}
       </span>
+      {interactive && (
+        <div role="toolbar" aria-label="Camera view" className="absolute left-2 top-10 flex flex-wrap gap-1">
+          {([['front', 'Front'], ['side', 'Side'], ['top', 'Top'], ['bottom', 'Bottom'], ['reset', 'Reset']] as const).map(([dir, label]) => (
+            <button key={dir} type="button" onClick={() => setCmd((c) => ({ dir, n: (c?.n ?? 0) + 1 }))} title={dir === 'bottom' ? 'Bottom (flip: view from underneath)' : label}
+              className="flex items-center gap-1 rounded border border-gray-300/80 bg-white/85 px-1.5 py-1 text-xs font-medium text-gray-800 backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900/85 dark:text-gray-100 dark:hover:bg-gray-800">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
+                {dir === 'reset' ? <path d="M3 7a4 4 0 1 0 1.2-2.8M3 2v3h3" /> : <><rect x="2" y="2" width="10" height="10" rx="1" />{dir === 'top' && <rect x="2" y="2" width="10" height="4" fill="currentColor" />}{dir === 'bottom' && <rect x="2" y="8" width="10" height="4" fill="currentColor" />}{dir === 'front' && <rect x="2" y="2" width="10" height="10" fill="currentColor" fillOpacity=".4" />}{dir === 'side' && <rect x="8" y="2" width="4" height="10" fill="currentColor" />}</>}
+              </svg>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {interactive && (
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-3 gap-y-1 bg-white/80 px-2 py-1.5 backdrop-blur dark:bg-gray-900/80">
           <div role="group" aria-label="View" className="flex overflow-hidden rounded border border-gray-300 dark:border-gray-600">
