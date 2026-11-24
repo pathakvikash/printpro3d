@@ -22,7 +22,7 @@ test('UploadForm (/quote) and ModelWithBlueprint load ModelViewer, and three wit
 test('ModelPlayground (/playground) imports nothing that statically pulls three', () => {
   const src = readFileSync(new URL('../components/ModelPlayground.tsx', import.meta.url), 'utf8');
   const froms = [...src.matchAll(/^import[^;]*?from\s+'([^']+)'/gm)].map((m) => m[1]);
-  for (const heavy of ['three', '@react-three/fiber', '@react-three/drei', './PrintMaterial', './ModelViewer', '@/lib/shopProducts', '@/lib/playground']) {
+  for (const heavy of ['three', '@react-three/fiber', '@react-three/drei', './PrintMaterial', './ModelViewer', '@/lib/shopProducts', '@/lib/playground', '@/lib/buildOffThread']) {
     assert.ok(!froms.includes(heavy), heavy);
   }
 });

@@ -11,7 +11,6 @@ import { blueprint, bounds } from '@/lib/blueprint';
 import { SHOP_CATEGORIES, shopCat } from '@/lib/catalog';
 import { MATERIALS, meshStats, type MaterialKey } from '@/lib/quote';
 import { setPendingFile } from '@/lib/pendingFile';
-import { buildOffThread } from '@/lib/buildOffThread';
 import { ALLOWED_EXTS, extOf, fileProblem } from '@/lib/uploadRules';
 
 const ModelViewer = dynamic(() => import('./ModelViewer'), { ssr: false, loading: () => <div role="status" aria-label="Loading the 3D viewer" className="h-[340px] animate-pulse rounded-xl bg-gray-200 sm:h-[460px] dark:bg-gray-800" /> });
@@ -56,7 +55,7 @@ export default function ModelPlayground() {
   useEffect(() => {
     if (!product || !lib || cached !== undefined) return;
     let on = true;
-    buildOffThread(product.ex.shapes).then((m) => { lib.keepMesh(product, m); if (on) setBuilt({ id: product.item.id, m }); }, () => on && setBuilt({ id: product.item.id, m: null }));
+    import('@/lib/buildOffThread').then((b) => b.buildOffThread(product.ex.shapes)).then((m) => { lib.keepMesh(product, m); if (on) setBuilt({ id: product.item.id, m }); }, () => on && setBuilt({ id: product.item.id, m: null }));
     return () => { on = false; };
   }, [product, lib, cached]);
   const mesh = cached ?? (built && built.id === product?.item.id ? built.m : null);
