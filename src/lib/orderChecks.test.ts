@@ -9,7 +9,7 @@ test('an order carries at most MAX_TPL_LINES distinct template lines (each is a 
   const t = TEMPLATES.find((x) => x.id === 'spacer-set')!;
   const tpl = (n: number, count: number): Checked => ({ n, kind: 'tpl', tpl: t, cfg: { ...defaultCfg(t), count }, qty: 1 });
   const many = Array.from({ length: MAX_TPL_LINES + 1 }, (_, i) => tpl(i + 1, i + 1));
-  assert.throws(() => mergeChecked(many), /at most 5 different configured parts/);
+  assert.throws(() => mergeChecked(many), /at most 6 different configured parts/);
   assert.equal(mergeChecked(many.slice(0, MAX_TPL_LINES)).length, MAX_TPL_LINES);
   assert.equal(mergeChecked([tpl(1, 3), tpl(2, 3), tpl(3, 3)]).length, 1); // identical configs merge first, so they do not count twice
 });

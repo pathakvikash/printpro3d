@@ -29,7 +29,7 @@ export const CATALOG: Item[] = [
   { id: 'cable-clip', exampleId: 'cable-clip', name: 'Desk cable clip', category: 'gadget', price: 49, material: 'PETG', description: 'A small open ring on a flat pad; the cable snaps in through the slot in the ring.' },
   { id: 'pi-case', exampleId: 'pi-case', name: 'Raspberry Pi case base', category: 'enclosure', price: 299, material: 'PETG', description: 'An open tray sized for a Raspberry Pi board, with four mounting holes and a cable cut-out. The lid is not included.' },
   { id: 'spinner-toy', exampleId: 'spinner-toy', name: 'Spinner toy head', category: 'toy', price: 149, material: 'PLA', description: 'A three-bar spinner with a 3 mm hole in the middle for a motor shaft.' },
-  { id: 'drone-plate', exampleId: 'drone-plate', name: 'Drone frame plate', category: 'drone', price: 349, material: 'ABS', description: 'An X-shaped frame plate with four motor mounts and shaft holes; hardware is not included.' },
+  { id: 'drone-plate', exampleId: 'drone-plate', name: 'Drone frame plate', category: 'drone', price: 349, material: 'ABS', description: 'An X-shaped frame plate with four motor mounts and shaft holes; hardware is not included. Adjacent motors are 56 mm apart, so props up to 53 mm across (2 inch at most) fit; 3 inch props (76.2 mm) would overlap.' },
   { id: 'phone-stand', exampleId: 'phone-stand', name: 'Phone stand', category: 'gadget', price: 199, material: 'PLA', description: 'A sloped back and a front lip hold a phone upright, with a hole in the base for the charging cable.' },
   { id: 'shelf-bracket', exampleId: 'shelf-bracket', name: 'Shelf bracket', category: 'gadget', price: 179, material: 'PETG', description: 'An L-shaped bracket with two screw holes in each leg.' },
 ];
@@ -45,7 +45,7 @@ export const SHOP_CATEGORIES = [
 ] as const;
 export type ShopCategory = (typeof SHOP_CATEGORIES)[number]['id'];
 const SHOP_CAT: Record<string, ShopCategory> = {
-  'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc', 'gps-antenna-mount': 'drone-rc', 'landing-gear': 'drone-rc', 'prop-guard': 'drone-rc', 'rc-bumper': 'drone-rc', 'battery-tray': 'drone-rc', 'wheel-hub': 'drone-rc',
+  'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc', 'gps-antenna-mount': 'drone-rc', 'landing-gear': 'drone-rc', 'prop-guard': 'drone-rc', 'fpv-frame-3in': 'drone-rc', 'rc-bumper': 'drone-rc', 'battery-tray': 'drone-rc', 'wheel-hub': 'drone-rc',
   'servo-bracket': 'robotics', 'robot-chassis': 'robotics', 'robot-gripper': 'robotics',
   'fpv-3in-kit': 'drone-rc', 'rover-kit': 'robotics', 'whoop-kit': 'drone-rc', 'heli-kit': 'drone-rc', 'rc-car': 'drone-rc', 'desk-pet': 'robotics',
   'transformer-kit': 'toys-hobby', 'led-decor-kit': 'smart-home',

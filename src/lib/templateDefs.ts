@@ -158,6 +158,16 @@ export const TEMPLATES: TemplateDef[] = [
     marketLinks: [],
   },
   {
+    id: 'fpv-frame-3in', name: '3 inch FPV quad frame (true X)', category: 'drone', material: 'PETG', colour: 'black',
+    blurb: 'A one-piece true-X frame for a 3 inch quad: four 10 mm wide arms meet in a centre plate with 4 M2 holes on a 20 x 20 mm stack pattern and 2 strap slots, and each arm ends in a 24 mm motor pad with a 6 mm shaft hole and 4 M2 holes on a 9 x 9 or 12 x 12 mm pattern. You set the motor to motor diagonal (adjacent motors are the diagonal divided by 1.414 apart) and the arm thickness. Motor and stack patterns are typical: check your motors and stack.',
+    fields: [
+      rng('diag', 'Motor to motor diagonal', 120, 160, 1, 140, 'mm', 'Typical 3 inch frames are about 125 to 150 mm; adjacent motors are 0.707 times this apart'),
+      rng('t', 'Arm and plate thickness', 2, 6, 0.5, 3),
+      sel('motor', 'Motor bolt pattern', [['9', '9 x 9 mm (M2, typical for 1404 class)'], ['12', '12 x 12 mm (M2, typical)']], '9'),
+    ],
+    marketLinks: [],
+  },
+  {
     id: 'rc-bumper', name: 'RC bumper plate', category: 'drone', material: 'TPU', colour: 'black',
     blurb: 'A flat bumper plate for an RC car or rover with two mounting holes at the spacing you set and rectangular cutouts to save weight.',
     fields: [
@@ -210,6 +220,9 @@ export const TEMPLATES: TemplateDef[] = [
     marketLinks: [],
   },
 ];
+
+/** Motor centre of the 3 inch FPV frame (the same on both axes, mm from the middle) for a motor to motor diagonal. Here, not in templates.ts, so kits stay free of the CSG. */
+export const frameMotorXY = (diag: number) => diag / (2 * Math.SQRT2);
 
 export const COMING_SOON: { id: string; name: string }[] = [];
 

@@ -8,12 +8,12 @@ export const KIT_METAS: KitMeta[] = [
   {
     "id": "fpv-3in-kit",
     "title": "FPV 3-inch build kit",
-    "blurb": "The printed parts for a small FPV quad built around 3 inch props: our X frame plate (a small sample plate, so check its motor holes against your motors), a camera mount, 4 prop guards, landing gear, a battery tray and a GPS puck mount. Motors, electronics and battery are bought separately.",
+    "blurb": "The printed parts for a small FPV quad built around 3 inch (76.2 mm) props: our true-X frame (160 mm motor to motor, so adjacent motors are 113 mm apart and the props have 37 mm between their tips; 12 x 12 mm M2 motor holes and a 20 x 20 mm stack pattern are typical, check yours), a camera mount, 4 prop guards, landing gear, a battery tray and a GPS puck mount. Motors, electronics and battery are bought separately.",
     "category": "drone-rc",
     "hasAssembly": true,
     "parts": [
       {
-        "name": "Drone frame plate",
+        "name": "3 inch FPV quad frame (true X)",
         "qty": 1
       },
       {

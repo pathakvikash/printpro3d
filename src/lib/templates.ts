@@ -4,7 +4,7 @@
 // Coordinates: mm, Z up, part lies on Z=0 and is centred on X/Y.
 import { buildMesh, LATE, type Kind, type Shape } from './playground.ts';
 import { meshStats, quote, fitsBed, type MeshStats } from './quote.ts';
-import { templateById, type Cfg, type TemplateDef } from './templateDefs.ts';
+import { frameMotorXY, templateById, type Cfg, type TemplateDef } from './templateDefs.ts';
 
 export type Built = { shapes: Shape[]; holes: number; parts: number; description: string };
 
@@ -385,6 +385,33 @@ function propGuard(c: Cfg): Built {
   };
 }
 
+// ---- 3 inch FPV frame ----
+export const FRAME_PLATE = { x: 52, y: 38 }; // centre plate, mm: 20 x 20 stack holes inside, strap slots at x +-21
+const FRAME_GAP = 3; // mm of air kept between neighbouring prop tips when we state the largest prop
+function fpvFrame(c: Cfg): Built {
+  const diag = c.diag as number, T = c.t as number, sp = Number(c.motor);
+  const m = frameMotorXY(diag), R = diag / 2, PAD = 24, ARM = 10, SHAFT = 6, BOLT = 2.2;
+  const sh: Shape[] = [box([FRAME_PLATE.x, FRAME_PLATE.y, T], [0, 0, T / 2])];
+  const quad: [number, number][] = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+  for (const [sx, sy] of quad) {
+    // each arm starts inside the plate (not at the middle: four arms crossing there leave the CSG kernel an open edge)
+    const a0 = 12, mid = (a0 + R) / 2 / Math.SQRT2;
+    sh.push(rotZ([R - a0, ARM, T], [sx * mid, sy * mid, T / 2], sx * sy > 0 ? 45 : -45), cyl(PAD, sx * m, sy * m, 0, T));
+  }
+  let holes = 0;
+  for (const x of [-10, 10]) for (const y of [-10, 10]) { sh.push(cyl(BOLT, x, y, -1, T + 1, 'hole')); holes++; } // 20 x 20 stack, M2
+  for (const x of [-21, 21]) { sh.push(box([3, 16, T + 2], [x, 0, T / 2], 'hole')); holes++; } // strap slots
+  for (const [sx, sy] of quad) {
+    sh.push(cyl(SHAFT, sx * m, sy * m, -1, T + 1, 'hole')); holes++;
+    for (const dx of [-sp / 2, sp / 2]) for (const dy of [-sp / 2, sp / 2]) { sh.push(cyl(BOLT, sx * m + dx, sy * m + dy, -1, T + 1, 'hole')); holes++; }
+  }
+  const gap = diag / Math.SQRT2, maxProp = gap - FRAME_GAP;
+  return {
+    shapes: sh, holes, parts: 1,
+    description: `A one-piece true-X 3 inch quad frame, ${r1(diag)} mm motor to motor on the diagonal, ${r1(T)} mm thick. Four ${ARM} mm wide arms meet in a ${FRAME_PLATE.x} × ${FRAME_PLATE.y} mm centre plate with 4 M2 holes (${BOLT} mm) on a 20 × 20 mm stack pattern and 2 strap slots (3 × 16 mm, 42 mm apart). Each arm ends in a ${PAD} mm motor pad with a ${SHAFT} mm shaft hole and 4 M2 holes (${BOLT} mm) on a ${sp} × ${sp} mm pattern (typical: check your motors). Adjacent motors are ${r1(gap)} mm apart, so props up to ${r1(maxProp)} mm across (${r1(maxProp / 25.4)} inch) keep ${FRAME_GAP} mm between tips; a 3 inch prop is 76.2 mm. Suggested material: PETG.`,
+  };
+}
+
 // ---- RC bumper ----
 function rcBumper(c: Cfg): Built {
   const W = c.width as number, sp = c.spacing as number, t = c.t as number;
@@ -513,6 +540,7 @@ const BUILDERS: Record<string, (c: Cfg) => Built> = {
   'gps-antenna-mount': gpsMount,
   'landing-gear': landingGear,
   'prop-guard': propGuard,
+  'fpv-frame-3in': fpvFrame,
   'rc-bumper': rcBumper,
   'battery-tray': batteryTray,
   'servo-bracket': servoBracket,

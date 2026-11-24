@@ -101,7 +101,7 @@ export const EXAMPLES: Example[] = [
   },
   {
     id: 'drone-plate', title: 'Drone frame plate', category: 'drone',
-    blurb: 'An X-shaped frame plate with four motor mounts and shaft holes.',
+    blurb: 'An X-shaped frame plate with four motor mounts and shaft holes, 56 mm apart: props up to 53 mm across (2 inch at most).',
     shapes: [
       drone('box', [40, 40, 3], [0, 0, 1.5]),
       drone('box', [80, 12, 3], [0, 0, 1.5], 'solid', [0, 0, 45]),

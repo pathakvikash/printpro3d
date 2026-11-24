@@ -28,8 +28,8 @@ test('every shop category has at least one item', () => {
 });
 test('the shop lists 9 new parts and 8 kits per their categories (counts)', () => {
   const count = (c: string) => shopVisible(TEMPLATES).filter((t) => shopCat(t.id) === c).length;
-  assert.equal(shopVisible(TEMPLATES).length, 16); // 7 older shop templates + 9 new
-  assert.equal(count('drone-rc'), 7);
+  assert.equal(shopVisible(TEMPLATES).length, 17); // 7 older shop templates + 9 new + the 3 inch frame
+  assert.equal(count('drone-rc'), 8);
   assert.equal(count('robotics'), 8);
   assert.equal(count('accessories'), 1);
   assert.deepEqual(KITS.map((k) => shopCat(k.id)), ['drone-rc', 'robotics', 'drone-rc', 'drone-rc', 'toys-hobby', 'smart-home', 'drone-rc', 'robotics']);

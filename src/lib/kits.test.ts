@@ -40,7 +40,7 @@ test('every kit item exists, its config is valid, it prices and fits the bed, an
   }
 });
 
-test('adding a kit is all or nothing and respects the 5 configured-part cap', () => {
+test('adding a kit is all or nothing and respects the 6 configured-part cap', () => {
   const k = kitById('fpv-3in-kit')!;
   const lines = kitLines(k, () => 1);
   assert.equal(lines.length, k.items.length);
@@ -52,7 +52,7 @@ test('adding a kit is all or nothing and respects the 5 configured-part cap', ()
   const t = templateById('spacer-set')!;
   const extra: CartLine = { kind: 'tpl', id: t.id, cfg: normalizeCfg(t, {}), qty: 1, unitPrice: 1 };
   const msg = kitBlocked([extra], lines);
-  assert.match(msg ?? '', /at most 5 different configured parts/);
+  assert.match(msg ?? '', /at most 6 different configured parts/);
   assert.notEqual(lineKey(extra), lineKey(lines[1]));
   // the other kit shares battery-tray settings only if equal: different config is a different line
   assert.ok(kitLines(kitById('rover-kit')!, () => 1).filter((l) => l.kind === 'tpl').length <= MAX_TPL_LINES);

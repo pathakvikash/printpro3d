@@ -75,7 +75,7 @@ Pruning: unordered projects older than 30 days are deleted with their STL by `np
 
 - A design line is accepted only for a `finalized` project whose STL is in the store; otherwise the order is refused. `markOrdered` then moves the project to `ordered`, and the project id and revision go into the order notes.
 - The server prices from its own STL and stats sidecar (`src/lib/orderPricing.ts`); no browser price is read. Open or non-manifold meshes and parts that do not fit the 220 x 220 x 250 mm bed become manual quotes.
-- Template lines are rebuilt from the template id and cfg on the server and repriced; the browser's price is ignored (the cart also drops stale template configs). At most 5 configured template lines per order.
+- Template lines are rebuilt from the template id and cfg on the server and repriced; the browser's price is ignored (the cart also drops stale template configs). At most 6 configured template lines per order.
 - The customer approves; the owner still reviews every order at `pending_review`.
 
 ## Flight simulation (Simulate) and its accuracy
