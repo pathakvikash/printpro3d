@@ -3,13 +3,15 @@ import Link from 'next/link';
 import PageShell from '@/components/PageShell';
 import { AiDesignRoute } from '@/components/RoutePages';
 import { modelFor, pickProvider } from '@/lib/aiDesign';
+import { aiEnv } from '@/lib/aiSettings';
 
 export const metadata: Metadata = { title: 'Draw it with AI - PrintPro3D', description: 'Describe a part or add a photo and get an editable 3D model made from simple shapes.' };
 export const dynamic = 'force-dynamic';
 
-export default function DrawPage() {
-  const provider = pickProvider(process.env);
-  const enabled = (provider !== null && modelFor(provider, process.env) !== null) || process.env.NODE_ENV !== 'production';
+export default async function DrawPage() {
+  const env = await aiEnv();
+  const provider = pickProvider(env);
+  const enabled = (provider !== null && modelFor(provider, env) !== null) || process.env.NODE_ENV !== 'production';
   return (
     <PageShell title="Draw it with AI" lead="Describe it or add a photo; we draw a 3D model you can edit.">
       {enabled ? (

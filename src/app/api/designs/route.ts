@@ -3,6 +3,7 @@ import { parseEmail } from '@/lib/contact';
 import { checkPrompt, DESIGN_PROMPT_MAX } from '@/lib/aiGuard';
 import { createFromMesh, createFromPrompt, createFromTemplate, DesignError } from '@/lib/designProjects';
 import { capabilities } from '@/lib/designAi';
+import { aiEnv } from '@/lib/aiSettings';
 import { filled, limited } from '@/lib/spam';
 import { aiOrResponse, readBody, respond, view } from './respond';
 
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // seconds: up to two AI calls (questions, then the plan)
 
 /** What the UI may offer right now: AI features, the Meshy source, the AI tier. */
-export const GET = () => NextResponse.json(capabilities());
+export const GET = async () => NextResponse.json(capabilities(await aiEnv()));
 
 const checked = (v: unknown, what: string): string => {
   const c = checkPrompt(v, DESIGN_PROMPT_MAX);

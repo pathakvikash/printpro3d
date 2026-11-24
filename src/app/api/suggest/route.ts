@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { configuredAi } from '@/lib/designAi';
+import { aiEnv } from '@/lib/aiSettings';
 import { hit, limited } from '@/lib/spam';
 import { parseBody, rerank } from '@/lib/suggest/ai';
 
@@ -15,7 +16,7 @@ const intEnv = (k: string, d: number) => { const n = Number.parseInt(process.env
  * the design only, so there is no free text to screen. Any AI failure answers { items: null }: the rules stand.
  */
 export async function POST(request: Request) {
-  const ai = configuredAi();
+  const ai = configuredAi(await aiEnv());
   if (!ai) return NextResponse.json({ items: null, ai: false }); // 200, not 503: the browser then logs no failed request; it stops asking
   const slow = await limited(request, 'suggest'); // own bucket: the debounced bar must not use up the design AI limit
   if (slow) return slow;

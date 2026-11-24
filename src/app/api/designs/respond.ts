@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { DesignError, type Project } from '@/lib/designProjects';
 import { configuredAi } from '@/lib/designAi';
+import { aiEnv } from '@/lib/aiSettings';
 import { limited } from '@/lib/spam';
 
 export const NO_AI = { error: 'AI is not configured on this site. You can still start from a template or edit by hand.', code: 'ai_not_configured' };
@@ -31,7 +32,7 @@ export async function respond(fn: () => Promise<unknown>): Promise<Response> {
 
 /** For AI routes: the rate limit (429 Response) or the AI call, or the "AI not configured" 503. */
 export async function aiOrResponse(request: Request): Promise<{ ai: NonNullable<ReturnType<typeof configuredAi>> } | { res: Response }> {
-  const ai = configuredAi();
+  const ai = configuredAi(await aiEnv());
   if (!ai) return { res: NextResponse.json(NO_AI, { status: 503 }) };
   const slow = await limited(request, 'ai');
   return slow ? { res: slow } : { ai };

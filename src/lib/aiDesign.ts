@@ -115,6 +115,7 @@ export const SYSTEM_PROMPT: string = [
   `- Use at most ${MAX_SHAPES} shapes.`,
   '- Keep it simple and chunky. If the picture or request shows something organic, curved or very detailed, approximate it with a simple printable version and say so in notes.',
   '- title: at most 60 characters. notes: at most 300 characters, plain language, and name any dimension you guessed. If the customer gave no size, pick a sensible real-world size for the object and say so in notes.',
+  '- When the customer sends a current design and a change, reply with the whole edited design. Keep the id of every shape you keep, change only what the change asks for.',
   '- If the request is for a weapon or a weapon part, or the thing cannot be a solid printable part, return an empty shapes array and explain in notes.',
   '',
   ...FEW_SHOT.flatMap((f) => [`Example request: ${f.request}`, `Example reply: ${JSON.stringify(f.answer)}`, '']),
@@ -205,8 +206,11 @@ export function extractReplyText(provider: 'anthropic' | 'openai', json: unknown
   let out = '';
   if (provider === 'anthropic') out = textOf(obj(json).content); // thinking blocks are skipped
   else {
-    const c = obj(obj(Array.isArray(obj(json).choices) ? (obj(json).choices as unknown[])[0] : null).message).content;
+    const msg = obj(obj(Array.isArray(obj(json).choices) ? (obj(json).choices as unknown[])[0] : null).message);
+    const c = msg.content;
     out = typeof c === 'string' ? c : textOf(c);
+    // reasoning models (LM Studio qwen) may leave content empty and put everything in reasoning_content: last resort only
+    if (!out.trim() && typeof msg.reasoning_content === 'string') out = msg.reasoning_content;
   }
   if (!out.trim()) throw new Error('The AI reply was empty');
   return out;
@@ -251,6 +255,30 @@ export function toDesign(input: unknown): DesignResult {
   }
   if (!shapes.some((s) => s.mode === 'solid')) return { ok: false, reason: notes || NO_DESIGN };
   return { ok: true, title, notes, shapes };
+}
+
+// ---------- refine: the browser sends the previous shapes back with a change ----------
+
+export const REFINE_SHAPES_MAX = 12 * 1024; // bytes of shapes JSON accepted from the browser
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** The user text for an edit turn, built only from shapes that pass toDesign unchanged in count (the browser is a trust boundary),
+ * or null when the shapes are missing, too big or invalid. */
+export function refineText(raw: unknown, change: string): string | null {
+  if (typeof raw !== 'string' || raw.length > REFINE_SHAPES_MAX || !change.trim()) return null;
+  let arr: unknown;
+  try { arr = JSON.parse(raw); } catch { return null; }
+  if (!Array.isArray(arr) || arr.length === 0 || arr.length > MAX_SHAPES) return null;
+  const d = toDesign({ shapes: arr });
+  if (!d.ok || d.shapes.length !== arr.length) return null;
+  const compact = d.shapes.map((s) => ({
+    id: s.id, kind: s.kind, mode: s.mode,
+    position: { x: r2(s.position.x), y: r2(s.position.y), z: r2(s.position.z) },
+    rotation: { x: r2(s.rotation.x), y: r2(s.rotation.y), z: r2(s.rotation.z) },
+    size: { x: r2(s.size.x), y: r2(s.size.y), z: r2(s.size.z) },
+  }));
+  return `Current design: ${JSON.stringify({ shapes: compact })}\n\nChange: ${change.trim()}`;
 }
 
 export function parseModelReply(text: string): DesignResult {
