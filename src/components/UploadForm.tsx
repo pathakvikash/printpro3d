@@ -266,7 +266,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
               Uploaded successfully
             </span>
           </div>
-          <ModelWithBlueprint url={uploadedUrl} name={initialFile ? 'Model from the builder' : uploaded?.name ?? 'Your model'} onPositions={setPositions} material={material} />
+          <ModelWithBlueprint url={uploadedUrl} name={uploaded?.name ?? 'Your model'} onPositions={setPositions} material={material} />
           {uploaded && (
             <QuoteOrder
               key={uploaded.file}
