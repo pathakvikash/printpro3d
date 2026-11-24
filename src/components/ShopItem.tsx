@@ -40,8 +40,8 @@ export default function ItemDetail({ p }: { p: Product }) {
   }, [mesh, ex.shapes]);
   const spec = useMemo(() => (mesh === undefined ? { volume: null, grams: null, layers: null } : specFromMesh(p, mesh, finish)), [p, mesh, finish]);
   const svg = useMemo(() => (mesh ? blueprint(mesh, { name: item.name, id: item.id, material: item.material }) : null), [mesh, item]);
-  const wait = (v: string) => (mesh === undefined ? '…' : v);
-  const rows: [string, string][] = [
+  const wait = (v: string) => (mesh === undefined ? null : v);
+  const rows: [string, string | null][] = [
     ['Size', dims],
     ['Volume', wait(spec.volume != null ? `${spec.volume.toFixed(2)} cm³` : 'n/a')],
     ['Material', item.material],

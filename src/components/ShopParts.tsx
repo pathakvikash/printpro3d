@@ -2,6 +2,7 @@
 // Pieces shared by the shop grid cards and the product pages.
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
 
@@ -33,11 +34,23 @@ export function useDebounced<T>(v: T, ms: number) {
   return d;
 }
 
+// A real link (works without JS); with JS, go back when we came from this site so scroll and filters survive.
+export function BackLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
+  const router = useRouter();
+  const onClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    let same = false;
+    try { same = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch { /* no referrer */ }
+    if (same) { e.preventDefault(); router.back(); }
+  };
+  return <Link href={href} onClick={onClick} className={className}>{children}</Link>;
+}
+
 export function BackToShop() {
   return (
-    <Link href="/shop" className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+    <BackLink href="/shop" className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
       <span aria-hidden>←</span>Back to Shop
-    </Link>
+    </BackLink>
   );
 }
 
@@ -75,13 +88,13 @@ export function CardFrame({ href, category, name, blurb, rows, preview, previewR
   );
 }
 
-export function SpecRows({ rows }: { rows: [string, string][] }) {
+export function SpecRows({ rows }: { rows: [string, string | null][] }) {
   return (
     <dl className="divide-y divide-gray-200 border-y border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
       {rows.map(([k, v]) => (
         <div key={k} className="flex justify-between gap-3 py-1.5">
           <dt className="text-gray-500 dark:text-gray-400">{k}</dt>
-          <dd className="text-right font-mono text-gray-900 dark:text-gray-100">{v}</dd>
+          <dd className="text-right font-mono text-gray-900 dark:text-gray-100">{v ?? <span role="status" aria-label="Calculating" className="pp-skeleton inline-block h-4 w-24 align-middle !rounded" />}</dd>
         </div>
       ))}
     </dl>

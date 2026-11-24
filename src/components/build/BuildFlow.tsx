@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Icon from '../Icon';
+import { BackLink } from '../ShopParts';
 import { secondaryBtn } from '../ContactFields';
 import {
   PROJECT_KEY, STEP_LABEL, currentRevision, defaultStep, mapError, parseStoredId, prefillPrompt, settleStep, stepAllowed, stepViews,
@@ -191,7 +192,7 @@ export default function BuildFlow() {
         <Stepper steps={stepViews(project.status, step)} onGo={go} />
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={back} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Back</button>
-          <Link href="/shop" className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Back to Shop</Link>
+          <BackLink href="/shop" className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Back to Shop</BackLink>
           <button type="button" onClick={newDesign} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New design</button>
         </div>
       </div>
