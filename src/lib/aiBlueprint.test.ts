@@ -44,5 +44,5 @@ test('inputs are capped: 3 KB blueprint, 300 character request', () => {
   assert.ok(compactBlueprint(bp));
   const big = shapesToBlueprint(Array.from({ length: 20 }, (_, i) => shape(`shape-number-${i}`)), 'x'.repeat(60), 'y'.repeat(300));
   assert.equal(compactBlueprint(big), null);
-  assert.ok(reviseUser('{}', 'z'.repeat(1000)).length < 330);
+  assert.equal(reviseUser('{}', 'z'.repeat(1000)), reviseUser('{}', 'z'.repeat(300))); // the request is cut at 300; the fixed prefix is ~40 chars
 });

@@ -10,11 +10,12 @@ import { putJson } from './store.ts';
 import { quote } from './quote.ts';
 
 const setup = () => { process.env.DATA_DIR = mkdtempSync(path.join(tmpdir(), 'order-design-')); };
-const forged = { kind: 'design', project: 'x', material: 'PLA', qty: 2, total: 1, unitPrice: 0.01, estimate: 0, price: 1, stats: { volumeCm3: 0.001 } };
+const PID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const forged = { kind: 'design', project: PID, material: 'PLA', qty: 2, total: 1, unitPrice: 0.01, estimate: 0, price: 1, stats: { volumeCm3: 0.001 } };
 
 test('a design entry carries only project, material and qty: forged price fields are never read', () => {
   const c = checkEntry(forged, 1);
-  assert.deepEqual(c, { n: 1, kind: 'design', project: 'x', material: 'PLA', qty: 2 });
+  assert.deepEqual(c, { n: 1, kind: 'design', project: PID, material: 'PLA', qty: 2 });
   assert.throws(() => checkEntry({ kind: 'design', qty: 1 }, 2), /item 2: design needs a project/);
   assert.equal(mergeChecked([checkEntry(forged, 1), checkEntry(forged, 2)])[0].qty, 4);
 });
