@@ -56,7 +56,7 @@ test('placement: battery moves the CG toward the thrust centroid', () => {
   assert.ok(off(cg(r.posMm)) < off(without), 'CG offset must shrink');
   assert.ok(r.posMm[0] < 0, 'battery goes opposite the off-centre parts');
   assert.match(r.reason, /mm from the thrust centre/);
-  assert.equal(checkPlacement('battery', r.posMm, plate), null);
+  assert.equal(checkPlacement('battery', r.posMm, plate, undefined, parts), null);
 });
 
 test('placement: flight controller at centre, camera at front with typical tilt', () => {
@@ -73,9 +73,10 @@ test('placement: flight controller at centre, camera at front with typical tilt'
 
 test('placement: every kind stays in the bed and clear of the frame; null with reasons', () => {
   for (const k of ['motor', 'esc', 'battery', 'fc', 'camera', 'payload'] as const) {
-    const r = suggestPlacement(k, plate, k === 'motor' ? { ...quad(), motors: quad().motors.slice(0, 3) } : quad());
+    const parts = k === 'motor' ? { ...quad(), motors: quad().motors.slice(0, 3) } : quad();
+    const r = suggestPlacement(k, plate, parts);
     assert.ok(r.posMm, `${k}: ${r.reason}`);
-    assert.equal(checkPlacement(k, r.posMm, plate), null, k);
+    assert.equal(checkPlacement(k, r.posMm, plate, undefined, parts), null, k);
   }
   assert.equal(suggestPlacement('battery', [], none).posMm, null);
   const tiny = [{ ...plate[0], size: { x: 20, y: 20, z: 3 } }];
@@ -84,7 +85,7 @@ test('placement: every kind stays in the bed and clear of the frame; null with r
 });
 
 test('validate: out-of-bed, frame overlap, unknown kinds, bad numbers, prototype keys rejected', () => {
-  const ok = validateSuggestion({ kind: 'fc', reason: 'x\u0000y', posMm: [0, 0, 8], yawDeg: 90, tiltDeg: 200 }, plate);
+  const ok = validateSuggestion({ kind: 'fc', reason: 'x\u0000y', posMm: [0, 0, 6], yawDeg: 90, tiltDeg: 200 }, plate);
   assert.ok(ok.ok);
   if (ok.ok) { assert.equal(ok.value.tiltDeg, 90); assert.equal(ok.value.reason, 'x y'); }
   const bad = (x: unknown) => assert.equal(validateSuggestion(x, plate).ok, false, JSON.stringify(x));

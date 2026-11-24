@@ -6,10 +6,10 @@ import { mountPoints, type Parts } from '../flight/layout.ts';
 import { combine, pointBody, printedDensity, type Body, type Vec3 } from '../flight/mass.ts';
 import { typicalMass, type MassComponent } from '../flight/components.ts';
 import { trim } from '../flight/trim.ts';
-import { checkPlacement, classify, overFrame, overlaps, partBox, PART_SIZE, solidBoxes, union, type Box, type PartKind } from './validate.ts';
+import { checkPlacement, classifyAll, componentBox, overFrame, partBox, PART_SIZE, solidBoxes, turnedSize, union, type Box, type PartKind } from './validate.ts';
 
 export type Placement = {
-  posMm: Vec3; yawDeg: number; tiltDeg: number; spin?: 'cw' | 'ccw'; reason: string; basis: 'rule' | 'physics' | 'typical';
+  posMm: Vec3; yawDeg: number; tiltDeg: number; spin?: 'cw' | 'ccw'; reason: string; basis: 'rule' | 'physics' | 'typical' | 'ai' | 'nudged';
 };
 export type PlacementResult = Placement | { posMm: null; reason: string };
 
@@ -27,15 +27,18 @@ function frameBody(shapes: Shape[]): Body | null {
   return pointBody(tot * 1e-9 * printedDensity('PLA') * 1000, c);
 }
 
-const compBox = (c: MassComponent): Box | null => { const k = classify(c.name); return k && k !== 'motor' ? partBox(k, c.pos) : null; };
 const xyOverlap = (a: Box, b: Box) => a.lo[0] < b.hi[0] && b.lo[0] < a.hi[0] && a.lo[1] < b.hi[1] && b.lo[1] < a.hi[1];
 
 /** z of the part's centre when it rests on whatever is below its footprint (frame solids and already placed parts stack). */
-function restZ(kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts, size: Vec3 = PART_SIZE[kind]): number {
+export function restZ(kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts, size: Vec3 = PART_SIZE[kind]): number {
   const s = size, foot = partBox(kind, [xy[0], xy[1], 0], size);
-  const below = [...solidBoxes(shapes), ...parts.components.map(compBox).filter((b): b is Box => !!b)].filter((b) => xyOverlap(b, foot));
+  const below = [...solidBoxes(shapes), ...parts.components.map(componentBox).filter((b): b is Box => !!b)].filter((b) => xyOverlap(b, foot));
   return Math.max(0, ...below.map((b) => b.hi[2])) + s[2] / 2;
 }
+
+/** z to store for a part of `kind` whose footprint centre is xy: a motor rises from the surface (its pos is the mount point), everything else is centred. */
+export const settleZ = (kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts, size?: Vec3): number =>
+  restZ(kind, xy, shapes, parts, size) - (kind === 'motor' ? PART_SIZE.motor[2] / 2 : 0);
 
 function motorSpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult {
   const taken = parts.motors.map((m) => m.pos), cx = (frame.hi[0] + frame.lo[0]) / 2, cy = (frame.hi[1] + frame.lo[1]) / 2;
@@ -43,16 +46,16 @@ function motorSpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult {
   let how = 'Snaps to a mount pad';
   if (!pads.length) { // no pads: the four frame corners, pulled in 20%
     const hx = (frame.hi[0] - frame.lo[0]) * 0.4, hy = (frame.hi[1] - frame.lo[1]) * 0.4;
-    pads = [[cx + hx, cy + hy, frame.hi[2]], [cx - hx, cy + hy, frame.hi[2]], [cx - hx, cy - hy, frame.hi[2]], [cx + hx, cy - hy, frame.hi[2]]];
+    pads = ([[cx + hx, cy + hy], [cx - hx, cy + hy], [cx - hx, cy - hy], [cx + hx, cy - hy]] as [number, number][]).map((xy): Vec3 => [xy[0], xy[1], settleZ('motor', xy, shapes, parts)]);
     how = 'No mount pads found, so it goes near a frame corner';
   }
   // quad-X order about the frame centre: front-right, front-left, rear-left, rear-right
   const rank = (p: Vec3) => (p[1] > cy ? (p[0] > cx ? 0 : 1) : p[0] < cx ? 2 : 3);
   const free = pads.filter((p) => !taken.some((t) => Math.hypot(t[0] - p[0], t[1] - p[1]) < 8)).sort((a, b) => rank(a) - rank(b));
-  const pad = free[0];
-  if (!pad) return none('Every mount pad already has a motor.');
+  if (!free.length) return none('Every mount pad already has a motor.');
+  const pad = free.find((p) => !checkPlacement('motor', p, shapes, undefined, parts)) ?? free[0]; // skip a pad another part is sitting on
   const spin = (pad[0] - cx) * (pad[1] - cy) > 0 ? 'ccw' : 'cw'; // quadX(): front-right and rear-left CCW, front-left and rear-right CW (props-in)
-  const pos: Vec3 = [pad[0], pad[1], pad[2]], why = checkPlacement('motor', pos, shapes);
+  const pos: Vec3 = [pad[0], pad[1], pad[2]], why = checkPlacement('motor', pos, shapes, undefined, parts);
   if (why) return none(`The mount pad at (${round1(pad[0])}, ${round1(pad[1])}) is unusable: ${why}.`);
   const corner = `${pad[1] > cy ? 'front' : 'rear'}-${pad[0] > cx ? 'right' : 'left'}`;
   return { posMm: pos, yawDeg: 0, tiltDeg: 0, spin, basis: 'rule', reason: `${how} at (${round1(pad[0])}, ${round1(pad[1])}), the ${corner} corner. Spin ${spin.toUpperCase()} so opposite corners cancel torque (quad-X, props in).` };
@@ -72,9 +75,8 @@ function batterySpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult
   for (const yaw of [0, 90]) {
     const [hw, hd] = yaw ? [d / 2, w / 2] : [w / 2, d / 2], size: Vec3 = [hw * 2, hd * 2, PART_SIZE.battery[2]];
     for (let x = frame.lo[0] + hw; x <= frame.hi[0] - hw + 1e-9; x += GRID_MM) for (let y = frame.lo[1] + hd; y <= frame.hi[1] - hd + 1e-9; y += GRID_MM) {
-      if (!overFrame(shapes, x, y)) continue; // must sit on real material, not in a gap between arms
       const pos: Vec3 = [x, y, restZ('battery', [x, y], shapes, parts, size)];
-      if (!(partBox('battery', pos, size).hi[2] <= 250) || solidBoxes(shapes).some((s) => overlaps(partBox('battery', pos, size), s))) continue;
+      if (checkPlacement('battery', pos, shapes, size, parts)) continue; // on real material, in the bed, clear of the frame and of parts already placed
       const score = off(cgOf(pos)), dist = Math.hypot(x - centroid[0], y - centroid[1]);
       if (!best || score < best.score - 1e-6 || (Math.abs(score - best.score) <= 1e-6 && dist < best.dist)) best = { pos, yaw, score, dist };
     }
@@ -87,9 +89,10 @@ function batterySpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult
     before = off(tc([]));
     after = off(tc([{ id: 'suggest-battery', name: 'Battery', massG: mass, pos }]));
   }
+  const gain = round1(before - after);
   return {
     posMm: pos, yawDeg: best.yaw, tiltDeg: 0, basis: 'physics',
-    reason: `Puts the centre of mass ${round1(after)} mm from the thrust centre (${round1(before)} mm without the battery), using a typical ${mass} g battery (ESTIMATE: weigh yours). It sits on the frame, long side ${best.yaw ? 'along y' : 'along x'}.`,
+    reason: `${gain >= 0.5 ? `Moves the centre of mass ${gain} mm toward the middle: ` : 'Keeps the centre of mass close to the middle: '}${round1(after)} mm from the thrust centre (${round1(before)} mm without the battery), using a typical ${mass} g battery (ESTIMATE: weigh yours). It sits on the frame, long side ${best.yaw ? 'along y' : 'along x'}.`,
   };
 }
 
@@ -100,7 +103,7 @@ function batterySpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult
 export function suggestPlacement(kind: PartKind, shapes: Shape[], parts: Parts): PlacementResult {
   const frame = union(solidBoxes(shapes));
   if (!frame) return none('Add a frame first: there is no solid shape to mount on.');
-  if (kind !== 'motor' && parts.components.some((c) => classify(c.name) === kind)) return none(`There is already a ${kind} in the design.`);
+  if (kind !== 'motor' && parts.components.some((c) => classifyAll(c.name).includes(kind))) return none(`There is already a ${kind} in the design.`);
   let r: PlacementResult;
   if (kind === 'motor') r = motorSpot(shapes, parts, frame);
   else if (kind === 'battery') r = batterySpot(shapes, parts, frame);
@@ -117,6 +120,6 @@ export function suggestPlacement(kind: PartKind, shapes: Shape[], parts: Parts):
       r = { posMm: [round1(cx), round1(cy), round1(z)], yawDeg: 0, tiltDeg: 0, basis: 'typical', reason: `${what} (typical layout).` };
     }
   }
-  if (r.posMm) { const turned = 'yawDeg' in r && r.yawDeg === 90 ? [PART_SIZE[kind][1], PART_SIZE[kind][0], PART_SIZE[kind][2]] as Vec3 : undefined, why = checkPlacement(kind, r.posMm, shapes, turned); if (why) return none(`The ${kind} spot found does not work: ${why}.`); }
+  if (r.posMm) { const why = checkPlacement(kind, r.posMm, shapes, turnedSize(kind, 'yawDeg' in r ? r.yawDeg : 0), parts); if (why) return none(`The ${kind} spot found does not work: ${why}.`); }
   return r;
 }

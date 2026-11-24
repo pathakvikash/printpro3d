@@ -2,7 +2,7 @@
 // Drone order: frame (the user's shapes) -> 4 motors -> ESC -> battery -> flight controller -> camera. Payload only when asked for.
 import type { Shape } from '../playground.ts';
 import type { Parts } from '../flight/layout.ts';
-import { classify, type PartKind } from './validate.ts';
+import { classifyAll, type PartKind } from './validate.ts';
 
 export type NextSuggestion = { kind: PartKind; reason: string; count?: number };
 export type SuggestContext = { category?: string; payload?: boolean };
@@ -12,7 +12,7 @@ export const DRONE_MOTORS = 4;
 export function suggestNext(shapes: Shape[], parts: Parts, ctx: SuggestContext = {}): NextSuggestion[] {
   if (ctx.category && ctx.category !== 'drone') return [];
   if (!shapes.some((s) => s.mode === 'solid')) return [];
-  const have = new Set(parts.components.map((c) => classify(c.name)));
+  const have = new Set(parts.components.flatMap((c) => classifyAll(c.name))) // a stack counts as every part it holds;
   const out: NextSuggestion[] = [];
   const missing = DRONE_MOTORS - parts.motors.length;
   if (missing > 0) out.push({ kind: 'motor', count: missing, reason: parts.motors.length ? `Add ${missing} more motor${missing > 1 ? 's' : ''}: a quad needs ${DRONE_MOTORS}, one on each arm.` : `Add ${DRONE_MOTORS} motors, one on each arm: they lift the drone.` });

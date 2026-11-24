@@ -5,7 +5,11 @@ import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
 import Icon from './Icon';
-import PlaygroundScene, { type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import PlaygroundScene, { type Angles, type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import SuggestBar, { ArmedPanel } from './playground/SuggestBar';
+import { MASS_NAME, kindOfMassName, massHalfHeight, mergeAi, nudge, suggestItems, type SuggestItem } from '@/lib/suggest/plan';
+import { suggestPlacement, type Placement } from '@/lib/suggest/placement';
+import type { PartKind } from '@/lib/suggest/validate';
 import { MOTORS, type PropMotor } from '@/lib/motors';
 import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, typicalMass } from '@/lib/flight/components';
 import { meshBody, printedDensity, type Body, type Vec3 } from '@/lib/flight/mass';
@@ -151,6 +155,12 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const parts = h.now.parts;
   const [partSel, setPartSel] = useState<string | null>(null);
   const [placing, setPlacing] = useState<Placing | null>(() => (wantSim && !h.now.parts.motors.length ? { kind: 'motor', spin: 'ccw', motorId: PROP_MOTOR.id } : null));
+  const [dismissed, setDismissed] = useState(false);
+  const [armed, setArmed] = useState<{ kind: PartKind; place: Placement | null; reason: string } | null>(null);
+  const [armNote, setArmNote] = useState<string | null>(null);
+  const [angles, setAngles] = useState<Angles>({}); // yaw / tilt of accepted suggestions: shown on the canvas, not saved (a part stores its position only)
+  const [aiRes, setAiRes] = useState<{ key: string; items: SuggestItem[] } | null>(null);
+  const aiOff = useRef(false); // the server said no AI key: stop asking
   const [simulate, setSimulate] = useState(() => wantSim && h.now.parts.motors.length > 0);
   const [estimated, setEstimated] = useState<string[]>([]);
   const [frame, setFrame] = useState<{ of: Shape[]; body: Body | null } | null>(null);
@@ -189,7 +199,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   };
   const place = (pos: Vec3) => {
     if (!placing) return;
-    const out = placing.kind === 'motor' ? addMotor(parts, pos, placing.motorId) : addMass(parts, placing.name, pos);
+    const out = placing.kind === 'motor' ? addMotor(parts, pos, placing.motorId) : addMass(parts, placing.name, [pos[0], pos[1], pos[2] + massHalfHeight(placing.name)]); // a part stores its centre: lift it onto the surface it was clicked on
     if (out.id) { commitParts(() => out.parts); setPartSel(out.id); }
     setPlacing(null);
   };
@@ -272,7 +282,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && !locked && (selectedId || partSel)) {
         e.preventDefault();
         if (partSel) removeP(partSel); else if (selectedId) remove(selectedId);
-      } else if (e.key === 'Escape') setPlacing(null);
+      } else if (e.key === 'Escape') { setPlacing(null); setArmed(null); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -341,6 +351,65 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   }, [simulate, parts, frame, frameReady]);
   const spinNow = nextSpin(parts.motors);
 
+  // ---- suggestions: rules always, AI re-ranking when the server has a key ----
+  const droneish = example?.category === 'drone' || wantSim || parts.motors.length > 0 || parts.components.length > 0;
+  const rules = useMemo(() => (!project && !locked && droneish ? suggestItems(shapes, parts, { category: 'drone' }) : []), [project, locked, droneish, shapes, parts]);
+  const designKey = useMemo(() => (rules.length ? JSON.stringify([shapes, parts]) : ''), [rules, shapes, parts]);
+  const items = aiRes && aiRes.key === designKey ? aiRes.items : rules;
+  useEffect(() => {
+    if (!rules.length || aiOff.current) return;
+    const ctl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ shapes, parts }), signal: ctl.signal });
+        if (!res.ok) return;
+        const reply: unknown = await res.json();
+        if (reply && typeof reply === 'object' && (reply as { ai?: unknown }).ai === false) { aiOff.current = true; return; }
+        const merged = mergeAi(rules, reply, shapes, parts);
+        if (merged) setAiRes({ key: designKey, items: merged });
+      } catch { /* any failure: the rules stay */ }
+    }, 1500);
+    return () => { clearTimeout(t); ctl.abort(); };
+  }, [rules, designKey, shapes, parts]);
+  useEffect(() => { setArmed(null); setArmNote(null); }, [shapes, parts]);
+  useEffect(() => { if (example && example.id !== loadedExample.current) setAngles({}); }, [example]);
+
+  const commitPlace = (kind: PartKind, place: Placement): boolean => {
+    if (locked) return false;
+    const out = kind === 'motor' ? addMotor(parts, place.posMm, PROP_MOTOR.id) : addMass(parts, MASS_NAME[kind], place.posMm);
+    if (!out.id) { setArmNote(kind === 'motor' ? `That is the limit: ${MAX_MOTORS} motors.` : `That is the limit: ${MAX_COMPONENTS} parts.`); return false; }
+    let next = out.parts;
+    const id = out.id, spin = place.spin;
+    if (kind === 'motor' && spin) next = patchMotor(next, id, (m) => ({ ...m, spin }));
+    commitParts(() => next);
+    if (kind !== 'motor') setAngles((a) => ({ ...a, [id]: { yawDeg: place.yawDeg, tiltDeg: place.tiltDeg } }));
+    setPartSel(id); setSelectedId(null); setPlacing(null);
+    return true;
+  };
+  const armSuggestion = (kind: PartKind) => {
+    if (armed?.kind === kind) { setArmed(null); return; }
+    const it = items.find((i) => i.kind === kind);
+    if (!it) return;
+    setPlacing(null); setSelectedId(null); setPartSel(null); setArmNote(null);
+    setArmed({ kind, place: it.place.posMm ? it.place : null, reason: it.place.reason });
+  };
+  const nudgeArmed = (d: { dx?: number; dy?: number; dYaw?: number }) => {
+    if (!armed?.place) return;
+    const r = nudge(armed.kind, armed.place, d, shapes, parts);
+    if (r.ok) { setArmed({ ...armed, place: r.place, reason: r.place.reason }); setArmNote(null); } else setArmNote(r.why);
+  };
+  // the suggested spot for the part picked with the "+" chips
+  const picked = useMemo<{ kind: PartKind; place: Placement } | null>(() => {
+    if (!placing || project || locked) return null;
+    const kind = placing.kind === 'motor' ? 'motor' : kindOfMassName(placing.name);
+    const r = kind ? suggestPlacement(kind, shapes, parts) : null;
+    return kind && r?.posMm ? { kind, place: r } : null;
+  }, [placing, project, locked, shapes, parts]);
+  const glyphOf = (kind: PartKind, place: Placement): Placing => (kind === 'motor' ? { kind: 'motor', spin: place.spin ?? 'ccw', motorId: PROP_MOTOR.id } : { kind: 'mass', name: MASS_NAME[kind] });
+  const hints: Hint[] = armed?.place
+    ? [{ pos: armed.place.posMm, yawDeg: armed.place.yawDeg, tiltDeg: armed.place.tiltDeg, glyph: glyphOf(armed.kind, armed.place), strong: true }]
+    : picked ? [{ pos: picked.place.posMm, yawDeg: picked.place.yawDeg, tiltDeg: picked.place.tiltDeg, glyph: glyphOf(picked.kind, picked.place), strong: false }] : [];
+
   return (
     <div className="space-y-6">
       {!project && <div>
@@ -376,11 +445,20 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} className={btnOn(act)}>+ {n === 'Flight controller' ? 'FC' : n}</button>;
             })}
           </div>}
+          {!project && !locked && !dismissed && <SuggestBar items={items} armed={armed?.kind ?? null} aiRanked={items.some((i) => i.ai)} onPick={armSuggestion} onDismiss={() => { setDismissed(true); setArmed(null); }} />}
+          {!project && !locked && dismissed && items.length > 0 && <button type="button" onClick={() => setDismissed(false)} className="text-sm text-indigo-700 dark:text-indigo-300 underline">Show suggestions</button>}
+          {armed && <ArmedPanel kind={armed.kind} place={armed.place} reason={armed.reason} note={armNote} onAccept={() => armed.place && commitPlace(armed.kind, armed.place)} onNudge={nudgeArmed} onIgnore={() => setArmed(null)} />}
           {placing && (
             <p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
               {placing.kind === 'motor'
                 ? 'Move over the model and click to place the motor. It snaps to a mount point (top of a cylinder or a hole) within 8 mm. Press Esc to cancel.'
                 : `Move over the model and click to place the ${placing.name}. Press Esc to cancel.`}
+              {picked && (
+                <span className="mt-1 flex flex-wrap items-center gap-2">
+                  <span>Suggested spot (faint): {picked.place.reason}</span>
+                  <button type="button" onClick={() => commitPlace(picked.kind, picked.place)} className={`${btn} py-1`}>Place at suggested spot</button>
+                </span>
+              )}
             </p>
           )}
 
@@ -388,7 +466,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             <PlaygroundScene
               shapes={shapes} selectedId={sel?.id ?? null} tool={tool} onSelect={selectShape} onPose={pose}
               parts={parts} partSel={partSel} onSelectPart={selectPart} onMovePart={movePart}
-              placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated}
+              placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated} hints={hints} angles={angles}
             />
             {simulate && (
               <FlightHud motors={parts.motors} components={parts.components} frame={frame?.body ?? null} frameMm={size ? { x: size.x, y: size.y } : null} frameState={frameReady ? 'ready' : 'building'} />
