@@ -4,7 +4,7 @@ import { MATERIAL_INFO } from '@/lib/materialInfo';
 
 const KEYS = Object.keys(MATERIALS) as MaterialKey[];
 // illustrative only, not measured from real prints; keep equal to PRESETS colours in PrintMaterial.tsx so the card matches the part
-const COLOUR: Record<MaterialKey, string> = { PLA: '#bfb49c', PETG: '#3f86ad', ABS: '#4a4f57', TPU: '#c2553f' };
+export const COLOUR: Record<MaterialKey, string> = { PLA: '#bfb49c', PETG: '#3f86ad', ABS: '#4a4f57', TPU: '#c2553f' };
 const swatch = (c: string) => ({
   backgroundColor: c,
   backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,.16) 0 1px, rgba(0,0,0,.14) 1px 2px, transparent 2px 4px), linear-gradient(100deg, rgba(255,255,255,.14) 0%, transparent 35%, rgba(0,0,0,.25) 100%)',

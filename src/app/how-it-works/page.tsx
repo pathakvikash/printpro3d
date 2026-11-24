@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Icon from '@/components/Icon';
+import { ArtTile } from '@/components/Art';
 import PageShell from '@/components/PageShell';
 import { BED_MM, CURRENCY, MAX_QTY, MIN_ORDER, SETUP_FEE } from '@/lib/quote';
 import { ORDER_STAGES } from '@/lib/tracking';
@@ -8,10 +10,10 @@ import { ALLOWED_EXTS, MAX_UPLOAD } from '@/lib/uploadRules';
 export const metadata: Metadata = { title: 'How it works - PrintPro3D', description: 'How ordering works, from your file or idea to a printed part, and answers to common questions.' };
 
 const STEPS = [
-  { title: 'Start your way', text: 'Upload your file, describe an idea or a part to replace, or pick a ready item.' },
-  { title: 'Choose material and quantity', text: 'The price updates as you choose.' },
-  { title: 'We review, confirm and print', text: 'We review every order and send you a payment link before we print it.' },
-];
+  { icon: 'upload', title: 'Start your way', text: 'Upload your file, describe an idea or a part to replace, or pick a ready item.' },
+  { icon: 'layers', title: 'Choose material and quantity', text: 'The price updates as you choose.' },
+  { icon: 'clipboard', title: 'We review, confirm and print', text: 'We review every order and send you a payment link before we print it.' },
+] as const;
 
 const FAQ = [
   { q: 'Which file types can I upload?', a: `${ALLOWED_EXTS.map((e) => e.slice(1).toUpperCase()).join(', ')}, up to ${MAX_UPLOAD / 1024 / 1024} MB. STL and OBJ files get an instant price. Other types are quoted by hand.` },
@@ -29,10 +31,14 @@ const FAQ = [
 export default function HowItWorksPage() {
   return (
     <PageShell wide title="How it works" lead="From file or idea to a printed part.">
-      <ol className="grid gap-6 md:grid-cols-3 pt-4">
+      <ol className="relative grid gap-6 md:grid-cols-3 pt-4">
+        <span aria-hidden className="absolute left-[16%] right-[16%] top-10 hidden h-px bg-indigo-200 dark:bg-indigo-500/30 md:block" />
         {STEPS.map((s, i) => (
-          <li key={s.title} className="border-t-2 border-indigo-600 pt-5">
-            <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
+          <li key={s.title} className="pp-rise relative pt-2">
+            <div className="flex items-center gap-3">
+              <ArtTile className="relative ring-4 ring-white dark:ring-gray-950"><Icon name={s.icon} className="h-6 w-6" /></ArtTile>
+              <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
+            </div>
             <h2 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h2>
             <p className="mt-2 text-gray-600 dark:text-gray-300">{s.text}</p>
           </li>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import Icon from '@/components/Icon';
+import Icon, { type IconName } from '@/components/Icon';
+import { ArtTile, BedArt, StartArt } from '@/components/Art';
 import { redirect } from 'next/navigation';
 import HomeKits from '@/components/HomeKits';
 import { SHOP_CATEGORIES } from '@/lib/catalog';
@@ -16,26 +17,28 @@ import { BED_MM } from '@/lib/quote';
 export const dynamic = 'force-dynamic';
 
 // only claims the code backs: owner reviews each order and sends the payment link (api/orders), bed size from BED_MM
-const TRUST = [
-  { title: 'Every order is reviewed', text: 'A person checks your file and price before anything is printed.' },
-  { title: 'Pay after we confirm', text: 'You get a payment link once we have confirmed the order. Nothing is charged at checkout.' },
-  { title: `Up to ${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm`, text: 'Largest part we can print in one piece.' },
-] as const;
+const TRUST: { title: string; text: string; icon: IconName | 'bed' }[] = [
+  { icon: 'userCheck', title: 'Every order is reviewed', text: 'A person checks your file and price before anything is printed.' },
+  { icon: 'link', title: 'Pay after we confirm', text: 'You get a payment link once we have confirmed the order. Nothing is charged at checkout.' },
+  { icon: 'bed', title: `Up to ${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm`, text: 'Largest part we can print in one piece.' },
+];
 
 // old links were /?start=<step>; keep them working
 const START_ROUTES: Record<string, string> = { file: '/quote', idea: '/request', ai: '/ai', design: '/draw', shop: '/shop', build: '/playground?mode=build', track: '/track' };
 
 // three starting points, in the order a visitor is likely to be ready; each says what to bring and what happens next
 const STARTS = [
-  { href: '/quote', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Quote' },
+  { href: '/quote', art: 'file', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Quote' },
   {
     href: '/request',
+    art: 'idea',
     title: 'Have an idea?',
     text: "Describe what you want to make or share a reference photo. We'll review it and get back to you with the next steps.",
     action: 'Describe',
   },
   {
     href: '/request?type=replacement',
+    art: 'part',
     title: 'Need a part reproduced?',
     text: "Share a photo and details of the original part. We'll review whether it can be reproduced.",
     action: 'Replace',
@@ -44,16 +47,16 @@ const STARTS = [
 
 // smaller, secondary tools; the AI ones appear only when their provider is configured
 const MORE = [
-  { href: '/playground?mode=build', label: 'Build from shapes' },
-  { href: '/ai', label: 'Build with AI' }, // the chat says itself when AI is off
-  { href: '/draw', label: 'Draw with AI', needs: 'design' },
+  { href: '/playground?mode=build', label: 'Build from shapes', icon: 'shapes' },
+  { href: '/ai', label: 'Build with AI', icon: 'spark' }, // the chat says itself when AI is off
+  { href: '/draw', label: 'Draw with AI', icon: 'edit', needs: 'design' },
 ] as const;
 
 const STEPS = [
-  { title: 'Start your way', text: 'Upload a file, describe an idea, or pick a ready item.', links: [{ href: '/quote', label: 'Upload a file' }, { href: '/shop', label: 'Shop' }, { href: '/request', label: 'Describe an idea' }] },
-  { title: 'Choose material and quantity', text: 'The price updates as you choose.', links: [{ href: '/materials', label: 'Compare materials' }] },
-  { title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.', links: [{ href: '/track', label: 'Track an order' }] },
-];
+  { icon: 'upload', title: 'Start your way', text: 'Upload a file, describe an idea, or pick a ready item.', links: [{ href: '/quote', label: 'Upload a file' }, { href: '/shop', label: 'Shop' }, { href: '/request', label: 'Describe an idea' }] },
+  { icon: 'layers', title: 'Choose material and quantity', text: 'The price updates as you choose.', links: [{ href: '/materials', label: 'Compare materials' }] },
+  { icon: 'clipboard', title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.', links: [{ href: '/track', label: 'Track an order' }] },
+] as const;
 
 // OWNER: confirm this statement matches how you handle files
 const FILE_PROMISE = 'We use your files only to quote and print your order.';
@@ -101,9 +104,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       <section aria-label="How we work" className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-3 md:gap-10">
           {TRUST.map((t) => (
-            <div key={t.title} className="pp-lift rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
-              <p className="font-semibold text-gray-900 dark:text-white">{t.title}</p>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t.text}</p>
+            <div key={t.title} className="pp-lift pp-rise flex gap-4 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+              {t.icon === 'bed' ? <BedArt /> : <ArtTile><Icon name={t.icon} className="h-6 w-6" /></ArtTile>}
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white">{t.title}</p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t.text}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -124,7 +130,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
                   href={c.href}
                   className="pp-lift group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                 >
-                  <span aria-hidden className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">0{i + 1}</span>
+                  <span className="flex items-center justify-between">
+                    <span aria-hidden className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">0{i + 1}</span>
+                    <span aria-hidden className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-105"><StartArt kind={c.art} /></span>
+                  </span>
                   <span className="mt-2 block text-xl font-semibold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">{c.title}</span>
                   <span className="mt-2 block flex-1 text-gray-600 dark:text-gray-400">{c.text}</span>
                   <span className="mt-4 font-semibold text-indigo-600 dark:text-indigo-400">
@@ -135,15 +144,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
               </li>
             ))}
           </ol>
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            More ways to create:{' '}
-            {more.map((m, i) => (
-              <span key={m.href}>
-                {i > 0 && <span aria-hidden> · </span>}
-                <Link href={m.href} className="font-medium text-gray-700 dark:text-gray-300 underline underline-offset-4 hover:text-indigo-600 dark:hover:text-indigo-400">{m.label}</Link>
-              </span>
+          <p className="mt-8 text-sm text-gray-500 dark:text-gray-400">More ways to create</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {more.map((m) => (
+              <li key={m.href}>
+                <Link href={m.href} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 transition-colors hover:border-indigo-500 hover:text-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:hover:text-indigo-300">
+                  <Icon name={m.icon} className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />{m.label}
+                </Link>
+              </li>
             ))}
-          </p>
+          </ul>
         </div>
       </section>
 
@@ -173,10 +183,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">How it works</h2>
-          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+          <ol className="relative mt-10 grid gap-6 md:grid-cols-3">
+            <span aria-hidden className="absolute left-[2.1rem] top-8 bottom-8 w-px bg-indigo-200 dark:bg-indigo-500/30 md:hidden" />
+            <span aria-hidden className="absolute left-[16%] right-[16%] top-8 hidden h-px bg-indigo-200 dark:bg-indigo-500/30 md:block" />
             {STEPS.map((s, i) => (
-              <li key={s.title} className="pp-lift rounded-xl border border-gray-200 border-t-2 border-t-indigo-600 bg-white p-5 dark:border-gray-800 dark:border-t-indigo-500 dark:bg-gray-950">
-                <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
+              <li key={s.title} className="pp-lift pp-rise relative rounded-xl border border-gray-200 border-t-2 border-t-indigo-600 bg-white p-5 dark:border-gray-800 dark:border-t-indigo-500 dark:bg-gray-950">
+                <div className="flex items-center gap-3">
+                  <ArtTile className="relative ring-4 ring-white dark:ring-gray-950"><Icon name={s.icon} className="h-6 w-6" /></ArtTile>
+                  <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
+                </div>
                 <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h3>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">{s.text}</p>
                 <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium">
