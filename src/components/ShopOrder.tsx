@@ -147,8 +147,8 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
         </div>
       )}
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {tpls.map((t, i) => (
-          <TemplateCard key={t.id} t={t} index={i} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
+        {tpls.map((t) => (
+          <TemplateCard key={t.id} t={t} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
         ))}
         {shown.map((p) => (
           <ShopCard key={p.item.id} p={p} live={live.has(p.item.id)} reduceMotion={reduceMotion} setVisible={setVisible} />

@@ -11,6 +11,8 @@ import { LAYER_MM } from '@/lib/printSpec';
 import { quote, SETUP_FEE } from '@/lib/quote';
 import { defaultCfg, normalizeCfg, COMING_SOON, type Cfg, type Field, type TemplateDef } from '@/lib/templateDefs';
 import { buildTemplate, templateMesh } from '@/lib/templates';
+import { buildOffThread } from '@/lib/buildOffThread';
+import type { Shape } from '@/lib/playground';
 import BlueprintSheet from './BlueprintSheet';
 import { money, secondaryBtn } from './ContactFields';
 import { QtyStepper } from './CartDrawer';
@@ -22,35 +24,39 @@ const fmt = (n: number) => n.toFixed(1);
 const catLabel = (id: string) => shopCatLabel(shopCat(id) ?? id);
 
 type Result = ReturnType<typeof compute>;
-function compute(t: TemplateDef, raw: Cfg) {
+// meshOf: build the mesh some other way (the shop grid builds it in a worker); the rest is cheap
+function compute(t: TemplateDef, raw: Cfg, meshOf: (shapes: Shape[]) => Float32Array | null = templateMesh) {
   const cfg = normalizeCfg(t, raw);
   const built = buildTemplate(t, cfg);
-  const mesh = templateMesh(built.shapes);
+  const mesh = meshOf(built.shapes);
   const D = mesh ? blueprintData(mesh, t.material) : null;
   const stats = D?.stats ?? null;
   const q = stats ? quote(stats, t.material, 1) : null;
   return { cfg, built, mesh, D, stats, q, error: !mesh || !stats ? 'This combination of settings cannot be built. Change a value a little.' : D && !D.fits ? 'This combination does not fit the print bed.' : null };
 }
 
-// default-config results are shared by the card and its dialog and built once
+// default-config results, built once per template (the card's mesh comes from a worker)
 const defaults = new Map<string, Result>();
-const defaultResult = (t: TemplateDef) => {
-  if (!defaults.has(t.id)) defaults.set(t.id, compute(t, defaultCfg(t)));
-  return defaults.get(t.id)!;
-};
 
 const dims = (r: Result) => (r.D ? `${fmt(r.D.size.x)} × ${fmt(r.D.size.y)} × ${fmt(r.D.size.z)} mm` : 'n/a');
 
-export function TemplateCard({ t, index, live, reduceMotion, setVisible }: {
-  t: TemplateDef; index: number; live: boolean; reduceMotion: boolean; setVisible: (id: string, v: boolean) => void;
+export function TemplateCard({ t, live, reduceMotion, setVisible }: {
+  t: TemplateDef; live: boolean; reduceMotion: boolean; setVisible: (id: string, v: boolean) => void;
 }) {
   const [r, setR] = useState<Result | null>(() => defaults.get(t.id) ?? null);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (r) return;
-    const h = setTimeout(() => setR(defaultResult(t)), 60 * index); // spread the CSG work so the page paints first
-    return () => clearTimeout(h);
-  }, [r, t, index]);
+    // the CSG runs in a worker: on a phone the cards' meshes took seconds of main-thread time
+    let on = true;
+    const shapes = buildTemplate(t, normalizeCfg(t, defaultCfg(t))).shapes;
+    buildOffThread(shapes, true).then((m) => m, () => null).then((m) => {
+      if (!on) return;
+      if (!defaults.has(t.id)) defaults.set(t.id, compute(t, defaultCfg(t), () => m));
+      setR(defaults.get(t.id)!);
+    });
+    return () => { on = false; };
+  }, [r, t]);
   useEffect(() => {
     const el = box.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
