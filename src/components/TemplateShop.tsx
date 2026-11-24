@@ -19,6 +19,8 @@ import { money, secondaryBtn } from './ContactFields';
 import { QtyStepper } from './CartDrawer';
 import { addBtn, AddLabel, BackToShop, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
 import { useCart } from './CartProvider';
+import FlowStrip from '@/components/FlowStrip';
+import Term from '@/components/Term';
 
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const fmt = (n: number) => n.toFixed(1);
@@ -151,22 +153,30 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
     ['Layers', r.D?.layers != null ? `${r.D.layers} at ${LAYER_MM} mm (assumed)` : 'n/a'],
     ['Pieces', String(r.built.parts)],
   ];
+  const addToCart = () => {
+    if (!r.q) return;
+    add({ kind: 'tpl', id: t.id, cfg: r.cfg, qty, unitPrice: r.q.unitPrice });
+    toast('Added to cart', true);
+    setAdded(true);
+  };
   const canAdd = !pending && !r.error && !!r.q;
 
   return (
     <div className="space-y-6">
       <BackToShop />
+      <FlowStrip current="adjust" />
       <div>
         <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{catLabel(t.id)} · Configurable</span>
         <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{t.name}</h1>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <div className="space-y-3">
+        <div className="space-y-3 md:sticky md:top-20 md:self-start">
           <div className={`relative ${previewBox}`}>
             {r.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} interactive material={t.material} />}
             {pending && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Drag to turn. Scroll or pinch to zoom. The model, the drawing and the price all come from the same mesh.</p>
+          <SpecRows rows={rows} />
         </div>
 
         <div className="space-y-3">
@@ -180,29 +190,31 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {total != null ? money.format(total) : 'n/a'} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">for {qty} · made to order · includes {money.format(SETUP_FEE)} setup</span>
           </p>
-          <SpecRows rows={rows} />
           <p className="text-xs text-gray-500 dark:text-gray-400">Suggested material {t.material}, colour {t.colour}. Price is an estimate from the mesh; we confirm before payment.</p>
           <div className="flex items-center gap-3 pt-1">
             <QtyStepper name={t.name} qty={qty} onChange={setQty} />
             <button
               type="button"
               disabled={!canAdd}
-              onClick={() => {
-                if (!r.q) return;
-                add({ kind: 'tpl', id: t.id, cfg: r.cfg, qty, unitPrice: r.q.unitPrice });
-                toast('Added to cart', true);
-                setAdded(true);
-              }}
+              onClick={addToCart}
               className={addBtn}
             >
               <AddLabel added={added} />
             </button>
           </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
         </div>
+      </div>
+
+      <div aria-hidden className="h-16 md:hidden" />
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur md:hidden dark:border-gray-700 dark:bg-gray-900/95">
+        <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : 'n/a'}</span>
+        <button type="button" disabled={!canAdd} onClick={addToCart} className={`${addBtn} ml-auto`}><AddLabel added={added} /></button>
       </div>
 
       <section aria-label="Blueprint" className="space-y-2">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Blueprint</h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Terms on the drawing: <Term k="fill-factor">fill factor</Term>, <Term k="third-angle">third-angle projection</Term>, <Term k="openings">openings</Term>.</p>
         {svg ? <BlueprintSheet svg={svg} filename={`${t.id}-blueprint`} /> : <p className="text-sm text-gray-500 dark:text-gray-400">No drawing for these settings.</p>}
       </section>
 

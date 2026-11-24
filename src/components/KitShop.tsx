@@ -20,6 +20,8 @@ import { productById } from '@/lib/shopProducts';
 import type { Shape } from '@/lib/playground';
 import { money, secondaryBtn } from './ContactFields';
 import { useCart } from './CartProvider';
+import FlowStrip from '@/components/FlowStrip';
+import Term from '@/components/Term';
 import { addBtn, AddLabel, BackToShop, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
@@ -122,12 +124,30 @@ export function KitDetail({ kit }: { kit: Kit }) {
   return (
     <div className="space-y-6">
       <BackToShop />
+      <FlowStrip current="adjust" />
       <div>
         <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{shopCatLabel(shopCat(kit.id) ?? '')} · Kit</span>
         <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{kit.title}</h1>
         <p className="mt-2 max-w-3xl text-gray-700 dark:text-gray-300">{kit.blurb}</p>
       </div>
-      <FinishedBuild kit={kit} parts={parts} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <FinishedBuild kit={kit} parts={parts} />
+        <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
+          <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} pieces (${kit.items.length} different parts)`], ['Bought separately', `${kit.boughtParts.length} items`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
+          <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} w-full`}>
+            {added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}
+          </button>
+          <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
+          <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
+            <h2 id="kit-bought" className="text-sm font-semibold text-gray-900 dark:text-white">Bought separately</h2>
+            <p className="mb-2 mt-1 text-xs text-gray-600 dark:text-gray-400">We do not sell these. Specs are typical for this kind of build: check them against your parts.</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-gray-200">
+              {kit.boughtParts.map((b) => <li key={b}>{b.split(/\b(FC|ESC|AIO)\b/).map((w, i) => (w === 'FC' || w === 'ESC' || w === 'AIO' ? <Term key={i} k={w.toLowerCase() as 'fc'}>{w}</Term> : w))}</li>)}
+            </ul>
+          </div>
+        </aside>
+      </div>
       <section aria-labelledby="kit-parts" className="space-y-3">
         <h2 id="kit-parts" className="text-lg font-semibold text-gray-900 dark:text-white">Printed parts in this kit</h2>
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -148,20 +168,11 @@ export function KitDetail({ kit }: { kit: Kit }) {
           })}
         </ul>
       </section>
-      <div className="max-w-md space-y-3">
-        <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} lines`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
-        <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
-        <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} w-full`}>
-          {added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}
-        </button>
+      <div aria-hidden className="h-16 lg:hidden" />
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
+        <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : '…'}</span>
+        <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}</button>
       </div>
-      <section aria-labelledby="kit-bought" className="border-t border-gray-200 pt-4 dark:border-gray-800">
-        <h2 id="kit-bought" className="text-lg font-semibold text-gray-900 dark:text-white">Bought separately</h2>
-        <p className="mb-2 mt-1 text-sm text-gray-600 dark:text-gray-400">We do not sell these. Specs are typical for this kind of build: check them against your parts.</p>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-gray-200">
-          {kit.boughtParts.map((b) => <li key={b}>{b}</li>)}
-        </ul>
-      </section>
     </div>
   );
 }
