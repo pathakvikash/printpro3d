@@ -127,8 +127,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-gray-900 dark:bg-gray-100 px-4 py-3 text-sm text-white dark:text-gray-900 shadow-lg">
             <span>{toastState.message}</span>
             {toastState.viewCart && (
-              <button type="button" onClick={dismissToast} className="whitespace-nowrap font-semibold text-indigo-300 dark:text-indigo-700 underline">
-                View cart
+              <button type="button" onClick={dismissToast} aria-label="View cart" title="View cart" className="inline-flex min-h-10 items-center whitespace-nowrap font-semibold text-indigo-300 dark:text-indigo-700 underline">
+                Cart
               </button>
             )}
           </div>

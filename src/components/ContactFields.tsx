@@ -7,9 +7,9 @@ export const input =
 export const label = 'block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1';
 export const card = 'bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5';
 export const submitBtn =
-  'inline-flex w-full items-center justify-center gap-2 py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold transition-all duration-200';
+  'inline-flex w-full min-h-11 whitespace-nowrap items-center justify-center gap-2 py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold transition-all duration-200';
 export const secondaryBtn =
-  'inline-flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-medium hover:border-indigo-500 transition-colors';
+  'inline-flex min-h-11 whitespace-nowrap items-center justify-center gap-2 py-2.5 px-5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-medium hover:border-indigo-500 transition-colors';
 
 export function ContactFields({
   addressRequired = true,

@@ -36,9 +36,11 @@ export default function HeroDrop() {
         <button
           type="button"
           onClick={() => input.current?.click()}
-          className="mt-4 inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          aria-label="Get an instant quote"
+          title="Get an instant quote"
+          className="mt-4 inline-flex min-h-11 whitespace-nowrap items-center justify-center rounded-md bg-indigo-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
-          <Icon name="bolt" className="mr-2 h-4 w-4" />Get an instant quote
+          <Icon name="bolt" className="mr-2 h-4 w-4" />Quote
         </button>
       </div>
       {error && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}

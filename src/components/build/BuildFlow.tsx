@@ -170,13 +170,13 @@ export default function BuildFlow() {
         {resumeErr && (
           <div className="space-y-2">
             <ErrorNote err={resumeErr} />
-            <button type="button" onClick={() => { const c = new AbortController(); boot(c.signal); }} className={secondaryBtn}><Icon name="undo" />Try again</button>
+            <button aria-label="Try again" title="Try again" type="button" onClick={() => { const c = new AbortController(); boot(c.signal); }} className={secondaryBtn}><Icon name="undo" />Retry</button>
           </div>
         )}
         {pending && (
           <p className="flex flex-wrap items-center gap-3 rounded-xl bg-indigo-50 px-4 py-2 text-sm text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
             You have a design in progress.
-            <button type="button" onClick={resume} className="inline-flex items-center gap-1 font-semibold underline hover:no-underline"><Icon name="arrow" />Resume it</button>
+            <button aria-label="Resume the design" title="Resume the design" type="button" onClick={resume} className="whitespace-nowrap min-h-10 inline-flex items-center gap-1 font-semibold underline hover:no-underline"><Icon name="arrow" />Resume</button>
           </p>
         )}
         {intent ? (
@@ -211,7 +211,7 @@ export default function BuildFlow() {
         <Stepper steps={stepViews(project.status, step)} onGo={go} />
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={back} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Back</button>
-          <button type="button" onClick={newDesign} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New design</button>
+          <button aria-label="New design" title="New design" type="button" onClick={newDesign} className={`whitespace-nowrap min-h-10 ${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New</button>
         </div>
       </div>
       <p className="sr-only" role="status">{STEP_LABEL[step]} step</p>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Icon from '../Icon';
 import { chipLabel, describeAngle, KIND_LABEL, NUDGE_MM, type SuggestItem } from '@/lib/suggest/plan';
 import type { Placement } from '@/lib/suggest/placement';
 import type { PartKind } from '@/lib/suggest/validate';
@@ -18,10 +19,10 @@ const Svg = ({ d }: { d: string }) => (
   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d={d} /></svg>
 );
 
-const chip = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors';
+const chip = 'inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors';
 const idle = 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800';
 const armedCls = 'bg-indigo-600 text-white border-indigo-600';
-const small = 'rounded-lg border px-2.5 py-1 text-sm font-medium bg-white text-gray-800 border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800';
+const small = 'inline-flex min-h-10 min-w-10 items-center justify-center whitespace-nowrap rounded-lg border px-2.5 py-1 text-sm font-medium bg-white text-gray-800 border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800';
 
 /** The slim "Suggested next" bar: one chip per missing part (rule order, or the AI's), the top reason underneath. Render nothing when there is nothing to suggest. */
 export default function SuggestBar({ items, armed, aiRanked, onPick, onDismiss }: { items: SuggestItem[]; armed: PartKind | null; aiRanked: boolean; onPick: (k: PartKind) => void; onDismiss: () => void }) {
@@ -36,15 +37,15 @@ export default function SuggestBar({ items, armed, aiRanked, onPick, onDismiss }
           {aiRanked && <span className="rounded-full bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 text-[11px] font-medium text-indigo-800 dark:text-indigo-200">AI-ranked</span>}
           {items.map((i) => (
             <button
-              key={i.kind} type="button" aria-pressed={armed === i.kind} title={i.reason}
+              key={i.kind} type="button" aria-pressed={armed === i.kind} aria-label={chipLabel(i)} title={`${chipLabel(i)}: ${i.reason}`}
               onClick={() => onPick(i.kind)} onMouseEnter={() => setPeek(i.kind)} onMouseLeave={() => setPeek(null)} onFocus={() => setPeek(i.kind)} onBlur={() => setPeek(null)}
               className={`${chip} ${armed === i.kind ? armedCls : idle}`}
             >
-              <Svg d={ICON[i.kind]} />{chipLabel(i)}
+              <Svg d={ICON[i.kind]} />{i.kind === 'fc' ? 'FC' : i.kind === 'motor' && (i.count ?? 1) > 1 ? `Motor×${i.count}` : KIND_LABEL[i.kind]}
             </button>
           ))}
         </div>
-        <button type="button" onClick={onDismiss} aria-label="Hide suggestions" className="shrink-0 rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
+        <button type="button" onClick={onDismiss} aria-label="Hide suggestions" title="Hide suggestions" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
@@ -65,16 +66,16 @@ export function ArmedPanel({ kind, place, reason, note, onAccept, onNudge, onIgn
       <p><span className="font-semibold">{KIND_LABEL[kind]}:</span> {reason}{angle ? ` Angle: ${angle}.` : ''}</p>
       {note && <p className="text-amber-800 dark:text-amber-300">{note}</p>}
       <div className="flex flex-wrap gap-2 items-center">
-        {place && <button type="button" onClick={onAccept} className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm font-semibold">Accept</button>}
-        {place && <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={small}>Nudge</button>}
-        <button type="button" onClick={onIgnore} className={small}>Ignore</button>
+        {place && <button type="button" onClick={onAccept} aria-label="Accept suggestion" title="Accept suggestion" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 text-sm font-semibold"><Icon name="check" className="h-4 w-4" />Accept</button>}
+        {place && <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} aria-label="Nudge the suggested spot" title="Nudge the suggested spot" className={small}>Nudge</button>}
+        <button type="button" onClick={onIgnore} aria-label="Ignore suggestion" title="Ignore suggestion" className={small}>Ignore</button>
         {place && open && (
           <span className="flex flex-wrap gap-1.5" role="group" aria-label="Nudge the suggested spot">
-            <button type="button" aria-label={`Move left ${NUDGE_MM} mm`} onClick={() => onNudge({ dx: -NUDGE_MM })} className={small}>←</button>
-            <button type="button" aria-label={`Move right ${NUDGE_MM} mm`} onClick={() => onNudge({ dx: NUDGE_MM })} className={small}>→</button>
-            <button type="button" aria-label={`Move forward ${NUDGE_MM} mm`} onClick={() => onNudge({ dy: NUDGE_MM })} className={small}>↑</button>
-            <button type="button" aria-label={`Move back ${NUDGE_MM} mm`} onClick={() => onNudge({ dy: -NUDGE_MM })} className={small}>↓</button>
-            {kind !== 'motor' && <button type="button" aria-label="Turn 90 degrees" onClick={() => onNudge({ dYaw: 90 })} className={small}>Turn 90°</button>}
+            <button type="button" aria-label={`Move left ${NUDGE_MM} mm`} title={`Move left ${NUDGE_MM} mm`} onClick={() => onNudge({ dx: -NUDGE_MM })} className={small}>←</button>
+            <button type="button" aria-label={`Move right ${NUDGE_MM} mm`} title={`Move right ${NUDGE_MM} mm`} onClick={() => onNudge({ dx: NUDGE_MM })} className={small}>→</button>
+            <button type="button" aria-label={`Move forward ${NUDGE_MM} mm`} title={`Move forward ${NUDGE_MM} mm`} onClick={() => onNudge({ dy: NUDGE_MM })} className={small}>↑</button>
+            <button type="button" aria-label={`Move back ${NUDGE_MM} mm`} title={`Move back ${NUDGE_MM} mm`} onClick={() => onNudge({ dy: -NUDGE_MM })} className={small}>↓</button>
+            {kind !== 'motor' && <button type="button" aria-label="Turn 90 degrees" title="Turn 90 degrees" onClick={() => onNudge({ dYaw: 90 })} className={small}><Icon name="redo" className="h-4 w-4" /></button>}
           </span>
         )}
       </div>

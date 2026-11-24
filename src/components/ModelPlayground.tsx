@@ -2,6 +2,7 @@
 // The /playground page: look at a sample or your own STL/OBJ with the shared viewer (ModelViewer) and the shared blueprint
 // (blueprint() + BlueprintSheet), then hand the same file to /quote. Nothing here loads or measures a model by itself.
 // (The shape builder is Playground.tsx; this one only views.)
+import Icon from './Icon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -26,12 +27,13 @@ type Lib = typeof import('@/lib/shopProducts'); // pulls three + the CSG: loaded
 type ItemKind = 'sample' | 'tpl' | 'kit';
 type Source = { kind: ItemKind; id: string } | { kind: 'file'; file: File; url: string | null };
 type Mode = 'both' | 'model' | 'blueprint';
-const MODES: [Mode, string][] = [['model', '3D'], ['both', 'Side by side'], ['blueprint', 'Blueprint']];
+const MODE_HINT: Record<string, string> = { model: '3D view', both: 'Side by side', blueprint: 'Blueprint view' };
+const MODES: [Mode, string][] = [['model', '3D'], ['both', 'Split'], ['blueprint', 'Blueprint']];
 const KEYS = Object.keys(MATERIALS) as MaterialKey[];
 const mm = (n: number) => n.toFixed(1);
 
-const btn = 'rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:border-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
-const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${on ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`;
+const btn = 'inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:border-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
+const chip = (on: boolean) => `min-h-10 max-w-full truncate rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${on ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`;
 
 export default function ModelPlayground() {
   const router = useRouter();
@@ -145,9 +147,9 @@ export default function ModelPlayground() {
           className={`flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed p-4 transition-colors ${over ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
         >
           <input ref={input} type="file" accept={ALLOWED_EXTS.join(',')} className="sr-only" aria-label="Choose a 3D file" onChange={(e) => { take(e.target.files?.[0]); e.target.value = ''; }} />
-          <button type="button" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500" onClick={() => input.current?.click()}>Upload your own</button>
+          <button type="button" aria-label="Upload your own" title="Upload your own" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500" onClick={() => input.current?.click()}><Icon name="upload" className="h-4 w-4" />Upload</button>
           <p className="min-w-[12rem] flex-1 text-sm text-gray-600 dark:text-gray-300">Drop an STL or OBJ here to view it. It stays in your browser until you send it to Get a quote.</p>
-          <Link href="/playground?mode=build" className={btn}>Start from scratch</Link>
+          <Link href="/playground?mode=build" aria-label="Start from scratch" title="Start from scratch" className={btn}><Icon name="plus" className="h-4 w-4" />New</Link>
         </div>
         {SHOP_CATEGORIES.map((c) => {
           const list = group(c.id);
@@ -170,7 +172,7 @@ export default function ModelPlayground() {
       {modifyHref && (
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{name}</h2>
-          <Link href={modifyHref} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">Modify this</Link>
+          <Link href={modifyHref} aria-label="Modify this" title="Modify this" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"><Icon name="wrench" className="h-4 w-4" />Modify</Link>
         </div>
       )}
 
@@ -179,10 +181,10 @@ export default function ModelPlayground() {
         <div className="flex flex-wrap items-center gap-3">
           <div role="group" aria-label="Layout" className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
             {MODES.map(([m, label]) => (
-              <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={`border-r border-gray-300 px-3 py-1.5 text-sm font-medium last:border-r-0 dark:border-gray-600 ${mode === m ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-white text-gray-800 dark:bg-gray-900 dark:text-gray-100'}`}>{label}</button>
+              <button key={m} type="button" aria-pressed={mode === m} aria-label={MODE_HINT[m]} title={MODE_HINT[m]} onClick={() => setMode(m)} className={`min-h-10 whitespace-nowrap border-r border-gray-300 px-3 py-1.5 text-sm font-medium last:border-r-0 dark:border-gray-600 ${mode === m ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-white text-gray-800 dark:bg-gray-900 dark:text-gray-100'}`}>{label}</button>
             ))}
           </div>
-          <button type="button" className={btn} onClick={() => setReset((k) => k + 1)}>Reset camera</button>
+          <button type="button" aria-label="Reset camera" title="Reset camera" className={`${btn} w-10 px-0`} onClick={() => setReset((k) => k + 1)}><Icon name="reset" className="h-4 w-4" /></button>
           <label className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-gray-200"><input type="checkbox" checked={dims} onChange={(e) => setDims(e.target.checked)} />Dimensions</label>
           <label className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-gray-200"><input type="checkbox" checked={spin} onChange={(e) => setSpin(e.target.checked)} />Auto-rotate</label>
         </div>
@@ -230,11 +232,11 @@ export default function ModelPlayground() {
       <section aria-label="Assembly demo" className="space-y-3">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Assembly demo</h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">A sample drone kit: printed frame plate and camera mount, with the motors and battery you buy shown as grey placeholders. Try Exploded, Spin and Unboxing.</p>
-        {demo ? <AssemblyDemo /> : <button type="button" className={btn} onClick={() => setDemo(true)}>Open the assembly demo</button>}
+        {demo ? <AssemblyDemo /> : <button type="button" aria-label="Open the assembly demo" title="Open the assembly demo" className={btn} onClick={() => setDemo(true)}><Icon name="play" className="h-4 w-4" />Demo</button>}
       </section>
 
       <section aria-label="Send to Get a quote" className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-        <button type="button" onClick={() => void send()} disabled={!file && !soup} className="rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50">Send to Get a quote</button>
+        <button type="button" onClick={() => void send()} disabled={!file && !soup} aria-label="Send to Get a quote" title="Send to Get a quote" className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"><Icon name="arrow" className="h-4 w-4" />Send</button>
         <p className="min-w-0 flex-1 text-sm text-gray-600 dark:text-gray-300">Sends {file ? file.file.name : itemId ? `${itemId}.stl` : 'the model'} exactly as shown, at its real size. Get a quote re-measures it and prices it.</p>
         {note && <p role="status" className="w-full text-sm text-amber-700 dark:text-amber-300">{note}</p>}
       </section>

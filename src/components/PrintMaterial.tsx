@@ -262,7 +262,7 @@ function DimBox({ size }: { size: { x: number; y: number; z: number } }) {
 }
 
 const seg = (on: boolean) =>
-  `px-2.5 py-1 text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${on ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`;
+  `min-h-10 whitespace-nowrap px-2.5 py-1 text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${on ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`;
 
 /** Extras the /playground page turns on; every field is optional and the default is the old behaviour. */
 export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean; reference?: boolean /* a bought part's reference model: no print-material badge, layers or bed */ };
@@ -333,8 +333,8 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
       {interactive && (
         <div role="toolbar" aria-label="Camera view" className="absolute left-2 top-10 flex flex-wrap gap-1">
           {([['front', 'Front'], ['side', 'Side'], ['top', 'Top'], ['bottom', 'Bottom'], ['reset', 'Reset']] as const).map(([dir, label]) => (
-            <button key={dir} type="button" onClick={() => setCmd((c) => ({ dir, n: (c?.n ?? 0) + 1 }))} title={dir === 'bottom' ? 'Bottom (flip: view from underneath)' : label}
-              className="flex items-center gap-1 rounded border border-gray-300/80 bg-white/85 px-1.5 py-1 text-xs font-medium text-gray-800 backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900/85 dark:text-gray-100 dark:hover:bg-gray-800">
+            <button key={dir} type="button" onClick={() => setCmd((c) => ({ dir, n: (c?.n ?? 0) + 1 }))} aria-label={dir === 'bottom' ? 'Bottom (flip: view from underneath)' : dir === 'reset' ? 'Reset camera' : `${label} view`} title={dir === 'bottom' ? 'Bottom (flip: view from underneath)' : dir === 'reset' ? 'Reset camera' : `${label} view`}
+              className="flex min-h-10 items-center gap-1 whitespace-nowrap rounded border border-gray-300/80 bg-white/85 px-1.5 py-1 text-xs font-medium text-gray-800 backdrop-blur hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900/85 dark:text-gray-100 dark:hover:bg-gray-800">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
                 {dir === 'reset' ? <path d="M3 7a4 4 0 1 0 1.2-2.8M3 2v3h3" /> : <><rect x="2" y="2" width="10" height="10" rx="1" />{dir === 'top' && <rect x="2" y="2" width="10" height="4" fill="currentColor" />}{dir === 'bottom' && <rect x="2" y="8" width="10" height="4" fill="currentColor" />}{dir === 'front' && <rect x="2" y="2" width="10" height="10" fill="currentColor" fillOpacity=".4" />}{dir === 'side' && <rect x="8" y="2" width="4" height="10" fill="currentColor" />}</>}
               </svg>

@@ -57,8 +57,8 @@ export function ApproveStep({ p, onProject, onGo }: { p: ProjectView; onProject:
             <p className={subtle}>Approving freezes revision v{rev.n}: no more changes, by AI or by hand. Next we show it as a 3D model and build the print file. Check the sizes and assumptions first.</p>
             <ErrorNote err={err} />
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="button" disabled={busy} onClick={async () => { if (await run(() => api.approve(p.id))) onGo('build'); }} className={`${submitBtn} sm:w-auto`}><Icon name="check" />{busy ? 'Approving…' : 'Approve and freeze'}</button>
-              <button type="button" onClick={() => onGo('plan')} className={secondaryBtn}><Icon name="edit" />Back to the plan</button>
+              <button aria-label="Approve and freeze" title="Approve and freeze" type="button" disabled={busy} onClick={async () => { if (await run(() => api.approve(p.id))) onGo('build'); }} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="check" />{busy ? 'Approving' : 'Approve'}</button>
+              <button aria-label="Back to the plan" title="Back to the plan" type="button" onClick={() => onGo('plan')} className={secondaryBtn}><Icon name="edit" />Plan</button>
             </div>
           </>
         ) : (
@@ -86,7 +86,7 @@ export function BuildStep({ p, onProject, onGo }: { p: ProjectView; onProject: D
         {finalized ? (
           <>
             <p role="status" className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400"><Icon name="check" />The print file is built.</p>
-            <button type="button" onClick={() => onGo('order')} className={`${submitBtn} sm:w-auto`}><Icon name="cart" />Go to Order</button>
+            <button aria-label="Go to Order" title="Go to Order" type="button" onClick={() => onGo('order')} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="cart" />Order</button>
           </>
         ) : (
           <>
@@ -94,7 +94,7 @@ export function BuildStep({ p, onProject, onGo }: { p: ProjectView; onProject: D
             <p className={subtle}>We build the print file on our server from your approved plan, then show the price in each material. This takes a few seconds.</p>
             <ErrorNote err={err} />
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="button" disabled={busy} onClick={async () => { if (await run(() => api.finalize(p.id))) onGo('order'); }} className={`${submitBtn} sm:w-auto`}><Icon name="cube" />{busy ? 'Building the file…' : 'Finalize and get the price'}</button>
+              <button aria-label="Finalize and get the price" title="Finalize and get the price" type="button" disabled={busy} onClick={async () => { if (await run(() => api.finalize(p.id))) onGo('order'); }} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="cube" />{busy ? 'Building' : 'Finalize'}</button>
               <button type="button" disabled title="Finalize the design first" className={`${secondaryBtn} cursor-not-allowed opacity-50`}><Icon name="cart" />Place order</button>
             </div>
           </>
@@ -115,7 +115,7 @@ export function OrderStep({ p, stats, onNew }: { p: ProjectView; stats: MeshStat
       <section className={card}>
         <p role="status" className="text-lg font-semibold text-gray-900 dark:text-gray-100">This design has been ordered.</p>
         <p className={subtle}>We review every order before printing. You can follow it on the <Link href="/track" className="text-indigo-600 underline hover:no-underline dark:text-indigo-400">track page</Link>.</p>
-        <button type="button" onClick={onNew} className={secondaryBtn}><Icon name="plus" />Start a new design</button>
+        <button aria-label="Start a new design" title="Start a new design" type="button" onClick={onNew} className={secondaryBtn}><Icon name="plus" />New</button>
       </section>
     );
   }

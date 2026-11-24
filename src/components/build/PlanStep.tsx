@@ -193,7 +193,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
                 <label htmlFor={`${id}-mm`} className={label}>Longest side (mm){cur.longestMm ? `, now ${cur.longestMm}` : ''}</label>
                 <input id={`${id}-mm`} type="number" min={1} step="any" value={mm} onChange={(e) => setMm(e.target.value)} className={`${input} sm:max-w-[12rem]`} />
               </div>
-              <button type="submit" disabled={!(Number(mm) > 0) || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="wrench" />{busy === 'scale' ? 'Scaling…' : 'Rescale'}</button>
+              <button type="submit" disabled={!(Number(mm) > 0) || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="wrench" />{busy === 'scale' ? 'Scaling' : 'Rescale'}</button>
             </form>
           ) : caps.ai ? (
             <form onSubmit={submitAi} className="space-y-3">
@@ -210,7 +210,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
                 </div>
               )}
               {use.exhausted && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">This design has used its {use.cap} AI changes. You can still edit it by hand.</p>}
-              <button type="submit" disabled={!canAi || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="bolt" />{busy === 'ai' ? 'Changing…' : 'Change with AI'}</button>
+              <button aria-label="Change with AI" title="Change with AI" type="submit" disabled={!canAi || busy !== null} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="bolt" />{busy === 'ai' ? 'Changing' : 'Change'}</button>
             </form>
           ) : (
             <p className={subtle}>AI changes are not set up on this site. You can edit by hand.</p>
@@ -218,8 +218,8 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
 
           <ErrorNote err={err} />
           <div className="flex flex-col gap-3 sm:flex-row">
-            {!mesh && <button type="button" onClick={() => { setEditing(true); setErr(null); }} className={secondaryBtn}><Icon name="edit" />Edit by hand</button>}
-            <button type="button" disabled={!canUndo(p) || busy !== null} onClick={() => void act('undo', () => api.undo(p.id))} className={`${secondaryBtn} disabled:opacity-50`}><Icon name="undo" />{busy === 'undo' ? 'Undoing…' : 'Undo'}</button>
+            {!mesh && <button aria-label="Edit by hand" title="Edit by hand" type="button" onClick={() => { setEditing(true); setErr(null); }} className={secondaryBtn}><Icon name="edit" />Edit</button>}
+            <button type="button" disabled={!canUndo(p) || busy !== null} onClick={() => void act('undo', () => api.undo(p.id))} className={`${secondaryBtn} disabled:opacity-50`}><Icon name="undo" />{busy === 'undo' ? 'Undoing' : 'Undo'}</button>
           </div>
         </section>
       )}
@@ -243,7 +243,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
     </>
   );
   const next = !editing && !frozen && (
-    <button type="button" onClick={onNext} className={`${submitBtn} w-full`}><Icon name="arrow" />Looks right, go to Approve</button>
+    <button aria-label="Looks right, go to Approve" title="Looks right, go to Approve" type="button" onClick={onNext} className={`whitespace-nowrap min-h-10 ${submitBtn} w-full`}><Icon name="arrow" />Approve</button>
   );
 
   if (!editing) return <PlanSummary p={p} bp={bp} rail={next || <></>} after={<div className="space-y-6">{rest}</div>} />;
@@ -253,14 +253,14 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
         <h2 id={`${id}-plan`} className="sr-only">Plan</h2>
         {editing ? (
           <div className="space-y-3">
-            <h3 className={sectionH}>Edit by hand</h3>
+            <h3 className={sectionH}>Edit</h3>
             <p className={subtle}>Change the shapes, then save. A save is a new revision; you can always go back with Undo.</p>
             <Playground
               key={`${p.id}:${p.current}`}
               project={{ initialShapes: initial, onSave: async (shapes) => ((await act('scale', () => api.manualBlueprint(p.id, reassign(bp, shapes)))) ? (setEditing(false), null) : 'That edit was not accepted. See the message below the editor.') }}
             />
             <ErrorNote err={err} />
-            <button type="button" onClick={() => { setEditing(false); setErr(null); }} className={secondaryBtn}><Icon name="undo" />Close the editor</button>
+            <button aria-label="Close the editor" title="Close the editor" type="button" onClick={() => { setEditing(false); setErr(null); }} className={secondaryBtn}><Icon name="undo" />Close</button>
           </div>
         ) : (
           <PlanSummary p={p} bp={bp} />
@@ -280,7 +280,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
                 <label htmlFor={`${id}-mm`} className={label}>Longest side (mm){cur.longestMm ? `, now ${cur.longestMm}` : ''}</label>
                 <input id={`${id}-mm`} type="number" min={1} step="any" value={mm} onChange={(e) => setMm(e.target.value)} className={`${input} sm:max-w-[12rem]`} />
               </div>
-              <button type="submit" disabled={!(Number(mm) > 0) || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="wrench" />{busy === 'scale' ? 'Scaling…' : 'Rescale'}</button>
+              <button type="submit" disabled={!(Number(mm) > 0) || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="wrench" />{busy === 'scale' ? 'Scaling' : 'Rescale'}</button>
             </form>
           ) : caps.ai ? (
             <form onSubmit={submitAi} className="space-y-3">
@@ -297,7 +297,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
                 </div>
               )}
               {use.exhausted && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">This design has used its {use.cap} AI changes. You can still edit it by hand.</p>}
-              <button type="submit" disabled={!canAi || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="bolt" />{busy === 'ai' ? 'Changing…' : 'Change with AI'}</button>
+              <button aria-label="Change with AI" title="Change with AI" type="submit" disabled={!canAi || busy !== null} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="bolt" />{busy === 'ai' ? 'Changing' : 'Change'}</button>
             </form>
           ) : (
             <p className={subtle}>AI changes are not set up on this site. You can edit by hand.</p>
@@ -305,8 +305,8 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
 
           <ErrorNote err={err} />
           <div className="flex flex-col gap-3 sm:flex-row">
-            {!mesh && <button type="button" onClick={() => { setEditing(true); setErr(null); }} className={secondaryBtn}><Icon name="edit" />Edit by hand</button>}
-            <button type="button" disabled={!canUndo(p) || busy !== null} onClick={() => void act('undo', () => api.undo(p.id))} className={`${secondaryBtn} disabled:opacity-50`}><Icon name="undo" />{busy === 'undo' ? 'Undoing…' : 'Undo'}</button>
+            {!mesh && <button aria-label="Edit by hand" title="Edit by hand" type="button" onClick={() => { setEditing(true); setErr(null); }} className={secondaryBtn}><Icon name="edit" />Edit</button>}
+            <button type="button" disabled={!canUndo(p) || busy !== null} onClick={() => void act('undo', () => api.undo(p.id))} className={`${secondaryBtn} disabled:opacity-50`}><Icon name="undo" />{busy === 'undo' ? 'Undoing' : 'Undo'}</button>
           </div>
         </section>
       )}

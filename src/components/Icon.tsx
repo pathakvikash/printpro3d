@@ -18,6 +18,13 @@ const PATHS = {
   edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z',
   lock: 'M5 11h14v10H5zM8 11V7a4 4 0 018 0v4',
   arrow: 'M5 12h14M12 5l7 7-7 7',
+  x: 'M18 6L6 18M6 6l12 12',
+  reset: 'M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15',
+  trash: 'M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6',
+  user: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z',
+  copy: 'M9 9h11v11H9zM5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1',
+  save: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2zM17 21v-8H7v8M7 3v5h8',
+  redo: 'M21 7v6h-6M20.5 13a9 9 0 11-5.6-8.5',
   rupee: 'M6 3h12M6 8h12M6 13l8.5 8M6 13h3a5 5 0 000-10',
 } as const;
 export type IconName = keyof typeof PATHS;

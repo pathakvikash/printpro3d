@@ -82,8 +82,9 @@ export function SaveButton({ savedKey, name }: { savedKey: string; name: string 
       type="button"
       aria-pressed={on}
       aria-label={on ? `Remove ${name} from saved` : `Save ${name} for later`}
+      title={on ? 'Remove from saved' : 'Save for later'}
       onClick={() => toggle(savedKey)}
-      className={`shrink-0 rounded-lg p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
+      className={`shrink-0 rounded-lg p-2.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
         on ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400 dark:text-gray-500 hover:text-rose-500'
       }`}
     >
@@ -214,17 +215,18 @@ function Drawer() {
                 add({ kind: 'shop', id, qty: 1 });
                 toggle(key);
               }}
+              title={`Move ${item.name} to cart`}
               className={secondaryBtn}
             >
-              Move to cart
+              <Icon name="cart" />Move
             </button>
             <button
               type="button"
               aria-label={`Remove ${item.name} from saved`}
               onClick={() => toggle(key)}
-              className="text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+              className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap px-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
             >
-              Remove
+              <Icon name="trash" />Remove
             </button>
           </div>
         </li>,
@@ -239,17 +241,19 @@ function Drawer() {
           <Link
             href={`/playground?mode=build&example=${ex.id}`}
             onClick={closeCart}
+            aria-label="Open in builder"
+            title="Open in builder"
             className={secondaryBtn}
           >
-            <Icon name="wrench" />Open in builder
+            <Icon name="wrench" />Open
           </Link>
           <button
             type="button"
             aria-label={`Remove ${ex.title} from saved`}
             onClick={() => toggle(key)}
-            className="text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+            className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap px-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
           >
-            Remove
+            <Icon name="trash" />Remove
           </button>
         </div>
       </li>,
@@ -267,9 +271,11 @@ function Drawer() {
             <button
               type="button"
               onClick={() => copyId(order.id)}
+              aria-label="Copy order id"
+              title="Copy order id"
               className="rounded-lg border border-green-600 dark:border-green-500 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm font-semibold text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900/40"
             >
-              Copy order id
+              <Icon name="copy" />Copy
             </button>
           </div>
           {copyNote && <p role="status" className="text-xs">{copyNote}</p>}
@@ -284,9 +290,11 @@ function Drawer() {
         <Link
           href={`/track?id=${encodeURIComponent(order.id)}`}
           onClick={closeCart}
+          aria-label="Track this order"
+          title="Track this order"
           className={`${secondaryBtn} w-full`}
         >
-          Track this order
+          <Icon name="search" />Track
         </Link>
       </div>
     );
@@ -302,11 +310,11 @@ function Drawer() {
         <ShippingFields idPrefix="cart-" />
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
         <div className="flex flex-col gap-3">
-          <button type="submit" disabled={busy} className={submitBtn}>
-            {busy ? 'Sending...' : 'Send order request'}
+          <button type="submit" disabled={busy} aria-label="Send order request" title="Send order request" className={submitBtn}>
+            <Icon name="arrow" />{busy ? 'Sending' : 'Send'}
           </button>
-          <button type="button" onClick={() => setCheckout(false)} className={secondaryBtn}>
-            Back to cart
+          <button type="button" onClick={() => setCheckout(false)} aria-label="Back to cart" title="Back to cart" className={secondaryBtn}>
+            <Icon name="cart" />Back
           </button>
         </div>
       </form>
@@ -317,11 +325,11 @@ function Drawer() {
         <div className="space-y-5 py-8 text-center">
           <p className="text-gray-700 dark:text-gray-200">Your cart is empty.</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href="/shop" onClick={closeCart} className={secondaryBtn}>
-              <Icon name="tag" />Browse ready items
+            <Link href="/shop" onClick={closeCart} aria-label="Browse ready items" title="Browse ready items" className={secondaryBtn}>
+              <Icon name="tag" />Browse
             </Link>
-            <Link href="/quote" onClick={closeCart} className={secondaryBtn}>
-              <Icon name="upload" />Upload a file
+            <Link href="/quote" onClick={closeCart} aria-label="Upload a file" title="Upload a file" className={secondaryBtn}>
+              <Icon name="upload" />Upload
             </Link>
           </div>
         </div>
@@ -354,9 +362,9 @@ function Drawer() {
                     type="button"
                     aria-label={`Remove ${name} from cart`}
                     onClick={() => remove(key)}
-                    className="text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
+                    className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap px-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
                   >
-                    Remove
+                    <Icon name="trash" />Remove
                   </button>
                 </div>
               </li>
@@ -374,7 +382,7 @@ function Drawer() {
   }
 
   const tabClass = (t: CartTab) =>
-    `flex-1 border-b-2 py-3 text-sm font-semibold transition-colors ${
+    `flex-1 whitespace-nowrap border-b-2 py-3 text-sm font-semibold transition-colors ${
       drawerTab === t
         ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
         : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
@@ -397,7 +405,8 @@ function Drawer() {
             type="button"
             aria-label="Close cart"
             onClick={closeCart}
-            className="rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            title="Close cart"
+            className="rounded-lg p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <svg aria-hidden="true" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

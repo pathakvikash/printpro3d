@@ -188,25 +188,29 @@ export default function TrackOrder() {
                   type="button"
                   aria-pressed={demoStatus === stageStatus(i)}
                   onClick={() => setDemoStatus(stageStatus(i))}
-                  className={pill(demoStatus === stageStatus(i))}
+                  aria-label={name}
+                  title={name}
+                  className={`${pill(demoStatus === stageStatus(i))} min-h-10 whitespace-nowrap`}
                 >
-                  {name}
+                  {name.split(' ')[0]}
                 </button>
               ))}
               <button
                 type="button"
                 aria-pressed={demoStatus === 'cancelled'}
                 onClick={() => setDemoStatus('cancelled')}
-                className={pill(demoStatus === 'cancelled')}
+                aria-label="Show cancelled"
+                title="Show cancelled"
+                className={`${pill(demoStatus === 'cancelled')} min-h-10 whitespace-nowrap`}
               >
-                Show cancelled
+                Cancelled
               </button>
             </div>
           </div>
         </div>
         <OrderView id={DEMO_ID} data={demo} />
-        <button type="button" onClick={() => setDemoStatus(null)} className={`${secondaryBtn} w-full`}>
-          Close demo
+        <button type="button" onClick={() => setDemoStatus(null)} aria-label="Close demo" title="Close demo" className={`${secondaryBtn} w-full`}>
+          <Icon name="x" />Close
         </button>
       </div>
     );
@@ -226,14 +230,16 @@ export default function TrackOrder() {
           <input id="track-id" value={id} onChange={(e) => setId(e.target.value)} required maxLength={64} className={input} />
         </div>
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={busy || !id.trim()} className={submitBtn}><Icon name="search" />{busy ? 'Looking...' : 'Track'}</button>
+        <button type="submit" disabled={busy || !id.trim()} className={submitBtn}><Icon name="search" />{busy ? 'Looking' : 'Track'}</button>
       </form>
       <button
         type="button"
         onClick={() => setDemoStatus(stageStatus(DEMO_START_STAGE))}
+        aria-label="See a demo order"
+        title="See a demo order"
         className={`${secondaryBtn} w-full`}
       >
-        <Icon name="play" />See a demo order
+        <Icon name="play" />Demo
       </button>
       {result && <OrderView id={result.id} data={result.data} />}
       {!result && (

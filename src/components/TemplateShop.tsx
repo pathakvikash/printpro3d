@@ -132,9 +132,9 @@ function FieldControl({ f, value, onChange }: { f: Field; value: number | string
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={id} className="text-sm text-gray-800 dark:text-gray-200">{f.label}</label>
         <div className="flex items-center gap-1">
-          <button type="button" aria-label={`Decrease ${f.label}`} disabled={v <= f.min} onClick={() => step(-1)} className={`${ctl} h-8 w-8 px-0 disabled:opacity-40`}>−</button>
+          <button type="button" aria-label={`Decrease ${f.label}`} title={`Decrease ${f.label}`} disabled={v <= f.min} onClick={() => step(-1)} className={`${ctl} h-10 w-10 px-0 disabled:opacity-40`}>−</button>
           <span className="w-16 text-center font-mono text-sm text-gray-900 dark:text-gray-100" aria-live="off">{v}{f.unit ? ` ${f.unit}` : ''}</span>
-          <button type="button" aria-label={`Increase ${f.label}`} disabled={v >= f.max} onClick={() => step(1)} className={`${ctl} h-8 w-8 px-0 disabled:opacity-40`}>+</button>
+          <button type="button" aria-label={`Increase ${f.label}`} title={`Increase ${f.label}`} disabled={v >= f.max} onClick={() => step(1)} className={`${ctl} h-10 w-10 px-0 disabled:opacity-40`}>+</button>
         </div>
       </div>
       <input id={id} type="range" min={f.min} max={f.max} step={f.step} value={v} aria-valuetext={`${v}${f.unit ? ` ${f.unit}` : ''}`} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full accent-indigo-600" />
@@ -208,6 +208,8 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
               type="button"
               disabled={!canAdd}
               onClick={addToCart}
+              aria-label="Add to cart"
+              title="Add to cart"
               className={addBtn}
             >
               <AddLabel added={added} />
@@ -220,7 +222,7 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
       <div aria-hidden className="h-16 md:hidden" />
       <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur md:hidden dark:border-gray-700 dark:bg-gray-900/95">
         <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : 'n/a'}</span>
-        <button type="button" disabled={!canAdd} onClick={addToCart} className={`${addBtn} ml-auto`}><AddLabel added={added} /></button>
+        <button type="button" disabled={!canAdd} onClick={addToCart} aria-label="Add to cart" title="Add to cart" className={`${addBtn} ml-auto`}><AddLabel added={added} /></button>
       </div>
 
       <section aria-label="Blueprint" className="space-y-2">

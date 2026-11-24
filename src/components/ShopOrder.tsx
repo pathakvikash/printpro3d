@@ -119,8 +119,8 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
             {chips.map((c) => (
-              <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setUrl({ cat: c.id })} className={chipClass(cat === c.id)}>
-                {c.label}
+              <button key={c.id} type="button" aria-pressed={cat === c.id} onClick={() => setUrl({ cat: c.id })} aria-label={c.label} title={c.label} className={chipClass(cat === c.id)}>
+                {c.label.split(' ')[0]}
               </button>
             ))}
           </div>
@@ -147,14 +147,14 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
       </ul>
       {kits.length + tpls.length + shown.length === 0 && (
         <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-          No parts match. <button type="button" className="text-indigo-600 underline dark:text-indigo-400" onClick={() => { setQ(''); setUrl({ cat: 'all', q: '' }); }}>Clear filters</button>
+          No parts match. <button type="button" aria-label="Clear filters" title="Clear filters" className="inline-flex min-h-10 items-center whitespace-nowrap text-indigo-600 underline dark:text-indigo-400" onClick={() => { setQ(''); setUrl({ cat: 'all', q: '' }); }}>Clear</button>
         </p>
       )}
       {limit === undefined && <ComingSoon />}
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Need 100+?{' '}
-        <button type="button" onClick={onWholesale} className="text-indigo-600 dark:text-indigo-400 underline">
-          Ask for a wholesale price
+        <button type="button" onClick={onWholesale} aria-label="Ask for a wholesale price" title="Ask for a wholesale price" className="inline-flex min-h-10 items-center whitespace-nowrap text-indigo-600 dark:text-indigo-400 underline">
+          Wholesale
         </button>
       </p>
     </div>

@@ -25,18 +25,18 @@ const START_ROUTES: Record<string, string> = { file: '/quote', idea: '/request',
 
 // three starting points, in the order a visitor is likely to be ready; each says what to bring and what happens next
 const STARTS = [
-  { href: '/quote', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Get an instant quote' },
+  { href: '/quote', title: 'Have a 3D file?', text: 'Upload your STL or OBJ file to check your print price.', action: 'Quote' },
   {
     href: '/request',
     title: 'Have an idea?',
     text: "Describe what you want to make or share a reference photo. We'll review it and get back to you with the next steps.",
-    action: 'Describe your idea',
+    action: 'Describe',
   },
   {
     href: '/request?type=replacement',
     title: 'Need a part reproduced?',
     text: "Share a photo and details of the original part. We'll review whether it can be reproduced.",
-    action: 'Request a replacement',
+    action: 'Replace',
   },
 ] as const;
 
@@ -223,9 +223,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           </p>
           <Link
             href="/quote"
-            className="mt-8 inline-flex items-center justify-center px-8 py-4 rounded-md bg-white text-gray-900 font-semibold text-lg hover:bg-gray-100 transition-colors"
+            aria-label="Get an instant quote"
+            title="Get an instant quote"
+            className="mt-8 inline-flex min-h-12 whitespace-nowrap items-center justify-center px-8 py-4 rounded-md bg-white text-gray-900 font-semibold text-lg hover:bg-gray-100 transition-colors"
           >
-            <Icon name="bolt" className="mr-2 h-5 w-5" />Get an instant quote
+            <Icon name="bolt" className="mr-2 h-5 w-5" />Quote
           </Link>
         </div>
       </section>

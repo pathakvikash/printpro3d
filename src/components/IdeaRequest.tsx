@@ -139,7 +139,7 @@ export default function IdeaRequest({ replacement = false, part }: { replacement
       <ContactFields addressRequired={deliver !== 'file'} notes={false} />
 
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-      <button type="submit" disabled={busy} className={submitBtn}>{busy ? 'Sending...' : 'Send request'}</button>
+      <button type="submit" disabled={busy} aria-label="Send request" title="Send request" className={submitBtn}>{busy ? 'Sending' : 'Send'}</button>
     </form>
   );
 }

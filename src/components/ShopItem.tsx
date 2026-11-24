@@ -89,12 +89,12 @@ export default function ItemDetail({ p }: { p: Product }) {
           <SpecRows rows={rows} />
           <div className="flex items-center gap-3 pt-1">
             <QtyStepper name={item.name} qty={qty} onChange={setQty} />
-            <button type="button" onClick={() => { add({ kind: 'shop', id: item.id, qty }); toast('Added to cart', true); setAdded(true); }} className={addBtn}>
+            <button type="button" onClick={() => { add({ kind: 'shop', id: item.id, qty }); toast('Added to cart', true); setAdded(true); }} aria-label="Add to cart" title="Add to cart" className={addBtn}>
               <AddLabel added={added} />
             </button>
           </div>
           {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
-          <Link href={`/playground?mode=build&example=${item.exampleId}`} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Customise</Link>
+          <Link href={`/playground?mode=build&example=${item.exampleId}`} aria-label="Customise this product" title="Customise this product" className={`${secondaryBtn} w-full whitespace-nowrap`}><Icon name="wrench" />Customise</Link>
         </div>
       </div>
 

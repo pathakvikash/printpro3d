@@ -171,7 +171,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
         {replacing ? (
           <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-200">
             <span className="truncate font-medium">{uploaded?.name}</span>
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Replace file</span>
+            <span title="Replace file" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap font-semibold text-indigo-600 dark:text-indigo-400">Replace</span>
           </p>
         ) : (
         <div className="space-y-4">
@@ -210,7 +210,9 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
             </div>
             <button
               onClick={() => setFile(null)}
-              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+              aria-label="Remove file"
+              title="Remove file"
+              className="flex h-10 w-10 items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -220,7 +222,9 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className="w-full py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+            aria-label="Get my price"
+            title="Get my price"
+            className="w-full min-h-11 whitespace-nowrap py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold transition-all duration-200 flex items-center justify-center gap-2"
           >
             {uploading ? (
               <>
@@ -228,14 +232,14 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Uploading...
+                Uploading
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                Get my price
+                Price
               </>
             )}
           </button>
@@ -263,9 +267,11 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
                 type="button"
                 onClick={() => void runUpload(initialFile)}
                 disabled={uploading}
-                className="rounded-lg border border-red-300 dark:border-red-700 px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50"
+                aria-label="Try again"
+                title="Try again"
+                className="min-h-10 whitespace-nowrap rounded-lg border border-red-300 dark:border-red-700 px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50"
               >
-                Try again
+                Retry
               </button>
             )}
           </div>

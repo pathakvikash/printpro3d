@@ -1,6 +1,7 @@
 'use client';
 // One electronics part: reference 3D model, blueprint, standard dimensions, accuracy and source, and an enquiry link. No price, no cart.
 import { useMemo } from 'react';
+import Icon from './Icon';
 import Link from 'next/link';
 import { KITS, kitsUsingPart } from '@/lib/kits';
 import { CATEGORY_LABEL, LIPO_NOTE, REFERENCE_BADGE, isSourcedMotor, type Part } from '@/lib/parts';
@@ -41,9 +42,9 @@ export default function PartDetail({ part }: { part: Part }) {
             </p>
           )}
           {part.category === 'battery' && <p role="note" className="rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">{LIPO_NOTE}</p>}
-          <Link href={`/request?part=${encodeURIComponent(part.id)}`} className={submitBtn}>Enquire about this part</Link>
+          <Link href={`/request?part=${encodeURIComponent(part.id)}`} aria-label="Enquire about this part" title="Enquire about this part" className={submitBtn}>Enquire</Link>
           <p className="text-xs text-gray-500 dark:text-gray-400">Available from us — enquire for price. We reply with availability and the next steps.</p>
-          {isSourcedMotor(part.id) && <Link href="/playground?mode=build&example=drone-plate&sim=1" className="block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">Test it in Build →</Link>}
+          {isSourcedMotor(part.id) && <Link href="/playground?mode=build&example=drone-plate&sim=1" aria-label="Test it in Build" title="Test it in Build" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"><Icon name="play" className="h-4 w-4" />Test</Link>}
         </aside>
       </div>
       {kits.length > 0 && (

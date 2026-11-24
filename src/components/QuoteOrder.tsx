@@ -66,12 +66,12 @@ export default function QuoteOrder({
           {modelName} · {material} · quantity {qty}
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={() => openCart('cart')} className={`${submitBtn} sm:w-auto sm:px-6`}>
-            <Icon name="cart" />View cart
+          <button type="button" onClick={() => openCart('cart')} aria-label="View cart" title="View cart" className={`${submitBtn} sm:w-auto sm:px-6`}>
+            <Icon name="cart" />Cart
           </button>
           {onAnother && (
-            <button type="button" onClick={onAnother} className={secondaryBtn}>
-              <Icon name="plus" />Add another model
+            <button type="button" onClick={onAnother} aria-label="Add another model" title="Add another model" className={secondaryBtn}>
+              <Icon name="plus" />Another
             </button>
           )}
         </div>
@@ -154,11 +154,11 @@ export default function QuoteOrder({
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => addToCart(false)} disabled={!validQty} className={submitBtn}>
-          <Icon name="cart" />{project ? 'Place order' : 'Add to cart'}
+        <button type="button" onClick={() => addToCart(false)} disabled={!validQty} aria-label={project ? 'Place order' : 'Add to cart'} title={project ? 'Place order' : 'Add to cart'} className={submitBtn}>
+          <Icon name="cart" />{project ? 'Order' : 'Add'}
         </button>
-        <button type="button" onClick={() => addToCart(true)} disabled={!validQty} className={`${secondaryBtn} w-full disabled:opacity-50`}>
-          <Icon name="check" />{project ? 'Place order and checkout' : 'Add and checkout'}
+        <button type="button" onClick={() => addToCart(true)} disabled={!validQty} aria-label={project ? 'Place order and checkout' : 'Add and checkout'} title={project ? 'Place order and checkout' : 'Add and checkout'} className={`${secondaryBtn} w-full disabled:opacity-50`}>
+          <Icon name="check" />Checkout
         </button>
       </div>
     </div>

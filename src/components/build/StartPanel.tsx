@@ -15,7 +15,8 @@ import { ErrorNote } from './ui';
 const AiGenerate = dynamic(() => import('../AiGenerate'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p> });
 
 type Tab = 'ai' | 'template' | 'upload' | 'meshy';
-const TAB_LABEL: Record<Tab, [string, IconName]> = { ai: ['Plan with AI', 'bolt'], template: ['Start from template', 'grid'], upload: ['Upload a model', 'upload'], meshy: ['AI 3D model', 'cube'] };
+const TAB_LABEL: Record<Tab, [string, IconName]> = { ai: ['Plan', 'bolt'], template: ['Template', 'grid'], upload: ['Upload', 'upload'], meshy: ['Model', 'cube'] };
+const TAB_HINT: Record<Tab, string> = { ai: 'Plan with AI', template: 'Start from template', upload: 'Upload a model', meshy: 'AI 3D model' };
 
 const readEmail = () => { try { return localStorage.getItem(EMAIL_KEY) ?? ''; } catch { return ''; } };
 
@@ -60,8 +61,8 @@ export default function StartPanel({ caps, initialPrompt, onProject }: { caps: C
 
       <div role="group" aria-label="How to start" className="flex flex-wrap gap-2">
         {tabs.map((t) => (
-          <button key={t} type="button" aria-pressed={tab === t} onClick={() => { setTab(t); setErr(null); }}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${tab === t ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`}>
+          <button key={t} type="button" aria-label={TAB_HINT[t]} title={TAB_HINT[t]} aria-pressed={tab === t} onClick={() => { setTab(t); setErr(null); }}
+            className={`inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium ${tab === t ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`}>
             <Icon name={TAB_LABEL[t][1]} />{TAB_LABEL[t][0]}
           </button>
         ))}
@@ -86,7 +87,7 @@ export default function StartPanel({ caps, initialPrompt, onProject }: { caps: C
             <input id={`${id}-e`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={200} autoComplete="email" className={input} />
           </div>
           <ErrorNote err={err} />
-          <button type="submit" disabled={!promptOk || busy} className={submitBtn}><Icon name="bolt" />{busy ? 'Planning…' : 'Plan with AI'}</button>
+          <button aria-label="Plan with AI" title="Plan with AI" type="submit" disabled={!promptOk || busy} className={submitBtn}><Icon name="bolt" />{busy ? 'Planning' : 'Plan'}</button>
           <p className="text-xs text-gray-500 dark:text-gray-400">AI can get sizes wrong. That is why you approve the plan before anything is built.</p>
         </form>
       )}
@@ -101,9 +102,9 @@ export default function StartPanel({ caps, initialPrompt, onProject }: { caps: C
           </div>
           <ErrorNote err={err} />
           <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" disabled={busy || answers.trim().length < 3} onClick={() => plan({ answers: answers.trim() })} className={`${submitBtn} sm:w-auto`}><Icon name="check" />{busy ? 'Planning…' : 'Send answers'}</button>
-            <button type="button" disabled={busy} onClick={() => plan({ skip: true })} className={secondaryBtn}><Icon name="arrow" />Skip, use your best guess</button>
-            <button type="button" disabled={busy} onClick={() => { setQuestions(null); setErr(null); }} className={secondaryBtn}><Icon name="undo" />Edit my description</button>
+            <button aria-label="Send answers" title="Send answers" type="button" disabled={busy || answers.trim().length < 3} onClick={() => plan({ answers: answers.trim() })} className={`whitespace-nowrap min-h-10 ${submitBtn} sm:w-auto`}><Icon name="check" />{busy ? 'Planning' : 'Send'}</button>
+            <button aria-label="Skip, use your best guess" title="Skip, use your best guess" type="button" disabled={busy} onClick={() => plan({ skip: true })} className={secondaryBtn}><Icon name="arrow" />Skip</button>
+            <button aria-label="Edit my description" title="Edit my description" type="button" disabled={busy} onClick={() => { setQuestions(null); setErr(null); }} className={secondaryBtn}><Icon name="undo" />Edit</button>
           </div>
         </div>
       )}
@@ -119,8 +120,8 @@ export default function StartPanel({ caps, initialPrompt, onProject }: { caps: C
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">It starts with the default settings. You change sizes in the next step.</p>
           </div>
           <ErrorNote err={err} />
-          <button type="button" disabled={busy || !templateById(tpl)} onClick={() => run(() => api.create({ source: 'template', template: tpl, cfg: defaultCfg(templateById(tpl)!) }))} className={submitBtn}>
-            <Icon name="grid" />{busy ? 'Starting…' : 'Start from this template'}
+          <button aria-label="Start from this template" title="Start from this template" type="button" disabled={busy || !templateById(tpl)} onClick={() => run(() => api.create({ source: 'template', template: tpl, cfg: defaultCfg(templateById(tpl)!) }))} className={submitBtn}>
+            <Icon name="grid" />{busy ? 'Starting' : 'Start'}
           </button>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Or open an example in the free builder:{' '}

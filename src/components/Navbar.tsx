@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import Icon from './Icon';
 import Logo from './Logo';
 import { useCart } from './CartProvider';
 import { business, phoneHref } from '@/lib/contact';
@@ -19,7 +20,7 @@ const MENU_LINKS = [
   { href: '/materials', label: 'Materials guide' },
 ];
 const itemCls = 'block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-indigo-500';
-const iconBtn = 'rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500';
+const iconBtn = 'rounded-lg p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -114,6 +115,7 @@ export default function Navbar() {
               type='button'
               onClick={() => openCart('cart')}
               aria-label={count > 0 ? `Open cart, ${count} ${count === 1 ? 'item' : 'items'}` : 'Open cart'}
+              title='Open cart'
               className={`relative ${iconBtn}`}
             >
               <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
@@ -138,6 +140,7 @@ export default function Navbar() {
                 aria-expanded={acct}
                 aria-controls='account-menu'
                 aria-label='Account and settings'
+                title='Account and settings'
                 className={iconBtn}
               >
                 <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
@@ -152,8 +155,8 @@ export default function Navbar() {
                     </li>
                   ))}
                   <li className='border-t border-gray-200 dark:border-gray-700 mt-1 pt-1'>
-                    <button type='button' onClick={toggleTheme} className={`${itemCls} w-full text-left`}>
-                      Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'} (switch)
+                    <button type='button' onClick={toggleTheme} aria-label='Switch theme' title='Switch theme' className={`${itemCls} w-full whitespace-nowrap text-left`}>
+                      Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'}
                     </button>
                   </li>
                 </ul>
@@ -162,9 +165,11 @@ export default function Navbar() {
 
             <Link
               href='/quote'
-              className='px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
+              aria-label='Get a quote'
+              title='Get a quote'
+              className='inline-flex min-h-10 items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
             >
-              Get a quote
+              <Icon name='tag' className='h-4 w-4 hidden sm:block' />Quote
             </Link>
 
             {/* Hamburger: mobile */}
@@ -174,6 +179,7 @@ export default function Navbar() {
               aria-expanded={menu}
               aria-controls='mobile-menu'
               aria-label={menu ? 'Close menu' : 'Open menu'}
+              title={menu ? 'Close menu' : 'Open menu'}
               className={`md:hidden ${iconBtn}`}
             >
               <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
@@ -198,8 +204,8 @@ export default function Navbar() {
             </li>
           ))}
           <li className='mt-1 border-t border-gray-200 pt-1 dark:border-gray-800'>
-            <button type='button' onClick={toggleTheme} className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
-              Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'} (switch)
+            <button type='button' onClick={toggleTheme} aria-label='Switch theme' title='Switch theme' className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
+              Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'}
             </button>
           </li>
         </ul>

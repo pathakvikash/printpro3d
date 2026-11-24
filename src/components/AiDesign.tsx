@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Icon from './Icon';
 import { label, secondaryBtn, submitBtn } from './ContactFields';
 
 const MAX_TEXT = 600;
@@ -154,7 +155,7 @@ export default function AiDesign({ onDesigner }: { onDesigner: () => void }) {
                 style={{ backgroundImage: `url("${photo.url}")` }}
                 className="h-24 w-32 max-w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-contain bg-center bg-no-repeat"
               />
-              <button type="button" onClick={clearFile} className={secondaryBtn}>Remove photo</button>
+              <button type="button" onClick={clearFile} aria-label="Remove photo" title="Remove photo" className={secondaryBtn}><Icon name="trash" />Remove</button>
             </div>
           )}
         </div>
@@ -174,13 +175,13 @@ export default function AiDesign({ onDesigner }: { onDesigner: () => void }) {
         </div>
 
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={!canSend} className={submitBtn}>Draw it</button>
+        <button type="submit" disabled={!canSend} aria-label="Draw it" title="Draw it" className={submitBtn}><Icon name="edit" />Draw</button>
       </form>
 
       {phase === 'busy' && (
         <div className={panel}>
           <p role="status" className="font-medium text-gray-900 dark:text-gray-100">Drawing your model… this takes up to a minute</p>
-          <button type="button" onClick={cancel} className={secondaryBtn}>Cancel</button>
+          <button type="button" onClick={cancel} className={secondaryBtn}><Icon name="x" />Cancel</button>
         </div>
       )}
 
@@ -188,8 +189,8 @@ export default function AiDesign({ onDesigner }: { onDesigner: () => void }) {
         <div className={panel}>
           <p role="alert" className="text-red-700 dark:text-red-300">{error}</p>
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={retry} className={secondaryBtn}>Try again</button>
-            <button type="button" onClick={onDesigner} className={secondaryBtn}>Send this to our designer instead</button>
+            <button type="button" onClick={retry} aria-label="Try again" title="Try again" className={secondaryBtn}><Icon name="reset" />Retry</button>
+            <button type="button" onClick={onDesigner} aria-label="Send this to our designer instead" title="Send this to our designer instead" className={secondaryBtn}><Icon name="user" />Designer</button>
           </div>
         </div>
       )}

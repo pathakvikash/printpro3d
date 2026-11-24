@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Icon from './Icon';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 
 // The admin token lives in sessionStorage only (gone when the tab closes) and goes out as an Authorization header, never in a URL.
@@ -76,7 +77,7 @@ export default function AdminPanel() {
           <input id="admin-token" type="password" autoComplete="off" required value={typed} onChange={(e) => setTyped(e.target.value)} className={input} />
         </div>
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={busy || !typed} className={submitBtn}>{busy ? 'Checking...' : 'Open'}</button>
+        <button type="submit" disabled={busy || !typed} className={submitBtn}>{busy ? 'Checking' : 'Open'}</button>
       </form>
     );
   }
@@ -84,8 +85,8 @@ export default function AdminPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => void load(token)} disabled={busy} className={secondaryBtn}>{busy ? 'Loading...' : 'Refresh'}</button>
-        <button type="button" onClick={lock} className={secondaryBtn}>Lock</button>
+        <button type="button" onClick={() => void load(token)} disabled={busy} className={secondaryBtn}><Icon name="reset" />{busy ? 'Loading' : 'Refresh'}</button>
+        <button type="button" onClick={lock} className={secondaryBtn}><Icon name="lock" />Lock</button>
         <p className="text-sm text-gray-600 dark:text-gray-300">{records.length} record(s), newest first</p>
       </div>
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
@@ -156,7 +157,7 @@ function Row({ r, token, statuses, onSaved }: { r: Rec; token: string; statuses:
             {options.map((s) => <option key={s} value={s}>{pretty(s)}</option>)}
           </select>
         </div>
-        <button type="button" onClick={() => void save()} disabled={busy || status === r.status} className={secondaryBtn}>{busy ? 'Saving...' : 'Save status'}</button>
+        <button type="button" onClick={() => void save()} disabled={busy || status === r.status} aria-label="Save status" title="Save status" className={secondaryBtn}><Icon name="save" />{busy ? 'Saving' : 'Save'}</button>
       </div>
       <p role="status" className={`text-sm ${msg?.ok === false ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>{msg?.text}</p>
 
@@ -200,8 +201,8 @@ function Row({ r, token, statuses, onSaved }: { r: Rec; token: string; statuses:
       {r.files.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {r.files.map((f, i) => (
-            <button key={f} type="button" onClick={() => void download(f)} className={secondaryBtn} aria-label={`Download file ${i + 1}: ${f}`}>
-              Download file {i + 1}
+            <button key={f} type="button" onClick={() => void download(f)} className={secondaryBtn} aria-label={`Download file ${i + 1}: ${f}`} title={`Download file ${i + 1}: ${f}`}>
+              <Icon name="download" />File {i + 1}
             </button>
           ))}
         </div>

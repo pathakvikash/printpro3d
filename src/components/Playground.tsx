@@ -37,14 +37,14 @@ const FlightHud = dynamic(() => import('./playground/FlightHud'), { ssr: false }
 const clampPos = (v: number) => Math.max(-MAX_POS_MM, Math.min(MAX_POS_MM, v));
 const asV3 = (p: Vec3): V3 => ({ x: p[0], y: p[1], z: p[2] });
 
-const btnBase = 'rounded-xl border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+const btnBase = 'inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const btnIdle = 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-800';
 const btn = `${btnBase} ${btnIdle}`;
 const on = 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-600';
 // active replaces the idle colours instead of adding to them, so only one background and text colour applies
 const btnOn = (active: boolean) => `${btnBase} ${active ? on : btnIdle}`;
 const primary =
-  'rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold px-5 py-3 transition-all duration-200';
+  'min-h-11 whitespace-nowrap rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold px-5 py-3 transition-all duration-200';
 const panel = 'bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3';
 const heading = 'text-sm font-semibold text-gray-900 dark:text-gray-100';
 
@@ -454,22 +454,22 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         <div className="space-y-3 min-w-0">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Add a shape">
             {KINDS.map((k) => (
-              <button key={k} type="button" onClick={() => add(k)} disabled={locked} className={btn}>+ {LABEL[k]}</button>
+              <button key={k} type="button" onClick={() => add(k)} disabled={locked} aria-label={`Add ${LABEL[k]}`} title={`Add ${LABEL[k]}`} className={btn}><Icon name="plus" className="h-4 w-4" />{LABEL[k]}</button>
             ))}
           </div>
           {!project && <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
-            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} className={btnOn(placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id)}>+ Motor</button>
+            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} aria-label="Add motor" title="Add motor" className={btnOn(placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id)}><Icon name="plus" className="h-4 w-4" />Motor</button>
             <select aria-label="Gear motor" value={gearId} disabled={locked} onChange={(e) => setGearId(e.target.value)} className={`${btn} max-w-[11rem] truncate`}>
               {GEAR_MOTORS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === gearId} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: 'cw', motorId: gearId })} className={btnOn(placing?.kind === 'motor' && placing.motorId === gearId)}>+ Gear motor + wheel</button>
+            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === gearId} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: 'cw', motorId: gearId })} aria-label="Add gear motor with wheel" title="Add gear motor with wheel" className={btnOn(placing?.kind === 'motor' && placing.motorId === gearId)}><Icon name="plus" className="h-4 w-4" />Gear</button>
             {MASS_PARTS.map((n) => {
               const act = placing?.kind === 'mass' && placing.name === n;
-              return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} className={btnOn(act)}>+ {n === 'Flight controller' ? 'FC' : n}</button>;
+              return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} aria-label={`Add ${n}`} title={`Add ${n}`} className={btnOn(act)}><Icon name="plus" className="h-4 w-4" />{n === 'Flight controller' ? 'FC' : n}</button>;
             })}
           </div>}
           {!project && !locked && !dismissed && <SuggestBar items={items} armed={armed?.kind ?? null} aiRanked={items.some((i) => i.ai)} onPick={armSuggestion} onDismiss={() => { setDismissed(true); setArmed(null); }} />}
-          {!project && !locked && dismissed && items.length > 0 && <button type="button" onClick={() => setDismissed(false)} className="text-sm text-indigo-700 dark:text-indigo-300 underline">Show suggestions</button>}
+          {!project && !locked && dismissed && items.length > 0 && <button type="button" onClick={() => setDismissed(false)} aria-label="Show suggestions" title="Show suggestions" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-sm text-indigo-700 dark:text-indigo-300 underline"><Icon name="bolt" className="h-4 w-4" />Suggest</button>}
           {armed && <ArmedPanel kind={armed.kind} place={armed.place} reason={armed.reason} note={armNote} onAccept={() => armed.place && commitPlace(armed.kind, armed.place)} onNudge={nudgeArmed} onIgnore={() => setArmed(null)} />}
           {placing && (
             <p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
@@ -479,7 +479,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               {picked && (
                 <span className="mt-1 flex flex-wrap items-center gap-2">
                   <span>Suggested spot (faint): {picked.place.reason}</span>
-                  <button type="button" onClick={() => commitPlace(picked.kind, picked.place)} className={`${btn} py-1`}>Place at suggested spot</button>
+                  <button type="button" onClick={() => commitPlace(picked.kind, picked.place)} aria-label="Place at suggested spot" title="Place at suggested spot" className={`${btn} py-1`}><Icon name="check" className="h-4 w-4" />Place</button>
                 </span>
               )}
             </p>
@@ -505,11 +505,11 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
                 <button type="button" aria-pressed={simulate} onClick={() => { setSimulate(!simulate); setPlacing(null); setSelectedId(null); setPartSel(null); }} className={btnOn(simulate)}>Simulate</button>
               )}
             </div>
-            <button type="button" onClick={undo} disabled={locked || !h.past.length} className={btn}>Undo</button>
-            <button type="button" onClick={redo} disabled={locked || !h.future.length} className={btn}>Redo</button>
-            <button type="button" onClick={duplicate} disabled={locked || !sel} className={btn}>Duplicate</button>
-            <button type="button" onClick={() => (partSel ? removeP(partSel) : sel && remove(sel.id))} disabled={locked || (!sel && !partSel)} className={btn}>Delete</button>
-            <button type="button" onClick={clearAll} disabled={locked || !shapes.length} className={btn}>Clear all</button>
+            <button type="button" onClick={undo} disabled={locked || !h.past.length} className={btn}><Icon name="undo" className="h-4 w-4" />Undo</button>
+            <button type="button" onClick={redo} disabled={locked || !h.future.length} className={btn}><Icon name="redo" className="h-4 w-4" />Redo</button>
+            <button type="button" onClick={duplicate} disabled={locked || !sel} className={btn}><Icon name="copy" className="h-4 w-4" />Duplicate</button>
+            <button type="button" onClick={() => (partSel ? removeP(partSel) : sel && remove(sel.id))} disabled={locked || (!sel && !partSel)} className={btn}><Icon name="trash" className="h-4 w-4" />Delete</button>
+            <button type="button" onClick={clearAll} disabled={locked || !shapes.length} aria-label="Clear all" title="Clear all" className={btn}><Icon name="x" className="h-4 w-4" />Clear</button>
           </div>
         </div>
 
@@ -531,17 +531,17 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
                       {project ? (
               project.onSave && !project.readOnly && (
                 <div className="flex flex-wrap items-center gap-3">
-                  <button type="button" onClick={save} disabled={!h.past.length || !hasSolid || saving} className={`${primary} inline-flex items-center gap-2`}>
-                    <Icon name="check" />{saving ? 'Saving…' : 'Save as a new revision'}
+                  <button type="button" onClick={save} disabled={!h.past.length || !hasSolid || saving} aria-label="Save as a new revision" title="Save as a new revision" className={`${primary} inline-flex items-center gap-2`}>
+                    <Icon name="check" />{saving ? 'Saving' : 'Save'}
                   </button>
                   {!h.past.length && <p className="text-sm text-gray-500 dark:text-gray-400">Change something to save a revision.</p>}
                 </div>
               )
             ) : (
               <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={price} disabled={!hasSolid || busy} className={primary}>{busy ? 'Building…' : 'Get a price'}</button>
+                <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
                 {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
-                <button type="button" onClick={download} disabled={!hasSolid || busy} className={`${btn} py-3`}>Download STL</button>
+                <button type="button" onClick={download} disabled={!hasSolid || busy} aria-label="Download STL" title="Download STL" className={`${btn} py-3`}><Icon name="download" className="h-4 w-4" />STL</button>
                 {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
               </div>
             )}
@@ -580,14 +580,14 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
                   <p className="text-xs text-gray-500 dark:text-gray-400">{MOTORS.find((x) => x.id === motor.motorId)?.name}, {motorKind(motor.motorId) === 'gear' ? `${wheelMm} mm wheel (set in Simulate)` : `${propDiameterMm(PROP_MOTOR.prop).toFixed(0)} mm prop`}. Not part of the printed model.</p>
                   {motorKind(motor.motorId) === 'prop' && <div className="flex gap-2" role="group" aria-label="Spin direction">
                     {(['cw', 'ccw'] as const).map((d) => (
-                      <button key={d} type="button" aria-pressed={motor.spin === d} onClick={() => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, spin: d })))} className={`${btnOn(motor.spin === d)} flex-1`}>
-                        Spin {d === 'cw' ? 'CW' : 'CCW'}
+                      <button key={d} type="button" aria-pressed={motor.spin === d} onClick={() => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, spin: d })))} aria-label={`Spin ${d === 'cw' ? 'CW' : 'CCW'}`} title={`Spin ${d === 'cw' ? 'CW' : 'CCW'}`} className={`${btnOn(motor.spin === d)} flex-1`}>
+                        {d === 'cw' ? 'CW' : 'CCW'}
                       </button>
                     ))}
                   </div>}
                   <PosRow value={motor.pos} onChange={(pos) => commitParts((p) => patchMotor(p, motor.id, (m) => ({ ...m, pos })), `mp${motor.id}`)} />
                   {motorKind(motor.motorId) === 'prop' && <>
-                    <button type="button" onClick={() => commitParts((p) => makeQuad(p, motor.id))} className={`${btn} w-full`}>Make 4 (quad-X)</button>
+                    <button type="button" onClick={() => commitParts((p) => makeQuad(p, motor.id))} aria-label="Make 4 (quad-X)" title="Make 4 (quad-X)" className={`${btn} w-full`}>Quad</button>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Quad-X copies this motor&rsquo;s distance from the centre to all four corners and replaces the motors you have.</p>
                   </>}
                 </>
@@ -609,8 +609,8 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
                     />
                   </label>
                   {typicalMass(mass.name) && (
-                    <button type="button" onClick={() => { const t = typicalMass(mass.name)!; setEstimated((x) => [...x, mass.id]); commitParts((p) => patchMass(p, mass.id, (c) => ({ ...c, massG: t.massG }))); }} className={`${btn} w-full`}>
-                      Use typical value
+                    <button type="button" onClick={() => { const t = typicalMass(mass.name)!; setEstimated((x) => [...x, mass.id]); commitParts((p) => patchMass(p, mass.id, (c) => ({ ...c, massG: t.massG }))); }} aria-label="Use typical value" title="Use typical value" className={`${btn} w-full`}>
+                      Typical
                     </button>
                   )}
                   {estimated.includes(mass.id) && <p className="text-xs text-amber-700 dark:text-amber-300">ESTIMATE: typical {mass.name}, real parts vary widely. Weigh yours.</p>}
@@ -636,8 +636,8 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               <VecRow title="Position" unit="mm" value={sel.position} onChange={(a, v) => patch(sel.id, (s) => ({ ...s, position: { ...s.position, [a]: v } }), `p${a}${sel.id}`)} />
               <VecRow title="Rotation" unit="degrees" value={sel.rotation} onChange={(a, v) => patch(sel.id, (s) => ({ ...s, rotation: { ...s.rotation, [a]: v } }), `r${a}${sel.id}`)} />
               <VecRow title="Size" unit="mm" value={sel.size} min={MIN_SIZE} labels={['Length (X)', 'Width (Y)', 'Height (Z)']} onChange={(a, v) => patch(sel.id, (s) => ({ ...s, size: { ...s.size, [a]: v } }), `s${a}${sel.id}`)} />
-              <button type="button" onClick={() => patch(sel.id, (s) => ({ ...s, position: { ...s.position, z: s.position.z - minZ(s) } }))} className={`${btn} w-full`}>
-                Drop to plate
+              <button type="button" onClick={() => patch(sel.id, (s) => ({ ...s, position: { ...s.position, z: s.position.z - minZ(s) } }))} aria-label="Drop to plate" title="Drop to plate" className={`${btn} w-full`}>
+                Drop
               </button>
             </div>
           )}

@@ -8,7 +8,7 @@ import { BuildRoute } from './RoutePages';
 
 const TABS = [
   { mode: 'inspect', href: '/playground', label: 'Inspect' },
-  { mode: 'build', href: '/playground?mode=build', label: 'Build & simulate' },
+  { mode: 'build', href: '/playground?mode=build', label: 'Build' },
 ] as const;
 
 export default function PlaygroundHub() {

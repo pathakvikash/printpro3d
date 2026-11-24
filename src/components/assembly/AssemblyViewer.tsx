@@ -125,7 +125,7 @@ const ICONS = {
 const Ico = ({ n }: { n: keyof typeof ICONS }) => (
   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d={ICONS[n]} /></svg>
 );
-const btn = (on: boolean) => `flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50 ${on ? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`;
+const btn = (on: boolean) => `flex min-h-11 items-center whitespace-nowrap gap-1.5 rounded-lg border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50 ${on ? 'border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900' : 'border-gray-300 bg-white text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`;
 
 /** geometries: builder key -> geometry, for parts whose `geometry` is a string (a part whose key is missing is skipped until it arrives). */
 /** focusId: a part id, or a builder key, to tint in the model (set from outside, e.g. a parts list). */

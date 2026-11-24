@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import ModelViewer from './ModelViewer';
 import QuoteOrder from './QuoteOrder';
+import Icon from './Icon';
 import { ContactFields, card, input, label, submitBtn } from './ContactFields';
 import { BED_MM, type MeshStats } from '@/lib/quote';
 
@@ -11,7 +12,7 @@ const GIVE_UP_MS = 10 * 60 * 1000;
 const MAX_IMG = 5 * 1024 * 1024;
 const MAX_MM = Math.max(BED_MM.x, BED_MM.y, BED_MM.z);
 const secondary =
-  'py-2.5 px-5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:border-indigo-500';
+  'inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap py-2.5 px-5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:border-indigo-500';
 
 type Phase = 'form' | 'working' | 'failed' | 'ready' | 'quote';
 type Sized = { url: string; file: string; stats: MeshStats | null };
@@ -138,7 +139,7 @@ export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => 
           AI models are a starting point. We check every model before printing and may suggest changes. Don&apos;t request weapons or characters and brands you don&apos;t own.
         </p>
         {phase === 'form' && error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={busy} className={submitBtn}>{busy ? 'Starting...' : 'Generate model'}</button>
+        <button type="submit" disabled={busy} aria-label="Generate model" title="Generate model" className={submitBtn}><Icon name="bolt" />{busy ? 'Starting' : 'Generate'}</button>
       </form>
 
       {phase === 'working' && (
@@ -147,7 +148,7 @@ export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => 
             Generating your model… {progress > 0 ? `${progress}%` : 'waiting in the queue'}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400">This usually takes a minute or two. Keep this page open.</p>
-          <button type="button" onClick={again} className={secondary}>Cancel</button>
+          <button type="button" onClick={again} className={secondary}><Icon name="x" />Cancel</button>
         </div>
       )}
 
@@ -155,8 +156,8 @@ export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => 
         <div className={card}>
           <p role="alert" className="text-red-700 dark:text-red-300">{error}</p>
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => { setPhase('form'); setError(null); }} className={secondary}>Try again</button>
-            <button type="button" onClick={onDesigner} className={secondary}>Send this to our designer instead</button>
+            <button type="button" onClick={() => { setPhase('form'); setError(null); }} aria-label="Try again" title="Try again" className={secondary}><Icon name="reset" />Retry</button>
+            <button type="button" onClick={onDesigner} aria-label="Send this to our designer instead" title="Send this to our designer instead" className={secondary}><Icon name="user" />Designer</button>
           </div>
         </div>
       )}
@@ -172,10 +173,10 @@ export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => 
             <p className="text-sm text-gray-500 dark:text-gray-400">Between 10 and {MAX_MM} mm. Preparing the model can take a few minutes.</p>
             {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
             <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={useSize} disabled={busy || !validMm} className={`${submitBtn} sm:w-auto`}>
-                {busy ? 'Preparing...' : 'Use this size'}
+              <button type="button" onClick={useSize} disabled={busy || !validMm} aria-label="Use this size" title="Use this size" className={`${submitBtn} sm:w-auto`}>
+                <Icon name="check" />{busy ? 'Preparing' : 'Apply'}
               </button>
-              <button type="button" onClick={again} className={secondary}>Generate another</button>
+              <button type="button" onClick={again} aria-label="Generate another" title="Generate another" className={secondary}><Icon name="reset" />Again</button>
             </div>
           </div>
         </div>
@@ -185,11 +186,11 @@ export default function AiGenerate({ onDesigner, onModel }: { onDesigner: () => 
         <div className="space-y-4">
           <div className="h-[400px] rounded-xl overflow-hidden"><ModelViewer url={sized.url} /></div>
           {onModel ? (
-            <button type="button" onClick={() => onModel(sized.file)} className={`${submitBtn} sm:w-auto`}>Plan with this model</button>
+            <button type="button" onClick={() => onModel(sized.file)} aria-label="Plan with this model" title="Plan with this model" className={`${submitBtn} sm:w-auto`}><Icon name="arrow" />Plan</button>
           ) : (
             <QuoteOrder key={sized.file} file={sized.file} stats={sized.stats} label="AI-generated model" />
           )}
-          <button type="button" onClick={again} className={secondary}>Generate another</button>
+          <button type="button" onClick={again} aria-label="Generate another" title="Generate another" className={secondary}><Icon name="reset" />Again</button>
         </div>
       )}
     </div>

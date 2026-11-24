@@ -8,6 +8,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprintData } from '@/lib/blueprint';
+import { assemblyBlueprint } from '@/lib/assemblyBlueprint';
+import { partMesh } from '@/lib/partModels';
+import { partById } from '@/lib/parts';
 import { kitBlocked, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
 import * as THREE from 'three';
 import { prepGeometry } from './PrintMaterial';
@@ -25,6 +28,7 @@ import BoughtList from './BoughtList';
 import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
+const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
@@ -62,6 +66,9 @@ export function useParts(kit: Kit): Part[] {
   });
 }
 
+// Assembly part id (digits stripped) -> its reference model in parts.ts, for the assembly drawing; others stay placeholders.
+const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps-puck-25', camera: 'camera-19', motor: 'motor-1404', prop: 'prop-3in', esp32: 'board-esp32-devkit', sg90: 'servo-sg90' };
+
 // The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
 export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]; focusId?: string | null }) {
   const built = useMemo(() => {
@@ -77,6 +84,18 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
     }
     return { geometries, assembly: kit.assembly(sizes) };
   }, [kit, parts]);
+  const sheet = useMemo(() => {
+    if (!built) return null;
+    const meshes: Record<string, Float32Array> = {};
+    for (const p of parts) meshes[p.item.templateId] = p.mesh!;
+    const ref = (a: { id: string }) => {
+      const id = a.id.replace(/\d+$/, '');
+      const pid = kit.id === 'rover-kit' && id === 'motor' ? 'adafruit-tt-48' : BOUGHT_MODEL[id];
+      const part = pid ? partById(pid) : null;
+      return part ? partMesh(part) : null;
+    };
+    return assemblyBlueprint(built.assembly, meshes, { name: kit.title, ref });
+  }, [built, parts, kit]);
   useEffect(() => () => { if (built) Object.values(built.geometries).forEach((g) => g.dispose()); }, [built]);
   if (!kit.assembly) return null;
   return (
@@ -84,6 +103,12 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
       <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
       {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
       <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.</p>
+      {sheet && (
+        <div className="space-y-2 pt-2">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Assembly drawing</h3>
+          <BlueprintSheet svg={sheet} filename={`assembly-${kit.id}`} />
+        </div>
+      )}
     </section>
   );
 }
@@ -146,8 +171,8 @@ export function KitDetail({ kit }: { kit: Kit }) {
         <FinishedBuild kit={kit} parts={parts} />
         <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
           <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} pieces (${kit.items.length} different parts)`], ['Bought separately', `${kit.boughtParts.length} items`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
-          <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} w-full`}>
-            {added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}
+          <button type="button" disabled={!ready} onClick={addAll} aria-label="Add whole kit to cart" title="Add whole kit to cart" className={`${addBtn} w-full`}>
+            {added ? <AddLabel added /> : <><Icon name="cart" />Add</>}
           </button>
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
@@ -179,7 +204,7 @@ export function KitDetail({ kit }: { kit: Kit }) {
       <div aria-hidden className="h-16 lg:hidden" />
       <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
         <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : '…'}</span>
-        <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}</button>
+        <button type="button" disabled={!ready} onClick={addAll} aria-label="Add whole kit to cart" title="Add whole kit to cart" className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add</>}</button>
       </div>
     </div>
   );
