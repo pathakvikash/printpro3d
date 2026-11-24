@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import SafeCanvas from './WebGLCanvas';
@@ -8,6 +8,7 @@ import { PrintMesh, StudioLight, TRUE_LAYER_MM, useDark } from './PrintMaterial'
 import { useBuiltGeometry } from './ExamplePreview';
 import { EXAMPLES } from '@/lib/examples';
 import { solidsSize } from '@/lib/playground';
+import { buildOffThread } from '@/lib/buildOffThread';
 
 const PART = EXAMPLES.find((e) => e.id === 'drone-plate') ?? EXAMPLES[0];
 
@@ -15,7 +16,14 @@ const PART = EXAMPLES.find((e) => e.id === 'drone-plate') ?? EXAMPLES[0];
 function Part() {
   const g = useRef<THREE.Group>(null);
   const wide = useThree((st) => st.size.width >= 1024);
-  const geo = useBuiltGeometry(PART.shapes);
+  // CSG in the worker: on a phone it was a ~1 s main-thread task on the home page
+  const [mesh, setMesh] = useState<Float32Array | null>(null);
+  useEffect(() => {
+    let on = true;
+    buildOffThread(PART.shapes).then((m) => on && setMesh(m), () => {});
+    return () => { on = false; };
+  }, []);
+  const geo = useBuiltGeometry(PART.shapes, mesh);
   const size = useMemo(() => solidsSize(PART.shapes) ?? { x: 40, y: 40, z: 10 }, []);
   const k = (wide ? 3 : 1.6) / Math.max(size.x, size.y);
   useFrame((state) => {

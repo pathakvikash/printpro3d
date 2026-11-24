@@ -176,18 +176,21 @@ function Bed({ dark }: { dark: boolean }) {
 function FitCamera({ dist, target, home, resetKey = 0 }: { dist: number; target: THREE.Vector3; home: THREE.Vector3; resetKey?: number }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { update?: () => void; target?: THREE.Vector3 } | null;
+  const invalidate = useThree((s) => s.invalidate); // frameloop="demand": a camera move alone does not redraw
   useEffect(() => {
     const dir = camera.position.clone().sub(target).normalize();
     camera.position.copy(target).addScaledVector(dir, dist);
     controls?.update?.();
-  }, [dist, camera, controls, target]);
+    invalidate();
+  }, [dist, camera, controls, target, invalidate]);
   // camera reset: back to the opening view and centre (undoes pan, zoom and orbit)
   useEffect(() => {
     if (!resetKey) return;
     camera.position.copy(target).addScaledVector(home.clone().sub(target).normalize(), dist);
     controls?.target?.copy(target);
     controls?.update?.();
-  }, [resetKey, camera, controls, target, home, dist]);
+    invalidate();
+  }, [resetKey, camera, controls, target, home, dist, invalidate]);
   return null;
 }
 
@@ -254,7 +257,7 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   return (
     <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(120%_90%_at_50%_20%,#fbfaf7,#dedbd3)] dark:bg-[radial-gradient(120%_90%_at_50%_20%,#2a303b,#12151b)]">
       <SafeCanvas
-        frameloop={reduceMotion ? 'demand' : 'always'}
+        frameloop={(stage.autoRotate ?? !reduceMotion) ? 'always' : 'demand'} // nothing moves unless it turns: draw on demand (orbit and prop changes invalidate)
         dpr={[1, 1.5]}
         gl={{ alpha: true }}
         onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
