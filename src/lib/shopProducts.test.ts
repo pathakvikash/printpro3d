@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CATALOG, SHOP_CATEGORIES, shopCat, shopVisible } from './catalog';
-import { TEMPLATES } from './templateDefs';
-import { PRODUCTS } from './shopProducts';
+import { CATALOG, SHOP_CATEGORIES, shopCat, shopVisible } from './catalog.ts';
+import { TEMPLATES } from './templateDefs.ts';
+import { PRODUCTS } from './shopProducts.ts';
 
 test('shop ids are unique across fixed items and templates', () => {
   const ids = [...CATALOG, ...TEMPLATES].map((x) => x.id);

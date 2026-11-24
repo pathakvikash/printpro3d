@@ -1,9 +1,9 @@
 // Fixed-price shop items joined to their example design, with size/weight computed from the mesh (never typed in).
-import { CATALOG, shopVisible, type Item } from './catalog';
-import { exampleById, type Example } from './examples';
-import { buildMesh, solidsSize } from './playground';
-import { blueprintData } from './blueprint';
-import { MATERIALS, quote } from './quote';
+import { CATALOG, shopVisible, type Item } from './catalog.ts';
+import { exampleById, type Example } from './examples.ts';
+import { buildMesh, solidsSize } from './playground.ts';
+import { blueprintData } from './blueprint.ts';
+import { MATERIALS, quote } from './quote.ts';
 
 export type Product = { item: Item; ex: Example; dims: string };
 const fmt = (n: number) => n.toFixed(1);
