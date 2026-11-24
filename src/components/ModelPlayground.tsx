@@ -114,7 +114,7 @@ export default function ModelPlayground() {
           className={`flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed p-4 transition-colors ${over ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
         >
           <input ref={input} type="file" accept={ALLOWED_EXTS.join(',')} className="sr-only" aria-label="Choose a 3D file" onChange={(e) => { take(e.target.files?.[0]); e.target.value = ''; }} />
-          <button type="button" className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600`} onClick={() => input.current?.click()}>Upload your own</button>
+          <button type="button" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500" onClick={() => input.current?.click()}>Upload your own</button>
           <p className="text-sm text-gray-600 dark:text-gray-300">Drop an STL or OBJ here to view it. It stays in your browser until you send it to Get a quote.</p>
         </div>
         {SHOP_CATEGORIES.map((c) => {

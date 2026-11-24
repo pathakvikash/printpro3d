@@ -4,6 +4,7 @@
 
 import Icon from './Icon';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprint, blueprintData } from '@/lib/blueprint';
@@ -83,7 +84,8 @@ export function TemplateCard({ t, live, reduceMotion, setVisible }: {
       rows={rows}
       previewRef={box}
       preview={live && r?.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} material={t.material} />}
-      actions={<span className={`${secondaryBtn} w-full`}><Icon name="wrench" />Configure</span>}
+      // a real link: the actions row sits above the stretched title link, so a plain span here swallowed the click. Out of the tab order (the title link is the one stop).
+      actions={<Link href={`/shop/${t.id}`} tabIndex={-1} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Configure</Link>}
     />
   );
 }
