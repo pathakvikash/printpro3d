@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import MaterialCards from './MaterialCards';
-import { LIGHTS, type LightKey } from './PrintMaterial';
+import { LIGHTS, type LightKey } from '@/lib/lights';
 import { blueprint, bounds } from '@/lib/blueprint';
 import { SHOP_CATEGORIES, shopCat } from '@/lib/catalog';
 import { MATERIALS, meshStats, type MaterialKey } from '@/lib/quote';

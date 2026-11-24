@@ -10,6 +10,7 @@ import { Environment, Lightformer, Line, OrbitControls } from '@react-three/drei
 import { toCreasedNormals } from 'three-stdlib';
 import SafeCanvas from './WebGLCanvas';
 import { BED_MM, type MaterialKey } from '@/lib/quote';
+import type { LightKey } from '@/lib/lights';
 
 export const TRUE_LAYER_MM = 0.2; // assumed layer height until the owner confirms (see blueprint WP2 LAYER_MM)
 const CARD_EXAGGERATION = 3; // layer lines drawn this much larger on small cards so they show
@@ -103,8 +104,7 @@ export function PrintMesh({ geometry, ...over }: { geometry: THREE.BufferGeometr
   );
 }
 
-export const LIGHTS = { studio: 'Studio', daylight: 'Daylight', dramatic: 'Dramatic', flat: 'Flat' } as const;
-export type LightKey = keyof typeof LIGHTS;
+export type { LightKey };
 // ambient level, environment level, and the light panels (intensity, position, scale, colour) per preset
 const LIGHT_SETS: Record<LightKey, { amb: number; env: number; panels: [number, [number, number, number], [number, number], string][] }> = {
   studio: { amb: 0.2, env: 1, panels: [[3, [0, 0, 9], [12, 12], '#ffffff'], [3, [-9, -4, 4], [8, 10], '#ffffff'], [2, [9, -3, 2], [5, 9], '#dfe6ff'], [1.5, [0, 9, 1], [14, 3], '#fff1dc']] },

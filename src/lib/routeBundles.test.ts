@@ -18,3 +18,11 @@ test('UploadForm (/quote) and ModelWithBlueprint load ModelViewer, and three wit
   const src = readFileSync(new URL('../components/ModelWithBlueprint.tsx', import.meta.url), 'utf8');
   assert.match(src, /dynamic\(\(\) => import\('\.\/ModelViewer'\)/);
 });
+
+test('ModelPlayground (/playground) imports nothing that statically pulls three', () => {
+  const src = readFileSync(new URL('../components/ModelPlayground.tsx', import.meta.url), 'utf8');
+  const froms = [...src.matchAll(/^import[^;]*?from\s+'([^']+)'/gm)].map((m) => m[1]);
+  for (const heavy of ['three', '@react-three/fiber', '@react-three/drei', './PrintMaterial', './ModelViewer', '@/lib/shopProducts', '@/lib/playground']) {
+    assert.ok(!froms.includes(heavy), heavy);
+  }
+});
