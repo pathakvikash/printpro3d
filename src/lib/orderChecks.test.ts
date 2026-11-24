@@ -45,5 +45,9 @@ test('model lines keep a cleaned customer label (My items colour note) without s
   assert.equal((m(1, ' Bracket\n(red)\u0007 ') as { label?: string }).label, 'Bracket (red)');
   assert.equal((m(1, 'x'.repeat(200)) as { label?: string }).label!.length, 80);
   assert.equal('label' in m(1, 42), false);
+  const withNotes = (notes: unknown) => checkEntry({ kind: 'model', file: 'a.stl', material: 'PLA', qty: 1, notes }, 1) as { notes?: string };
+  assert.equal(withNotes(' Matte\nfinish\u0007 ').notes, 'Matte finish');
+  assert.equal(withNotes('x'.repeat(500)).notes!.length, 300);
+  assert.equal('notes' in withNotes(42), false);
   assert.throws(() => mergeChecked([m(1, 'red', MAX_QTY), m(2, 'blue', 1)]), /quantity over/);
 });

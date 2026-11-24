@@ -16,7 +16,7 @@ test('parseCart keeps only well-formed lines', () => {
     { kind: 'shop', id: CATALOG[0].id, qty: MAX_QTY + 1 },
     { kind: 'model', file: '', material: 'PLA', qty: 1 },
     { kind: 'model', file: 'b.stl', material: 'PLA', qty: 1, estimate: -5 },
-    { kind: 'model', file: 'c.stl', material: 'PLA', qty: 3, estimate: 50, label: 'x'.repeat(500) },
+    { kind: 'model', file: 'c.stl', material: 'PLA', qty: 3, estimate: 50, label: 'x'.repeat(500), notes: 'n'.repeat(500) },
     null,
     'text',
     { kind: '__proto__', qty: 1 },
@@ -24,6 +24,7 @@ test('parseCart keeps only well-formed lines', () => {
   assert.equal(lines.length, 3);
   assert.equal(lines[1].kind === 'model' && lines[1].estimate, null); // negative estimate dropped
   assert.equal(lines[2].kind === 'model' && lines[2].label.length, 80);
+  assert.equal(lines[2].kind === 'model' && lines[2].notes?.length, 300);
   assert.deepEqual(parseCart('x'), []);
   assert.equal(parseCart(Array.from({ length: 100 }, () => shop())).length, MAX_LINES);
 });

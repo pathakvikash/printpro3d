@@ -11,7 +11,7 @@ import { blueprintData } from '@/lib/blueprint';
 import { assemblyBlueprint } from '@/lib/assemblyBlueprint';
 import { partMesh } from '@/lib/partModels';
 import { partById } from '@/lib/parts';
-import { kitBlocked, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
+import { kitBlocked, kitById, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
 import { isKitKey, kitPartByKey } from '@/lib/kits/adapt';
 import CreditLine from './KitCredit';
 import * as THREE from 'three';
@@ -155,6 +155,12 @@ export function KitCard({ kit }: { kit: Kit }) {
       actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={addAll} title={kit.variants ? `Add the ${kit.variants[0].title} kit to cart (choose the product on the kit page)` : undefined} />}
     />
   );
+}
+
+// the light grid card (ShopCards.tsx) swaps itself for this one once KitShop has loaded
+export function KitCardById({ id }: { id: string }) {
+  const kit = kitById(id);
+  return kit && <KitCard kit={kit} />;
 }
 
 const PRODUCT_LABEL = (v: Kit) => v.id.split('/')[1]?.replace(/^./, (c) => c.toUpperCase()) ?? v.title;

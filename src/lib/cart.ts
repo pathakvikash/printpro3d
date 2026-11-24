@@ -23,7 +23,7 @@ export type CartLine =
   | { kind: 'kit'; id: string; label: string; cfg: Cfg; qty: number; unitPrice: number }
   // a customer's own model (upload, builder or AI): `file` is the stored upload name,
   // `estimate` the line total shown when it was quoted (null = we quote it manually)
-  | { kind: 'model'; file: string; label: string; material: string; qty: number; estimate: number | null }
+  | { kind: 'model'; file: string; label: string; notes?: string; material: string; qty: number; estimate: number | null }
   // a finalized design project (blueprint-first flow); the server prices it from the STL it built, `estimate` is display only
   | { kind: 'design'; project: string; label: string; material: string; qty: number; estimate: number | null };
 
@@ -79,6 +79,7 @@ export function parseCart(raw: unknown): CartLine[] {
         kind: 'model',
         file,
         label: str(o.label, 80) || 'Your model',
+        ...(str(o.notes, 300) ? { notes: str(o.notes, 300) } : {}),
         material,
         qty: o.qty,
         estimate: typeof est === 'number' && Number.isFinite(est) && est >= 0 ? est : null,

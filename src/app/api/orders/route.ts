@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const lines: SavedLine[] = [];
     for (const r of mergeChecked(reqs)) {
       try {
-        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : r.kind === 'kit' ? await priceKit(r.id, r.cfg, r.qty) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : { ...(await priceModel(r.file, r.material, r.qty)), ...(r.label ? { itemName: r.label } : {}) });
+        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : r.kind === 'kit' ? await priceKit(r.id, r.cfg, r.qty) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : { ...(await priceModel(r.file, r.material, r.qty)), ...(r.label ? { itemName: r.label } : {}), ...(r.notes ? { notes: r.notes } : {}) });
       } catch (e) {
         throw new Error(`item ${r.n}: ${e instanceof Error ? e.message : 'invalid'}`);
       }

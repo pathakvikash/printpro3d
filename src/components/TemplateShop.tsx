@@ -8,7 +8,7 @@ import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprint, blueprintData } from '@/lib/blueprint';
 import { LAYER_MM } from '@/lib/printSpec';
 import { quote, SETUP_FEE } from '@/lib/quote';
-import { defaultCfg, normalizeCfg, COMING_SOON, type Cfg, type Field, type TemplateDef } from '@/lib/templateDefs';
+import { defaultCfg, normalizeCfg, type Cfg, type Field, type TemplateDef } from '@/lib/templateDefs';
 import { buildTemplate, templateMesh } from '@/lib/templates';
 import { buildOffThread } from '@/lib/buildOffThread';
 import type { Shape } from '@/lib/playground';
@@ -236,14 +236,5 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
         </section>
       )}
     </div>
-  );
-}
-
-export function ComingSoon() {
-  if (!COMING_SOON.length) return null;
-  return (
-    <p className="text-sm text-gray-500 dark:text-gray-400">
-      Coming soon: {COMING_SOON.map((c) => c.name).join(', ')}.
-    </p>
   );
 }

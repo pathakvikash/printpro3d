@@ -25,6 +25,7 @@ export type OrderLine = {
   material: string;
   total: number | null; // null = needs a manual quote
   id?: string; // catalogue id, shop lines
+  notes?: string; // model lines: the customer's notes from My items (never priced)
   itemName?: string; // shop, template and kit lines; model lines: the customer's label (name and colour note)
   config?: string; // template lines: the chosen settings, as text
   file?: string; // model upload name, model lines
@@ -65,6 +66,7 @@ function lineText(l: OrderLine, currency: string): string[] {
   }
   return [
     `${l.qty}x ${l.material} model ${fileLink(l.file ?? '')}${l.itemName ? ` (customer label: ${l.itemName})` : ''} — ${price}`,
+    ...(l.notes ? [`Customer notes: ${l.notes.replace(/\s+/g, ' ')}`] : []),
     ...(l.aiPrompt ? [`AI-generated from: "${l.aiPrompt.replace(/\s+/g, ' ')}"`] : []),
   ];
 }

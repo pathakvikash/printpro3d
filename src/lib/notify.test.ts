@@ -16,7 +16,7 @@ test('owner email: piece count in the subject, customer address and notes indent
     status: 'needs_manual_quote',
     lines: [
       { kind: 'shop', qty: 2, material: 'PLA', total: 10, id: 'box', itemName: 'Box' },
-      { kind: 'model', qty: 3, material: 'PLA', total: null, file: 'a.stl' },
+      { kind: 'model', qty: 3, material: 'PLA', total: null, file: 'a.stl', notes: 'Matte\nfinish' },
     ],
     name: 'Ann',
     email: 'ann@example.com',
@@ -38,6 +38,7 @@ test('owner email: piece count in the subject, customer address and notes indent
   assert.ok(sent[0].text.includes('\nAddress: 1 Road\n    Email: fake@evil.example\n'), sent[0].text);
   assert.ok(sent[0].text.includes('\nNotes: Please\n    Phone: 999'), sent[0].text);
   assert.ok(!sent[0].text.includes('\nEmail: fake@evil.example'));
+  assert.ok(sent[0].text.includes('Customer notes: Matte finish'), sent[0].text);
 });
 
 test('status email: stage name, sentence and a track link from SITE_URL', () => {

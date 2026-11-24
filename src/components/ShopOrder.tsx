@@ -5,16 +5,17 @@ import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SHOP_CATEGORIES, shopCat, shopCatLabel, shopVisible } from '@/lib/catalog';
-import { PRODUCTS, specFromMesh, type Product } from '@/lib/shopProducts';
+import { PRODUCT_CARDS, type ProductCard } from '@/lib/productCards';
+import { blueprintData } from '@/lib/blueprint';
+import { MATERIALS, quote } from '@/lib/quote';
 import { buildOffThread } from '@/lib/buildOffThread';
 import type { MaterialKey } from '@/lib/quote';
 import { money } from './ContactFields';
 import { SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
 import { TEMPLATES } from '@/lib/templateDefs';
-import { ComingSoon, TemplateCard } from './TemplateShop';
-import { KITS } from '@/lib/kits';
-import { KitCard } from './KitShop';
+import { KIT_METAS } from '@/lib/kitMeta';
+import { ComingSoon, KitCardLight, TemplateCardLight } from './ShopCards';
 import { CardActions, CardFrame, chipClass, useAdded, useReduceMotion } from './ShopParts';
 
 // the 3D preview code loads only when a card first scrolls into view
@@ -22,19 +23,30 @@ const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false })
 const MAX_CANVASES = 6; // live card previews at once
 
 function ShopCard({ p, live, reduceMotion, setVisible }: {
-  p: Product; live: boolean; reduceMotion: boolean; setVisible: (id: string, v: boolean) => void;
+  p: ProductCard; live: boolean; reduceMotion: boolean; setVisible: (id: string, v: boolean) => void;
 }) {
-  const { item, ex, dims } = p;
+  const { item, ex } = p;
   const { lines, add, toast } = useCart();
   const [added, setAdded] = useAdded();
   // the print mesh is built in a worker: building every card's CSG during hydration blocked the page for ~0.7 s on desktop
   const [mesh, setMesh] = useState<Float32Array | null>();
   useEffect(() => {
     let on = true;
-    buildOffThread(ex.shapes).then((m) => on && setMesh(m), () => on && setMesh(null));
+    buildOffThread(ex.shapes).then((m) => {
+      if (!on) return;
+      setMesh(m);
+      // the product page reuses the mesh instead of building it again (the chunk is loaded by the previews anyway)
+      if (m) void import('@/lib/shopProducts').then((sp) => { const full = sp.productById(item.id); if (full) sp.keepMesh(full, m); });
+    }, () => on && setMesh(null));
     return () => { on = false; };
-  }, [ex.shapes]);
-  const spec = useMemo(() => (mesh === undefined ? null : specFromMesh(p, mesh, item.material)), [p, mesh, item.material]);
+  }, [ex.shapes, item.id]);
+  // size and weight from the mesh, never typed in (same numbers as the product page's specFromMesh)
+  const spec = useMemo(() => {
+    if (mesh === undefined) return null;
+    const D = mesh ? blueprintData(mesh, item.material) : null;
+    const grams = D?.stats && Object.hasOwn(MATERIALS, item.material) ? quote(D.stats, item.material, 1).grams : null;
+    return { grams, size: D ? `${D.size.x.toFixed(1)} × ${D.size.y.toFixed(1)} × ${D.size.z.toFixed(1)} mm` : 'n/a' };
+  }, [mesh, item.material]);
   const box = useRef<HTMLDivElement>(null);
   const inCart = lines.find((l) => l.kind === 'shop' && l.id === item.id);
 
@@ -50,7 +62,7 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
   }, [item.id, item.photo, setVisible]);
 
   const rows: [string, string][] = [
-    ['Size', dims],
+    ['Size', spec ? spec.size : '…'],
     ['Material', item.material],
     ['Weight', !spec ? '…' : spec.grams != null ? `about ${spec.grams.toFixed(1)} g` : 'n/a'],
     ['Price', `${money.format(item.price)} each`],
@@ -108,9 +120,9 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
     (cat === 'all' || cats === cat) && (!needle || text.join(' ').toLowerCase().includes(needle));
   // templates are shown on /shop; the home page (limit) keeps showing the fixed parts
   const tpls = limit === undefined ? shopVisible(TEMPLATES).filter((t) => match(shopCat(t.id) ?? '', t.name, t.blurb, t.material, shopCatLabel(shopCat(t.id) ?? ''))) : [];
-  const kits = limit === undefined ? KITS.filter((k) => match(k.category, k.title, k.blurb, 'kit', shopCatLabel(k.category))) : [];
-  const shown = PRODUCTS.filter((p) => match(shopCat(p.item.id) ?? '', p.item.name, p.item.description, p.item.material, shopCatLabel(shopCat(p.item.id) ?? ''))).slice(0, limit);
-  const chips = [{ id: 'all', label: 'All' }, ...SHOP_CATEGORIES.filter((c) => PRODUCTS.some((p) => shopCat(p.item.id) === c.id) || KITS.some((k) => k.category === c.id) || TEMPLATES.some((t) => shopCat(t.id) === c.id))];
+  const kits = limit === undefined ? KIT_METAS.filter((k) => match(k.category, k.title, k.blurb, 'kit', shopCatLabel(k.category))) : [];
+  const shown = PRODUCT_CARDS.filter((p) => match(shopCat(p.item.id) ?? '', p.item.name, p.item.description, p.item.material, shopCatLabel(shopCat(p.item.id) ?? ''))).slice(0, limit);
+  const chips = [{ id: 'all', label: 'All' }, ...SHOP_CATEGORIES.filter((c) => PRODUCT_CARDS.some((p) => shopCat(p.item.id) === c.id) || KIT_METAS.some((k) => k.category === c.id) || TEMPLATES.some((t) => shopCat(t.id) === c.id))];
   const live = new Set(visible.slice(0, MAX_CANVASES));
 
   return (
@@ -137,9 +149,9 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
         </div>
       )}
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {kits.map((k) => <KitCard key={k.id} kit={k} />)}
+        {kits.map((k) => <KitCardLight key={k.id} kit={k} />)}
         {tpls.map((t) => (
-          <TemplateCard key={t.id} t={t} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
+          <TemplateCardLight key={t.id} t={t} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
         ))}
         {shown.map((p) => (
           <ShopCard key={p.item.id} p={p} live={live.has(p.item.id)} reduceMotion={reduceMotion} setVisible={setVisible} />

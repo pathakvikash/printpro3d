@@ -54,5 +54,5 @@ export const updateItem = (items: MyItem[], id: string, patch: Partial<Pick<MyIt
 /** The cart line for Order again: the plain 'model' line the quote page adds; colour rides in the label the owner sees. */
 export function toCartLine(i: MyItem, estimate: number | null): CartLine {
   const label = (i.colour ? `${i.name} (${i.colour})` : i.name).slice(0, 80);
-  return { kind: 'model', file: i.file, label, material: i.material, qty: i.qty, estimate };
+  return { kind: 'model', file: i.file, label, ...(i.notes ? { notes: i.notes } : {}), material: i.material, qty: i.qty, estimate };
 }

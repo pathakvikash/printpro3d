@@ -15,7 +15,7 @@ export type Checked =
   | { n: number; kind: 'shop'; item: Item; qty: number }
   | { n: number; kind: 'tpl'; tpl: TemplateDef; cfg: Cfg; qty: number }
   | { n: number; kind: 'kit'; id: string; cfg: Cfg; qty: number } // one printed part of a kit; id = `<kitId>:<partId>`
-  | { n: number; kind: 'model'; file: string; material: string; qty: number; label?: string } // label: customer's name/colour note, shown to the owner, never priced
+  | { n: number; kind: 'model'; file: string; material: string; qty: number; label?: string; notes?: string } // label, notes: customer's name/colour note and notes, shown to the owner, never priced
   | { n: number; kind: 'design'; project: string; material: string; qty: number };
 
 // Each template line is a CSG rebuild on the server (up to ~1 s, several when the kernel needs retries), so an
@@ -87,5 +87,6 @@ export function checkEntry(raw: unknown, n: number): Checked {
   if (!file) throw fail('file is required');
   if (!isModelFile(file)) throw fail('not a model file'); // e.g. an image from an idea request
   const label = typeof o.label === 'string' ? o.label.replace(/[\s\p{Cc}]+/gu, ' ').trim().slice(0, 80) : '';
-  return { n, kind: 'model', file, material: o.material, qty, ...(label ? { label } : {}) };
+  const notes = typeof o.notes === 'string' ? o.notes.replace(/[\s\p{Cc}]+/gu, ' ').trim().slice(0, 300) : '';
+  return { n, kind: 'model', file, material: o.material, qty, ...(label ? { label } : {}), ...(notes ? { notes } : {}) };
 }

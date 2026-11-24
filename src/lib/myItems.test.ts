@@ -28,6 +28,11 @@ test('removeItem and updateItem', () => {
   assert.equal(updateItem(l, 'a', { qty: 500 }).length, 1); // an invalid edit drops the item, never keeps a bad one
 });
 
+test('toCartLine carries notes (capped, only when set)', () => {
+  assert.equal((toCartLine({ ...item(), notes: 'Matte' }, null) as { notes?: string }).notes, 'Matte');
+  assert.equal('notes' in toCartLine({ ...item(), notes: '' }, null), false);
+});
+
 test('toCartLine is a plain model line', () => {
   assert.deepEqual(toCartLine(item(), null), { kind: 'model', file: FILE, label: 'Part (red)', material: 'PLA', qty: 2, estimate: null });
 });
