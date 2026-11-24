@@ -44,7 +44,9 @@ export const SHOP_CATEGORIES = [
 ] as const;
 export type ShopCategory = (typeof SHOP_CATEGORIES)[number]['id'];
 const SHOP_CAT: Record<string, ShopCategory> = {
-  'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc',
+  'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc', 'gps-antenna-mount': 'drone-rc', 'landing-gear': 'drone-rc', 'prop-guard': 'drone-rc', 'rc-bumper': 'drone-rc', 'battery-tray': 'drone-rc', 'wheel-hub': 'drone-rc',
+  'servo-bracket': 'robotics', 'robot-chassis': 'robotics', 'robot-gripper': 'robotics',
+  'fpv-3in-kit': 'drone-rc', 'rover-kit': 'robotics',
   'motor-mount': 'robotics', 'motor-wheel': 'robotics', 'spacer-set': 'robotics', 'board-case': 'robotics', 'pi-case': 'robotics', 'enclosure-box': 'robotics',
   'spinner-toy': 'toys-hobby', pawn: 'toys-hobby',
   'grid-bin': 'accessories',

@@ -9,6 +9,9 @@ import { cfgKey, normalizeCfg, templateById, type Cfg } from './templateDefs.ts'
 
 export const MAX_LINES = 20;
 export const MAX_SAVED = 50;
+// Each template line is a server CSG rebuild at checkout, so an order carries at most this many distinct configured parts
+// (checked in /api/orders via orderChecks, and before a kit is added to the cart).
+export const MAX_TPL_LINES = 5;
 
 export type CartLine =
   | { kind: 'shop'; id: string; qty: number }

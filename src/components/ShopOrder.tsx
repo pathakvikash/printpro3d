@@ -13,6 +13,8 @@ import { QtyStepper, SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
 import { TEMPLATES } from '@/lib/templateDefs';
 import { ComingSoon, TemplateCard } from './TemplateShop';
+import { KITS } from '@/lib/kits';
+import { KitCard } from './KitShop';
 import { addBtn, AddLabel, CardFrame, chipClass, useAdded, useReduceMotion } from './ShopParts';
 
 // the 3D preview code loads only when a card first scrolls into view
@@ -119,8 +121,9 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
     (cat === 'all' || cats === cat) && (!needle || text.join(' ').toLowerCase().includes(needle));
   // templates are shown on /shop; the home page (limit) keeps showing the fixed parts
   const tpls = limit === undefined ? shopVisible(TEMPLATES).filter((t) => match(shopCat(t.id) ?? '', t.name, t.blurb, t.material, shopCatLabel(shopCat(t.id) ?? ''))) : [];
+  const kits = limit === undefined ? KITS.filter((k) => match(k.category, k.title, k.blurb, 'kit', shopCatLabel(k.category))) : [];
   const shown = PRODUCTS.filter((p) => match(shopCat(p.item.id) ?? '', p.item.name, p.item.description, p.item.material, shopCatLabel(shopCat(p.item.id) ?? ''))).slice(0, limit);
-  const chips = [{ id: 'all', label: 'All' }, ...SHOP_CATEGORIES.filter((c) => PRODUCTS.some((p) => shopCat(p.item.id) === c.id) || TEMPLATES.some((t) => shopCat(t.id) === c.id))];
+  const chips = [{ id: 'all', label: 'All' }, ...SHOP_CATEGORIES.filter((c) => PRODUCTS.some((p) => shopCat(p.item.id) === c.id) || KITS.some((k) => k.category === c.id) || TEMPLATES.some((t) => shopCat(t.id) === c.id))];
   const live = new Set(visible.slice(0, MAX_CANVASES));
 
   return (
@@ -147,6 +150,7 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
         </div>
       )}
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {kits.map((k) => <KitCard key={k.id} kit={k} />)}
         {tpls.map((t) => (
           <TemplateCard key={t.id} t={t} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
         ))}
@@ -154,7 +158,7 @@ export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => v
           <ShopCard key={p.item.id} p={p} live={live.has(p.item.id)} reduceMotion={reduceMotion} setVisible={setVisible} />
         ))}
       </ul>
-      {tpls.length + shown.length === 0 && (
+      {kits.length + tpls.length + shown.length === 0 && (
         <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
           No parts match. <button type="button" className="text-indigo-600 underline dark:text-indigo-400" onClick={() => { setQ(''); setUrl({ cat: 'all', q: '' }); }}>Clear filters</button>
         </p>

@@ -128,6 +128,87 @@ export const TEMPLATES: TemplateDef[] = [
     ],
     marketLinks: [],
   },
+  {
+    id: 'gps-antenna-mount', name: 'GPS puck mount', category: 'drone', material: 'PETG', colour: 'black',
+    blurb: 'A stack-clamp base with a mast and a platform for a GPS puck, an optional antenna tube hole and an optional 15 degree tilt. Hole patterns and puck sizes are typical: check your stack and puck.',
+    fields: [
+      sel('pattern', 'M3 hole spacing', [['20', '20 x 20 mm'], ['30.5', '30.5 x 30.5 mm']], '30.5'),
+      rng('puck', 'GPS puck size', 20, 30, 1, 25, 'mm', 'Typical pucks are about 20 to 30 mm across'),
+      sel('tube', 'Antenna tube hole', [['0', 'None'], ['4', '4 mm'], ['6', '6 mm'], ['8', '8 mm']], '0'),
+      bool('tilt', 'Tilt the platform 15 degrees', false),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'landing-gear', name: 'Landing gear skids (pair)', category: 'drone', material: 'TPU', colour: 'black',
+    blurb: 'Two skid legs with a bolt pad on top and a flat foot. TPU absorbs hard landings; PETG is stiffer.',
+    fields: [
+      rng('height', 'Leg height', 30, 90, 5, 50), rng('foot', 'Foot skid width', 8, 20, 1, 12), rng('pad', 'Arm pad width', 10, 24, 1, 14, 'mm', 'Width of the arm or plate the pad bolts under'),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'prop-guard', name: 'Prop guard ring (one motor)', category: 'drone', material: 'TPU', colour: 'black or bright',
+    blurb: 'A ring guard for one propeller, sized for a 2 to 5 inch prop, held by four spokes to a motor plate, with four tabs for bolting to an arm. Print one per motor.',
+    fields: [
+      sel('prop', 'Propeller size', [['2', '2 inch'], ['3', '3 inch'], ['4', '4 inch'], ['5', '5 inch']], '3'),
+      rng('height', 'Ring height', 8, 25, 1, 12),
+      sel('motor', 'Motor hole pattern', [['12', '12 x 12 mm (M2, typical)'], ['16', '16 x 16 mm (M3, typical)']], '16'),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'rc-bumper', name: 'RC bumper plate', category: 'drone', material: 'TPU', colour: 'black',
+    blurb: 'A flat bumper plate for an RC car or rover with two mounting holes at the spacing you set and rectangular cutouts to save weight.',
+    fields: [
+      rng('width', 'Bumper width', 100, 200, 5, 140), rng('spacing', 'Mounting hole spacing', 30, 80, 5, 60), rng('t', 'Thickness', 3, 8, 1, 4),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'battery-tray', name: 'Battery tray with strap slots', category: 'drone', material: 'PETG', colour: 'black',
+    blurb: 'A tray for a battery pack you size by length, width and height, with side flanges and slots for a hook-and-loop or nylon strap.',
+    fields: [
+      rng('l', 'Battery length', 40, 120, 1, 70), rng('w', 'Battery width', 15, 60, 1, 35), rng('h', 'Tray wall height', 10, 40, 1, 22), rng('strap', 'Strap width', 8, 20, 1, 12),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'servo-bracket', name: 'Servo bracket', category: 'robotics', material: 'PETG', colour: 'black',
+    blurb: 'An L bracket that holds a standard servo through a window, with ear holes and base holes. Servo sizes are typical for each class: measure yours.',
+    fields: [
+      sel('servo', 'Servo size', [['sg90', 'SG90 / MG90 class (23 x 12.5 mm body, typical)'], ['mg995', 'MG995 / MG996 class (40.5 x 20 mm body, typical)']], 'sg90'),
+      rng('t', 'Wall thickness', 3, 6, 0.5, 4),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'robot-chassis', name: 'Robot chassis plate (2WD / 4WD)', category: 'robotics', material: 'PETG', colour: 'any',
+    blurb: 'A flat chassis plate with TT motor slots, a caster hole for 2WD and two rows of M3 holes for boards. Motor and caster patterns are typical: check your parts.',
+    fields: [
+      sel('drive', 'Drive', [['2wd', '2WD (2 motors and a caster hole)'], ['4wd', '4WD (4 motors)']], '2wd'),
+      rng('l', 'Length', 120, 200, 5, 160), rng('w', 'Width', 90, 140, 5, 110),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'robot-gripper', name: 'Servo gripper (base and jaws)', category: 'robotics', material: 'PETG', colour: 'any',
+    blurb: 'A simple two-jaw gripper: a base with a servo window and two flat jaws that pivot on M3 bolts. Servo size is typical for an SG90-class servo: measure yours. Prints flat without supports.',
+    fields: [
+      rng('open', 'Jaw pivot spacing', 24, 60, 2, 36, 'mm', 'Distance between the two jaw pivot holes on the base'), rng('len', 'Jaw length', 36, 60, 2, 44),
+    ],
+    marketLinks: [],
+  },
+  {
+    id: 'wheel-hub', name: 'Wheel hub (hex or round bore)', category: 'drone', material: 'PETG', colour: 'black',
+    blurb: 'A spoked wheel hub with a hex drive hole (12 or 17 mm, typical RC sizes) or a plain round bore, and a spoke count you choose.',
+    fields: [
+      sel('drive', 'Centre hole', [['hex12', '12 mm hex drive (typical)'], ['hex17', '17 mm hex drive (typical)'], ['round', 'Round shaft bore']], 'hex12'),
+      rng('bore', 'Round bore diameter', 3, 10, 0.5, 5, 'mm', 'Used only with Round shaft bore'),
+      rng('od', 'Outer diameter', 50, 120, 5, 70), rng('spokes', 'Spokes', 3, 8, 1, 5, ''),
+    ],
+    marketLinks: [],
+  },
 ];
 
 export const COMING_SOON: { id: string; name: string }[] = [];

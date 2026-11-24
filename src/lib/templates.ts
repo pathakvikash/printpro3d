@@ -316,6 +316,189 @@ function droneMount(c: Cfg): Built {
   };
 }
 
+// ---------- drone / RC / robotics additions ----------
+// Sizes marked "typical" are common published values for each class of part, not a spec for one product: the descriptions say so.
+
+const hcylY = (d: number, x: number, y: number, z: number, len: number) => S('cylinder', [d, d, len], [x, y, z], 'hole', [90, 0, 0]); // hole along Y
+const rotZ = (size: V, pos: V, deg: number, mode: Shape['mode'] = 'solid') => S('box', size, pos, mode, [0, 0, deg]);
+
+// ---- GPS puck mount ----
+function gpsMount(c: Cfg): Built {
+  const s = Number(c.pattern), puck = c.puck as number, tube = Number(c.tube), tilt = !!c.tilt;
+  const T = 3, MAST = 14, PZ = 24, PT = tilt ? 7 : 3, P = puck + 12; // base thickness, mast width, platform centre height, platform thickness (thick enough that the mast top stays inside it when tilted) and side
+  const X = s + 8;
+  const sh: Shape[] = [
+    box([X, X, T], [0, 0, T / 2]),
+    box([MAST, MAST, tilt ? PZ : PZ - 1], [0, 0, (tilt ? PZ : PZ - 1) / 2]),
+    S('box', [P, P, PT], [0, 0, PZ], 'solid', [tilt ? 15 : 0, 0, 0]),
+  ];
+  let holes = 0;
+  for (const x of [-s / 2, s / 2]) for (const y of [-s / 2, s / 2]) { sh.push(cyl(3.2, x, y, -1, T + 1, 'hole')); holes++; }
+  for (const k of [-1, 1]) { sh.push(box([3, 10, 14], [k * (puck / 2 + 3.5), 0, PZ], 'hole')); holes++; }
+  if (tube > 0) { sh.push(cyl(tube, 0, 0, -1, PZ + 12, 'hole')); holes++; }
+  return {
+    shapes: sh, holes, parts: 1,
+    description: `A GPS puck mount: a ${r1(X)} mm square base with 4 M3 holes (3.2 mm) on a ${s} × ${s} mm stack pattern, a ${MAST} mm square mast and a ${r1(P)} mm square platform for a GPS puck about ${r1(puck)} mm across (typical size: measure yours)${tilt ? ', tilted 15 degrees' : ', level'}. Two 3 × 10 mm slots through the platform take a zip tie. ${tube > 0 ? `A ${tube} mm hole runs down the middle for an antenna tube or cable.` : 'No antenna tube hole.'} Smaller stacks often use M2: check your stack. Suggested material: PETG.`,
+  };
+}
+
+// ---- landing gear ----
+function landingGear(c: Cfg): Built {
+  const H = c.height as number, foot = c.foot as number, pad = c.pad as number;
+  const post = Math.min(pad, foot), pitch = Math.max(pad, foot) + 10;
+  const sh: Shape[] = [];
+  for (const k of [-1, 1]) {
+    const y = k * pitch / 2;
+    sh.push(box([60, foot, 4], [0, y, 2]), box([8, post, H], [0, y, H / 2]), box([30, pad, 4], [0, y, H - 2]));
+  }
+  for (const k of [-1, 1]) for (const x of [-10, 10]) sh.push(cyl(3.2, x, k * pitch / 2, H - 5, H + 1, 'hole'));
+  return {
+    shapes: sh, holes: 4, parts: 2,
+    description: `A pair of skid legs, each ${r1(H)} mm tall with a 60 mm long, ${r1(foot)} mm wide foot skid and a 30 × ${r1(pad)} mm pad on top with 2 M3 bolt holes (3.2 mm, 20 mm apart) to bolt under an arm or plate. Pad and bolt spacing are typical: check your frame. Suggested material: TPU (PETG for a stiffer gear).`,
+  };
+}
+
+// ---- prop guard ----
+const PROP_CLEAR = 3; // mm of clearance between the prop tip and the ring wall
+function propGuard(c: Cfg): Built {
+  const inch = Number(c.prop), H = c.height as number, sp = Number(c.motor);
+  const WALL = 2, HUB_T = 3;
+  const ringIn = (inch * 25.4) / 2 + PROP_CLEAR, ringOut = ringIn + WALL;
+  const hubR = (sp * Math.SQRT2) / 2 + 4.5;
+  const sh: Shape[] = [cyl(2 * ringOut, 0, 0, 0, H), cyl(2 * ringIn, 0, 0, -1, H + 1, 'hole')];
+  for (let i = 0; i < 4; i++) {
+    const a = ((45 + 90 * i) * Math.PI) / 180, r = ringOut + 3;
+    sh.push(rotZ([14, 12, 3], [r * Math.cos(a), r * Math.sin(a), 1.5], 45 + 90 * i));
+    sh.push(cyl(3.2, (ringOut + 6.5) * Math.cos(a), (ringOut + 6.5) * Math.sin(a), -1, 4, 'hole'));
+  }
+  sh.push(late(cyl(2 * hubR, 0, 0, 0, HUB_T)));
+  for (let i = 0; i < 4; i++) {
+    const a = (90 * i * Math.PI) / 180, len = ringIn - hubR + 2, r = (hubR + ringIn) / 2;
+    sh.push(late(rotZ([len, 4, HUB_T], [r * Math.cos(a), r * Math.sin(a), HUB_T / 2], 90 * i)));
+  }
+  const hd = sp === 12 ? 2.2 : 3.2;
+  sh.push(late(cyl(6, 0, 0, -1, HUB_T + 1, 'hole')));
+  for (const x of [-sp / 2, sp / 2]) for (const y of [-sp / 2, sp / 2]) sh.push(late(cyl(hd, x, y, -1, HUB_T + 1, 'hole')));
+  return {
+    shapes: sh, holes: 13, parts: 1,
+    description: `A ring guard for one ${inch} inch propeller: ${r1(2 * ringIn)} mm inside diameter (${PROP_CLEAR} mm clearance at the blade tips for a nominal ${inch} inch prop), ${WALL} mm wall, ${r1(H)} mm tall. It is held by 4 spokes to a ${HUB_T} mm motor plate with a 6 mm centre hole and 4 holes (${hd} mm) on a ${sp} × ${sp} mm pattern (typical for ${sp === 12 ? 'M2' : 'M3'} motors: check your motor), and has 4 outer tabs with a 3.2 mm hole each for bolting to an arm. Print one per motor. Suggested material: TPU.`,
+  };
+}
+
+// ---- RC bumper ----
+function rcBumper(c: Cfg): Built {
+  const W = c.width as number, sp = c.spacing as number, t = c.t as number;
+  const D = 44, CW = 10, CH = 18, PITCH = 16;
+  const n = Math.floor((W - 2 * 12 - CW) / PITCH) + 1; // windows stay 12 mm clear of each end
+  const sh: Shape[] = [box([W, D, t], [0, 0, t / 2])];
+  // cutouts first, mounting holes last: the CSG kernel left an open edge when small round holes came first
+  for (let i = 0; i < n; i++) sh.push(box([CW, CH, t + 2], [(i - (n - 1) / 2) * PITCH, 4, t / 2], 'hole'));
+  for (const x of [-sp / 2, sp / 2]) sh.push(cyl(3.2, x, -16, -1, t + 1, 'hole'));
+  return {
+    shapes: sh, holes: 2 + n, parts: 1,
+    description: `A flat front bumper plate ${r1(W)} × ${D} × ${r1(t)} mm with 2 M3 mounting holes (3.2 mm) ${r1(sp)} mm apart and a row of ${n} rectangular ${CW} × ${CH} mm cutouts for less weight and some give. Hole spacing is yours to match: measure your chassis. Suggested material: TPU.`,
+  };
+}
+
+// ---- battery tray ----
+function batteryTray(c: Cfg): Built {
+  const L = c.l as number, W = c.w as number, H = c.h as number, sw = c.strap as number;
+  const w = 2, F = 12, T = 3;
+  const two = L >= 2 * (sw + 5);
+  const OL = L + 2 * w, OW = W + 2 * w;
+  const sh: Shape[] = [
+    box([OL, OW, H + T], [0, 0, (H + T) / 2]),
+    box([OL, OW + 2 * F, T], [0, 0, T / 2]),
+    box([L, W, H + 1], [0, 0, T + (H + 1) / 2], 'hole'),
+    box([14, w + 2, H * 0.6 + 1], [0, W / 2 + w / 2, H + T - (H * 0.6) / 2 + 0.5], 'hole'), // lead notch open at the top: not a through hole
+  ];
+  const xs = two ? [-L / 4, L / 4] : [0];
+  let holes = 0;
+  for (const x of xs) for (const k of [-1, 1]) { sh.push(box([sw + 1, 3, T + 2], [x, k * (OW / 2 + F / 2), T / 2], 'hole')); holes++; }
+  return {
+    shapes: sh, holes, parts: 1,
+    description: `A tray for a battery up to ${r1(L)} × ${r1(W)} × ${r1(H)} mm (inside size) with 2 mm walls, a 3 mm floor and a 14 mm lead notch in one long wall. ${xs.length} strap${xs.length > 1 ? 's' : ''} ${r1(sw)} mm wide: each goes down one ${r1(sw + 1)} × 3 mm slot in the side flange, under the tray and up the other (${holes} slots). Suggested material: PETG.`,
+  };
+}
+
+// ---- servo bracket ----
+const SERVOS = {
+  sg90: { name: 'SG90 / MG90 class', bl: 23, bw: 12.5, span: 28, hd: 2.2 },
+  mg995: { name: 'MG995 / MG996 class', bl: 40.5, bw: 20, span: 49.5, hd: 4.2 },
+} as const;
+function servoBracket(c: Cfg): Built {
+  const k = SERVOS[c.servo as keyof typeof SERVOS], t = c.t as number;
+  const Lp = k.span + 16, D = 26, winX = k.bl + 0.6, winZ = k.bw + 0.6, zc = t + 6 + winZ / 2, Hw = t + 12 + winZ, wy = -D / 2 + t / 2;
+  const sh: Shape[] = [box([Lp, D, t], [0, 0, t / 2]), box([Lp, t, Hw], [0, wy, Hw / 2])];
+  sh.push(box([winX, t + 2, winZ], [0, wy, zc], 'hole'));
+  for (const x of [-k.span / 2, k.span / 2]) sh.push(hcylY(k.hd, x, wy, zc, t + 2));
+  for (const x of [-(Lp / 2 - 5), Lp / 2 - 5]) for (const y of [-1, 8]) sh.push(cyl(3.2, x, y, -1, t + 1, 'hole'));
+  return {
+    shapes: sh, holes: 7, parts: 1,
+    description: `An L bracket for a ${k.name} servo (typical body ${k.bl} × ${k.bw} mm, ears ${k.span} mm between hole centres, ${k.hd} mm ear holes: measure your servo). The servo drops through a ${r1(winX)} × ${r1(winZ)} mm window in a ${r1(t)} mm upright wall and bolts through 2 ear holes; the base has 4 M3 holes (3.2 mm). Suggested material: PETG.`,
+  };
+}
+
+// ---- robot chassis ----
+function robotChassis(c: Cfg): Built {
+  const four = c.drive === '4wd', L = c.l as number, W = c.w as number, T = 3;
+  const sh: Shape[] = [box([L, W, T], [0, 0, T / 2])];
+  const mx = four ? [-(L / 2 - 25), L / 2 - 25] : [-(L / 2 - 25)];
+  // ponytail: a plate with more than ~10 round holes often leaves an open edge in the CSG kernel, so the motor positions are slots
+  // (boxes cut reliably, and first) and the board grid is two rows, not a full grid
+  let holes = 0;
+  for (const x of mx) for (const k of [-1, 1]) { sh.push(box([23.2, 3.2, T + 2], [x, k * (W / 2 - 8), T / 2], 'hole')); holes++; }
+  const nx = Math.min(4, Math.floor((L - 90) / 30) + 1);
+  for (let i = 0; i < nx; i++) for (const k of [-1, 1]) { sh.push(cyl(3.2, (i - (nx - 1) / 2) * 30, k * 15, -1, T + 1, 'hole')); holes++; }
+  if (!four) { sh.push(cyl(4.2, L / 2 - 15, 0, -1, T + 1, 'hole')); holes++; }
+  return {
+    shapes: sh, holes, parts: 1,
+    description: `A ${r1(L)} × ${r1(W)} × ${T} mm ${four ? '4WD' : '2WD'} chassis plate. ${mx.length * 2} TT motor positions, each a 3.2 × 23.2 mm slot (it covers a typical 2-hole bracket pattern about 20 mm apart: check your motor bracket), ${four ? 'at the front and rear on both sides' : 'on both sides at the rear'}. ${four ? 'No caster hole.' : 'One 4.2 mm caster hole at the front.'} Two rows of ${nx} M3 holes (3.2 mm) at 30 mm pitch in the middle take boards and standoffs. Suggested material: PETG.`,
+  };
+}
+
+// ---- gripper ----
+function gripper(c: Cfg): Built {
+  const open = c.open as number, len = c.len as number;
+  const Bw = open + 26, Bd = 40, T = 5, JT = 4;
+  const sh: Shape[] = [box([Bw, Bd, T], [0, 0, T / 2])];
+  sh.push(box([23.6, 13.1, T + 2], [0, 6, T / 2], 'hole'));
+  for (const x of [-14, 14]) sh.push(cyl(2.2, x, 6, -1, T + 1, 'hole'));
+  for (const x of [-open / 2, open / 2]) sh.push(cyl(3.2, x, -12, -1, T + 1, 'hole'));
+  for (const x of [-(Bw / 2 - 5), Bw / 2 - 5]) sh.push(cyl(3.2, x, 13, -1, T + 1, 'hole'));
+  const jy = Bd / 2 + 6 + len / 2, pv = jy - len / 2 + 6;
+  for (const k of [-1, 1]) {
+    const x = k * 14;
+    sh.push(box([10, len, JT], [x, jy, JT / 2]), box([5, len / 2, 14], [x - k * 5.5, jy + len / 4, 7]));
+    sh.push(cyl(3.2, x, pv, -1, JT + 1, 'hole'), cyl(2.2, x, pv + 12, -1, JT + 1, 'hole'));
+  }
+  return {
+    shapes: sh, holes: 11, parts: 3,
+    description: `A gripper in 3 flat pieces: a ${r1(Bw)} × ${Bd} × ${T} mm base and 2 jaws, each ${r1(len)} mm long. The base has a 23.6 × 13.1 mm servo window with 2 ear holes (2.2 mm, 28 mm apart: sized for a typical SG90-class servo, measure yours), 2 M3 pivot holes (3.2 mm) ${r1(open)} mm apart and 2 M3 mounting holes. Each jaw has an M3 pivot hole, a 2.2 mm linkage hole and a 14 mm tall finger. The servo horn and linkage are not printed. Prints without supports.`,
+  };
+}
+
+// ---- wheel hub ----
+function wheelHub(c: Cfg): Built {
+  const drive = c.drive as string, od = c.od as number, n = c.spokes as number, bore = c.bore as number;
+  const W = 10, RIM = 4;
+  const hex = drive === 'hex12' ? 12 : drive === 'hex17' ? 17 : 0;
+  const F = hex + 0.3, s = F / Math.sqrt(3);
+  const boss = hex ? (hex === 12 ? 24 : 30) : Math.max(bore + 10, 16);
+  const rimIn = od / 2 - RIM;
+  const sh: Shape[] = [cyl(od, 0, 0, 0, W), cyl(2 * rimIn, 0, 0, -1, W + 1, 'hole'), late(cyl(boss, 0, 0, 0, W))];
+  for (let i = 0; i < n; i++) {
+    const a = ((i + 0.5) / n) * 2 * Math.PI, r = (boss / 2 + rimIn) / 2, len = rimIn - boss / 2 + 2;
+    sh.push(late(rotZ([len, 5, W - 2], [r * Math.cos(a), r * Math.sin(a), W / 2], ((i + 0.5) / n) * 360)));
+  }
+  if (hex) for (const a of [0, 60, 120]) sh.push(late(S('box', [s, F, W + 2], [0, 0, W / 2], 'hole', [0, 0, a])));
+  else sh.push(late(cyl(bore, 0, 0, -1, W + 1, 'hole')));
+  return {
+    shapes: sh, holes: n + 1, parts: 1,
+    description: `A wheel hub ${r1(od)} mm across and ${W} mm wide: a ${RIM} mm rim ring joined by ${n} spokes to a ${boss} mm centre boss. ${hex ? `The centre has a ${r1(F)} mm across-flats hex hole for a ${hex} mm hex drive (typical RC size; 0.3 mm clearance: check yours).` : `The centre has a plain round ${r1(bore)} mm bore.`} No tyre or set screw is modelled. Suggested material: PETG.`,
+  };
+}
+
 const BUILDERS: Record<string, (c: Cfg) => Built> = {
   'enclosure-box': enclosureBox,
   'board-case': boardCase,
@@ -327,6 +510,15 @@ const BUILDERS: Record<string, (c: Cfg) => Built> = {
   'motor-wheel': wheel,
   'grid-bin': gridBin,
   'drone-camera-mount': droneMount,
+  'gps-antenna-mount': gpsMount,
+  'landing-gear': landingGear,
+  'prop-guard': propGuard,
+  'rc-bumper': rcBumper,
+  'battery-tray': batteryTray,
+  'servo-bracket': servoBracket,
+  'robot-chassis': robotChassis,
+  'robot-gripper': gripper,
+  'wheel-hub': wheelHub,
 };
 
 /** The shapes and the facts for one config. cfg must already be normalised (normalizeCfg). */

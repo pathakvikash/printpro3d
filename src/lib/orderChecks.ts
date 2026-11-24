@@ -2,6 +2,7 @@
 import path from 'node:path';
 import { CATALOG, type Item } from './catalog.ts';
 import { MAX_QTY } from './quote.ts';
+import { MAX_TPL_LINES } from './cart.ts';
 import { cfgKey, normalizeCfg, templateById, type Cfg, type TemplateDef } from './templateDefs.ts';
 
 // the same model extensions /api/upload accepts (upload names keep their extension)
@@ -16,8 +17,8 @@ export type Checked =
   | { n: number; kind: 'design'; project: string; material: string; qty: number };
 
 // Each template line is a CSG rebuild on the server (up to ~1 s, several when the kernel needs retries), so an
-// order carries at most this many distinct configured parts. Keeps one request well inside the function timeout.
-export const MAX_TPL_LINES = 5;
+// order carries at most MAX_TPL_LINES distinct configured parts (defined in cart.ts). Keeps one request well inside the function timeout.
+export { MAX_TPL_LINES };
 
 // Same shop item, or same upload + material, becomes one line with the summed quantity.
 // A sum over MAX_QTY is refused, not capped: the customer must get the quantity they asked for.

@@ -9,7 +9,7 @@ import { fitsBed, quote } from './quote.ts';
 import { claim, topology } from './templates.testkit.ts';
 
 test('every template default builds a closed mesh inside the bed, and its description matches the mesh', () => {
-  assert.equal(TEMPLATES.length, 10);
+  assert.equal(TEMPLATES.length, 19);
   for (const t of TEMPLATES) {
     const { b, mesh, stats } = claim(t, defaultCfg(t));
     assert.ok(fitsBed(stats.sizeMm), `${t.id} fits the bed: ${JSON.stringify(stats.sizeMm)}`);
