@@ -55,7 +55,7 @@ export default function MaterialCards({ partVolumeCm3, selected, onSelect }: Pro
         })}
       </ul>
       <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-        Swatch colours are illustrative. A photo of real printed swatches goes here once the owner has them.
+        Swatch colours are illustrative; the printed colour may differ.
       </p>
     </div>
   );

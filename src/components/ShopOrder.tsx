@@ -106,7 +106,7 @@ function ShopCard({ p, live, reduceMotion, setVisible, onView }: {
           </button>
         </div>
       ) : (
-        <div ref={box} className="h-44 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950" aria-hidden>
+        <div ref={box} className="h-44 bg-[#ebe8e1] dark:bg-[#1b1f26]" aria-hidden>
           {live && <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} material={item.material as MaterialKey} />}
         </div>
       )}
@@ -248,26 +248,24 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
 
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="space-y-3 p-5 pt-0">
-            <div className="h-72 overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 sm:h-96">
-              {tab === 'photo' ? (
-                item.photo ? (
-                  <Image src={item.photo} alt={item.photoAlt ?? item.name} width={640} height={480} className="h-full w-full object-cover" />
-                ) : (
-                  <p className="flex h-full items-center justify-center p-6 text-center text-sm text-gray-300">A photo of the real printed part will go here.</p>
-                )
+            <div className="h-72 overflow-hidden rounded-xl bg-[#ebe8e1] dark:bg-[#1b1f26] sm:h-96">
+              {tab === 'photo' && item.photo ? (
+                <Image src={item.photo} alt={item.photoAlt ?? item.name} width={640} height={480} className="h-full w-full object-cover" />
               ) : (
                 <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} interactive material={finish} />
               )}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Drag to turn. Scroll or pinch to zoom. Layer lines are drawn at their true {LAYER_MM} mm here.</p>
             <div className="flex flex-wrap items-center gap-2">
-              <div role="group" aria-label="Preview type" className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
-                {(['3d', 'photo'] as const).map((t) => (
-                  <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={`px-3 py-1.5 text-sm font-medium ${tab === t ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`}>
-                    {t === '3d' ? '3D' : 'Photo'}
-                  </button>
-                ))}
-              </div>
+              {item.photo && ( // no photo yet: no Photo tab, nothing placeholder-like shown to customers
+                <div role="group" aria-label="Preview type" className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
+                  {(['3d', 'photo'] as const).map((t) => (
+                    <button key={t} type="button" aria-pressed={tab === t} onClick={() => setTab(t)} className={`px-3 py-1.5 text-sm font-medium ${tab === t ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`}>
+                      {t === '3d' ? '3D' : 'Photo'}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button type="button" aria-pressed={sheet} onClick={() => setSheet((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">
                 <Icon name="grid" />Blueprint {sheet ? '↑' : '↓'}
               </button>
@@ -312,7 +310,7 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
         <section aria-labelledby={`${titleId}-mat`} className="border-t border-gray-200 p-5 dark:border-gray-800">
           <h3 id={`${titleId}-mat`} className="text-lg font-semibold text-gray-900 dark:text-white">Pick a material, see it on the part</h3>
           <p className="mb-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Choosing a material changes the finish on the 3D view above and the estimated weight of this part. Notes are the ones already on the materials page.
+            Choosing a material changes the finish on the 3D view above and the estimated weight of this part.
           </p>
           <MaterialCards partVolumeCm3={spec.volume ?? undefined} selected={finish} onSelect={setFinish} />
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Sold in {item.material}. Other finishes are a preview only.</p>
@@ -328,8 +326,8 @@ function ItemDialog({ p, reduceMotion, onClose }: { p: Product; reduceMotion: bo
   );
 }
 
-// embedded: used on the home page, where the grid is wider and gets three columns on large screens; limit: show only the first n parts, no filter chips
-export default function ShopOrder({ onWholesale, embedded = false, limit }: { onWholesale: () => void; embedded?: boolean; limit?: number }) {
+// limit: show only the first n parts, no filter chips (the home page)
+export default function ShopOrder({ onWholesale, limit }: { onWholesale: () => void; limit?: number }) {
   const reduceMotion = useReduceMotion();
   const [visible, setVisibleSet] = useState<string[]>([]);
   const [cat, setCat] = useState('all');
@@ -368,7 +366,7 @@ export default function ShopOrder({ onWholesale, embedded = false, limit }: { on
           ))}
         </div>
       )}
-      <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${embedded ? 'lg:grid-cols-3' : ''}`}>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tpls.map((t, i) => (
           <TemplateCard key={t.id} t={t} index={i} live={live.has(t.id)} reduceMotion={reduceMotion} setVisible={setVisible} onView={onView} />
         ))}

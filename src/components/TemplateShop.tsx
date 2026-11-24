@@ -64,7 +64,7 @@ export function TemplateCard({ t, index, live, reduceMotion, setVisible, onView 
 
   return (
     <li className="flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <div ref={box} className="h-44 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950" aria-hidden>
+      <div ref={box} className="h-44 bg-[#ebe8e1] dark:bg-[#1b1f26]" aria-hidden>
         {live && r?.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} material={t.material} />}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
@@ -208,7 +208,7 @@ export function TemplateDialog({ t, reduceMotion, onClose }: { t: TemplateDef; r
 
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="space-y-3 p-5 pt-0">
-            <div className="relative h-72 overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 sm:h-96">
+            <div className="relative h-72 overflow-hidden rounded-xl bg-[#ebe8e1] dark:bg-[#1b1f26] sm:h-96">
               {r.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} interactive material={t.material} />}
               {pending && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}
             </div>

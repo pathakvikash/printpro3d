@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Shop ready-made parts - PrintPro3D',
 
 export default function ShopPage() {
   return (
-    <PageShell title="Shop" lead="Our own designs, printed to order. Tap a part to see it in 3D.">
+    <PageShell wide title="Shop" lead="Our own designs, printed to order. Tap a part to see it in 3D.">
       <ShopRoute />
     </PageShell>
   );

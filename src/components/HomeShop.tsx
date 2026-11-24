@@ -48,7 +48,7 @@ export default function HomeShop() {
 
   return (
     <div ref={box}>
-      {near ? <ShopOrder embedded limit={3} onWholesale={() => router.push('/request')} /> : <ShopSkeleton />}
+      {near ? <ShopOrder limit={3} onWholesale={() => router.push('/request')} /> : <ShopSkeleton />}
     </div>
   );
 }
