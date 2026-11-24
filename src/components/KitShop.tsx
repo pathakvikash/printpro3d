@@ -9,7 +9,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprintData } from '@/lib/blueprint';
 import { kitBlocked, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
-import { quote, SETUP_FEE } from '@/lib/quote';
+import * as THREE from 'three';
+import { prepGeometry } from './PrintMaterial';
+import type { V3 } from '@/lib/assembly';
+import { meshStats, quote, SETUP_FEE } from '@/lib/quote';
 import { normalizeCfg, templateById } from '@/lib/templateDefs';
 import { buildTemplate } from '@/lib/templates';
 import { buildOffThread } from '@/lib/buildOffThread';
@@ -20,6 +23,7 @@ import { useCart } from './CartProvider';
 import { addBtn, AddLabel, BackToShop, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
+const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
 type Part = { item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
 
@@ -53,6 +57,32 @@ function useParts(kit: Kit): Part[] {
     }
     return { item: b.item, name: b.name, material: b.material, shapes: b.shapes, mesh, unit, total };
   });
+}
+
+// The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
+function FinishedBuild({ kit, parts }: { kit: Kit; parts: Part[] }) {
+  const built = useMemo(() => {
+    if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
+    const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
+    for (const p of parts) {
+      const st = meshStats(p.mesh!);
+      if (!st) return null;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(p.mesh!, 3));
+      geometries[p.item.templateId] = prepGeometry(g);
+      sizes[p.item.templateId] = [st.sizeMm.x, st.sizeMm.y, st.sizeMm.z];
+    }
+    return { geometries, assembly: kit.assembly(sizes) };
+  }, [kit, parts]);
+  useEffect(() => () => { if (built) Object.values(built.geometries).forEach((g) => g.dispose()); }, [built]);
+  if (!kit.assembly) return null;
+  return (
+    <section aria-labelledby="kit-finished" className="space-y-2">
+      <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
+      {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
+      <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.</p>
+    </section>
+  );
 }
 
 export function KitCard({ kit }: { kit: Kit }) {
@@ -94,6 +124,7 @@ export function KitDetail({ kit }: { kit: Kit }) {
         <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{kit.title}</h1>
         <p className="mt-2 max-w-3xl text-gray-700 dark:text-gray-300">{kit.blurb}</p>
       </div>
+      <FinishedBuild kit={kit} parts={parts} />
       <section aria-labelledby="kit-parts" className="space-y-3">
         <h2 id="kit-parts" className="text-lg font-semibold text-gray-900 dark:text-white">Printed parts in this kit</h2>
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
