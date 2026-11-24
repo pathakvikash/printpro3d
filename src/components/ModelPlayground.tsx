@@ -173,7 +173,7 @@ export default function ModelPlayground() {
 
       <section aria-label="Material preview" className="space-y-3">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Material preview</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-300">Pick a material to see its finish on the model above{stats ? ' and this part&apos;s weight in it' : ''}.</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">Pick a material to see its finish on the model above{stats ? " and this part's weight in it" : ''}.</p>
         <MaterialCards selected={material} onSelect={setMaterial} partVolumeCm3={stats?.volumeCm3} />
         <p className="text-xs text-gray-600 dark:text-gray-400">{KEYS.length} materials, same prices and weights as Get a quote.</p>
       </section>
