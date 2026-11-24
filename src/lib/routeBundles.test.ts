@@ -9,3 +9,9 @@ test('RoutePages only statically imports next/dynamic and next/navigation', () =
   const froms = [...src.matchAll(/^import[^;]*?from\s+'([^']+)'/gm)].map((m) => m[1]);
   assert.deepEqual(froms.sort(), ['next/dynamic', 'next/navigation']);
 });
+
+test('UploadForm (/quote) loads ModelViewer, and three with it, only through next/dynamic', () => {
+  const src = readFileSync(new URL('../components/UploadForm.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /^import[^;]*from\s+'\.\/ModelViewer'/m);
+  assert.match(src, /dynamic\(\(\) => import\('\.\/ModelViewer'\)/);
+});

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import ModelViewer from './ModelViewer';
+import dynamic from 'next/dynamic';
 import QuoteOrder from './QuoteOrder';
 import type { MaterialKey, MeshStats } from '@/lib/quote';
 import { canGoDirect } from '@/lib/directMode';
 import { takePendingFile } from '@/lib/pendingFile';
 import { BLOB_PREFIX, DIRECT_MIN, extOf, fileProblem, newUploadName } from '@/lib/uploadRules';
+
+// three.js loads only once a file is uploaded, not in /quote's first load
+const ModelViewer = dynamic(() => import('./ModelViewer'), { ssr: false, loading: () => <p role="status" className="text-center text-sm text-gray-500 dark:text-gray-400">Loading the 3D preview…</p> });
 
 const validateFile = (f: File): string | null => fileProblem(f.name, f.size);
 
