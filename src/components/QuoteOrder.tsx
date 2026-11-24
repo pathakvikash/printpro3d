@@ -22,12 +22,14 @@ export default function QuoteOrder({
   label: modelName = 'Your model',
   onAnother,
   project,
+  onMaterial,
 }: {
   file: string;
   stats: MeshStats | null;
   positions?: Float32Array | null; // triangle soup of the uploaded mesh, for the drawing
   label?: string;
   onAnother?: () => void;
+  onMaterial?: (k: MaterialKey) => void; // the preview above shows the picked finish
   project?: string; // a finalized design project: the cart line is a 'design' line and the server prices the STL it built
 }) {
   const { add, openCart } = useCart();
@@ -112,7 +114,7 @@ export default function QuoteOrder({
                     : 'border-gray-200 bg-white hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-indigo-500'
                 }`}
               >
-                <input type="radio" name="material" value={key} checked={selected} onChange={() => setMaterial(key)} className="sr-only" />
+                <input type="radio" name="material" value={key} checked={selected} onChange={() => { setMaterial(key); onMaterial?.(key); }} className="sr-only" />
                 <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/20 dark:border-white/30" style={{ backgroundColor: SWATCH[key] }} />
                 <span className="font-semibold text-gray-900 dark:text-gray-100">{MATERIAL_INFO[key].label}</span>
                 <span className="ml-auto font-semibold text-indigo-600 dark:text-indigo-400">{total !== null ? money.format(total) : 'Quote'}</span>

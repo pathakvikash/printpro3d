@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import ModelViewer from './ModelViewer';
 import QuoteOrder from './QuoteOrder';
-import type { MeshStats } from '@/lib/quote';
+import type { MaterialKey, MeshStats } from '@/lib/quote';
 import { canGoDirect } from '@/lib/directMode';
 import { takePendingFile } from '@/lib/pendingFile';
 import { BLOB_PREFIX, DIRECT_MIN, extOf, fileProblem, newUploadName } from '@/lib/uploadRules';
@@ -31,6 +31,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
   const [positions, setPositions] = useState<Float32Array | null>(null); // from the preview, for the blueprint
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [material, setMaterial] = useState<MaterialKey>('PLA'); // QuoteOrder's pick, shown on the preview
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -83,6 +84,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
       if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'This file is too large to upload here. Try a smaller file.' : 'Upload failed'));
       setUploadedUrl(data.url);
       setUploaded({ file: data.file, name: f.name, stats: data.stats });
+      setMaterial('PLA'); // a new QuoteOrder starts on PLA
       setFile(null);
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Upload failed');
@@ -260,7 +262,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
             </span>
           </div>
           <div className="h-[400px] rounded-xl overflow-hidden">
-            <ModelViewer url={uploadedUrl} onPositions={setPositions} />
+            <ModelViewer url={uploadedUrl} onPositions={setPositions} material={material} />
           </div>
           {uploaded && (
             <QuoteOrder
@@ -268,6 +270,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
               file={uploaded.file}
               stats={uploaded.stats}
               positions={positions}
+              onMaterial={setMaterial}
               label={initialFile ? 'Model from the builder' : uploaded.name}
               // the builder owns its own model, so only uploads can be reset from here
               onAnother={initialFile ? undefined : resetUpload}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { PrintMesh, PrintStage, prepGeometry, useReducedMotion } from './PrintMaterial';
+import type { MaterialKey } from '@/lib/quote';
 
 function useGeometry(url: string, ext: 'stl' | 'obj') {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -45,8 +46,8 @@ function PlaceholderScene() {
   );
 }
 
-// onPositions: hands the loaded triangle soup (mm) to the parent, e.g. for the blueprint
-export default function ModelViewer({ url, onPositions }: { url?: string; onPositions?: (p: Float32Array) => void }) {
+// onPositions: hands the loaded triangle soup (mm) to the parent, e.g. for the blueprint; material: the finish shown (the quote's pick, PLA by default like the quote)
+export default function ModelViewer({ url, onPositions, material = 'PLA' }: { url?: string; onPositions?: (p: Float32Array) => void; material?: MaterialKey }) {
   const reduce = useReducedMotion();
   const ext = url?.split('.').pop()?.toLowerCase();
   const kind = ext === 'stl' || ext === 'obj' ? ext : null;
@@ -62,7 +63,7 @@ export default function ModelViewer({ url, onPositions }: { url?: string; onPosi
   return (
     <div className="w-full h-full min-h-[400px] rounded-xl overflow-hidden">
       {/* key: refit the camera when a different model loads */}
-      <PrintStage key={geometry?.uuid ?? 'none'} size={size} interactive reduceMotion={reduce}>
+      <PrintStage key={geometry?.uuid ?? 'none'} size={size} material={material} interactive reduceMotion={reduce}>
         {geometry ? <PrintMesh geometry={geometry} /> : (!kind || error) && <PlaceholderScene />}
       </PrintStage>
     </div>
