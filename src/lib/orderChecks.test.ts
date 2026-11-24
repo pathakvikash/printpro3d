@@ -39,3 +39,11 @@ test('design lines: the project id must be a uuid and is lowercased, so case var
   assert.throws(() => mergeChecked([d(1, id), d(2, id.toUpperCase())]), /quantity over/);
   assert.throws(() => d(1, '../orders/x'), /design needs a project/);
 });
+
+test('model lines keep a cleaned customer label (My items colour note) without splitting the MAX_QTY merge', () => {
+  const m = (n: number, label: unknown, qty = 1) => checkEntry({ kind: 'model', file: 'a.stl', material: 'PLA', qty, label }, n);
+  assert.equal((m(1, ' Bracket\n(red)\u0007 ') as { label?: string }).label, 'Bracket (red)');
+  assert.equal((m(1, 'x'.repeat(200)) as { label?: string }).label!.length, 80);
+  assert.equal('label' in m(1, 42), false);
+  assert.throws(() => mergeChecked([m(1, 'red', MAX_QTY), m(2, 'blue', 1)]), /quantity over/);
+});
