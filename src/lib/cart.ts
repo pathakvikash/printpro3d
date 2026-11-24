@@ -12,11 +12,15 @@ export const MAX_SAVED = 50;
 // Each template line is a server CSG rebuild at checkout, so an order carries at most this many distinct configured parts
 // (checked in /api/orders via orderChecks, and before a kit is added to the cart).
 export const MAX_TPL_LINES = 5;
+// Kit part lines are rebuilt (or read from an STL file) at checkout too, but the parts are small: more of them may share one order.
+export const MAX_KIT_LINES = 12;
 
 export type CartLine =
   | { kind: 'shop'; id: string; qty: number }
   // a parametric template with the customer's settings; `unitPrice` is the per-piece price shown when it was configured (display only, the server recomputes from `cfg`)
   | { kind: 'tpl'; id: string; cfg: Cfg; qty: number; unitPrice: number }
+  // one printed part of a kit (src/lib/kits/adapt.ts); `id` is `<kitId>:<partId>`, `label` and `unitPrice` are display only, the server rebuilds the part from the kit file and `cfg`
+  | { kind: 'kit'; id: string; label: string; cfg: Cfg; qty: number; unitPrice: number }
   // a customer's own model (upload, builder or AI): `file` is the stored upload name,
   // `estimate` the line total shown when it was quoted (null = we quote it manually)
   | { kind: 'model'; file: string; label: string; material: string; qty: number; estimate: number | null }
@@ -28,6 +32,7 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 
 export function lineKey(l: CartLine): string {
   if (l.kind === 'tpl') return `tpl:${l.id}:${cfgKey(templateById(l.id)!, l.cfg)}`;
+  if (l.kind === 'kit') return `kit:${l.id}:${JSON.stringify(Object.keys(l.cfg).sort().map((k) => [k, l.cfg[k]]))}`;
   if (l.kind === 'design') return `design:${l.project}:${l.material}`;
   return l.kind === 'shop' ? `shop:${l.id}` : `model:${l.file}:${l.material}`;
 }
@@ -53,6 +58,12 @@ export function parseCart(raw: unknown): CartLine[] {
       try {
         out.push({ kind: 'tpl', id: t.id, cfg: normalizeCfg(t, o.cfg, true), qty: o.qty, unitPrice: unit });
       } catch {}
+    } else if (o.kind === 'kit') {
+      // light check only (this file ships to every page): the server validates the id and the config against the kit file
+      const id = str(o.id, 60), unit = o.unitPrice, cfg = o.cfg;
+      const plain = !!cfg && typeof cfg === 'object' && !Array.isArray(cfg) && Object.keys(cfg).length <= 20 && Object.values(cfg).every((v) => ['string', 'number', 'boolean'].includes(typeof v));
+      if (!/^[a-z0-9-]+:[A-Za-z0-9-]+$/.test(id) || !plain || typeof unit !== 'number' || !Number.isFinite(unit) || unit < 0) continue;
+      out.push({ kind: 'kit', id, label: str(o.label, 80) || id, cfg: cfg as Cfg, qty: o.qty, unitPrice: unit });
     } else if (o.kind === 'design') {
       const project = str(o.project, 40);
       const material = str(o.material, 20);
@@ -103,7 +114,7 @@ export const removeLine = (lines: CartLine[], key: string): CartLine[] => lines.
 
 // Display total of one line, or null when we will quote it manually.
 export function lineTotal(l: CartLine): number | null {
-  if (l.kind === 'tpl') return Math.round(Math.max(MIN_ORDER, SETUP_FEE + l.unitPrice * l.qty)); // same formula as quote(); display only
+  if (l.kind === 'tpl' || l.kind === 'kit') return Math.round(Math.max(MIN_ORDER, SETUP_FEE + l.unitPrice * l.qty)); // same formula as quote(); display only
   if (l.kind === 'shop') {
     const item = CATALOG.find((i) => i.id === l.id);
     return item ? item.price * l.qty : null;

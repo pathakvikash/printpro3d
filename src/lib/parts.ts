@@ -59,9 +59,19 @@ const GENERIC: Part[] = [
     specs: [s('Stack hole spacing', '20 × 20 mm, M2', true), s('Board size', 'about 27 × 27 mm', true), s('Hole diameter', 'about 2.2 mm', true)],
   },
   {
+    id: 'aio-fc-1s', category: 'fc-esc', class: 'stack', title: 'All-in-one flight controller, 1S whoop, 25.5 × 25.5 mm holes', dims: [29, 29, 4.6], accuracy: 'typical', p: { side: 29, pitch: 25.5, hole: 2.2, t: 1.6 },
+    blurb: 'A small all-in-one flight controller and ESC board for 1S whoop frames (typical size, check yours).',
+    specs: [s('Mounting hole spacing', '25.5 × 25.5 mm, M2 (typical; some boards use 20 × 20 mm)', true), s('Board size', 'about 29 × 29 mm (typical)', true), s('Hole diameter', 'about 2.2 mm', true)],
+  },
+  {
     id: 'camera-19', category: 'camera', class: 'camera', title: 'FPV camera, 19 mm', dims: [19, 20, 19], accuracy: 'typical', p: { w: 19, depth: 14, lens: 14, lensL: 6 },
     blurb: 'Compact FPV camera about 19 mm wide.',
     specs: [s('Width', 'about 19 mm', true), s('Body depth', 'about 14 mm, plus a lens barrel of about 6 mm', true), s('Lens barrel diameter', 'about 14 mm', true)],
+  },
+  {
+    id: 'camera-nano-14', category: 'camera', class: 'camera', title: 'Nano FPV camera, 14 mm', dims: [14, 15, 14], accuracy: 'typical', p: { w: 14, depth: 10, lens: 8, lensL: 5 },
+    blurb: 'Nano FPV camera about 14 × 14 mm (typical size, check yours).',
+    specs: [s('Board width', 'about 14 mm (typical)', true), s('Length', 'about 15 mm including the lens (typical)', true), s('Lens barrel diameter', 'about 8 mm (typical)', true)],
   },
   {
     id: 'gps-puck-25', category: 'gps', class: 'puck', title: 'GPS module, 25 mm puck', dims: [25, 25, 8], accuracy: 'typical', p: { d: 25, h: 6, base: 18, baseH: 2 },

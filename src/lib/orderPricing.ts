@@ -1,6 +1,9 @@
 // Server-side pricing of the order lines that come from stored files: uploads and finalized design projects. Server only.
 // Nothing the browser says about price is read; the price comes from the STL in the store and its stats sidecar.
-import { fitsBed, quote, type MeshStats } from './quote.ts';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fitsBed, meshStats, quote, type MeshStats } from './quote.ts';
+import { kitPartByKey, kitPartMesh } from './kits/adapt.ts';
 import type { OrderLine } from './notify.ts';
 import { findJobByFile } from './aiJobs.ts';
 import { orderInfo } from './designProjects.ts';
@@ -35,6 +38,23 @@ export async function priceModel(file: string, material: string, qty: number): P
     kind: 'model', file, material, qty, stats, quote: q, total: q ? q.total : null,
     ...(ai ? { aiPrompt: ai.prompt } : {}),
   };
+}
+
+/** A kit part line: the mesh is rebuilt from the kit file (builder + validated config) or read from the STL file we ship in public/models/kits;
+ * the price is quote() of that mesh. `key` and `cfg` must already be checked (orderChecks); the client's label and price are never read. */
+export async function priceKit(key: string, cfg: Cfg, qty: number): Promise<SavedLine> {
+  const hit = kitPartByKey(key);
+  if (!hit) throw new Error('unknown kit part');
+  const { source, part } = hit;
+  // the file name comes from the kit file, never from the request; resolve it under public/ anyway
+  const read = async (file: string) => { const b = await readFile(path.join(process.cwd(), 'public', path.normalize(file).replace(/^(\.\.[\\/])+/, ''))); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer; };
+  const mesh = await kitPartMesh(key, cfg, read);
+  const stats = mesh ? meshStats(mesh) : null;
+  if (!stats) throw new Error('this kit part could not be built');
+  if (!fitsBed(stats.sizeMm)) throw new Error('this kit part does not fit the print bed');
+  const q = quote(stats, part.material, qty);
+  const config = Object.entries(cfg).map(([k, v]) => `${k}: ${v}`).join(', ');
+  return { kind: 'kit', id: key, itemName: `${source.title}: ${part.label}`, config, cfg, qty, material: part.material, stats, quote: q, total: q.total };
 }
 
 /** A design line: the project must be finalized with its file in the store; the price is computed from that server-built STL. */

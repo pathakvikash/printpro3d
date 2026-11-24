@@ -29,6 +29,8 @@ const toPayloadItem = (l: CartLine) =>
     ? { kind: 'shop' as const, id: l.id, qty: l.qty }
     : l.kind === 'tpl'
       ? { kind: 'tpl' as const, id: l.id, cfg: l.cfg, qty: l.qty }
+      : l.kind === 'kit'
+        ? { kind: 'kit' as const, id: l.id, cfg: l.cfg, qty: l.qty }
       : l.kind === 'design'
         ? { kind: 'design' as const, project: l.project, material: l.material, qty: l.qty }
         : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty };
@@ -347,7 +349,9 @@ function Drawer() {
                 ? `${shopItem(l.id)?.material ?? ''} · ${money.format(shopItem(l.id)?.price ?? 0)} each`
                 : l.kind === 'tpl'
                   ? `${templateById(l.id)?.material ?? ''} · your settings · ${money.format(l.unitPrice)} per piece before setup`
-                  : `${l.material} · ${l.estimate !== null ? `Estimated ${money.format(l.estimate)}` : "We'll quote this one"}`;
+                  : l.kind === 'kit'
+                    ? `Kit part · ${money.format(l.unitPrice)} per piece before setup`
+                    : `${l.material} · ${l.estimate !== null ? `Estimated ${money.format(l.estimate)}` : "We'll quote this one"}`;
             return (
               <li key={key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">

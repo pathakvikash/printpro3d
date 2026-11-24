@@ -9,7 +9,7 @@ import { notifyNewOrder } from '@/lib/notify';
 import type { Cfg, TemplateDef } from '@/lib/templateDefs';
 import { templateOrderLine } from '@/lib/templates';
 import { checkEntry, mergeChecked } from '@/lib/orderChecks';
-import { designNotes, priceDesign, priceModel, type SavedLine } from '@/lib/orderPricing';
+import { designNotes, priceDesign, priceKit, priceModel, type SavedLine } from '@/lib/orderPricing';
 import { markOrdered } from '@/lib/designProjects';
 import { putJson } from '@/lib/store';
 import { filled, limited } from '@/lib/spam';
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const lines: SavedLine[] = [];
     for (const r of mergeChecked(reqs)) {
       try {
-        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : await priceModel(r.file, r.material, r.qty));
+        lines.push(r.kind === 'shop' ? priceShop(r.item, r.qty) : r.kind === 'tpl' ? priceTpl(r.tpl, r.cfg, r.qty) : r.kind === 'kit' ? await priceKit(r.id, r.cfg, r.qty) : r.kind === 'design' ? await priceDesign(r.project, r.material, r.qty) : await priceModel(r.file, r.material, r.qty));
       } catch (e) {
         throw new Error(`item ${r.n}: ${e instanceof Error ? e.message : 'invalid'}`);
       }

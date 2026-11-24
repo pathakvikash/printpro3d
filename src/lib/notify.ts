@@ -20,7 +20,7 @@ const fileLink = (name: string) => {
 };
 
 export type OrderLine = {
-  kind: 'shop' | 'model' | 'tpl' | 'design';
+  kind: 'shop' | 'model' | 'tpl' | 'kit' | 'design';
   qty: number;
   material: string;
   total: number | null; // null = needs a manual quote
@@ -55,7 +55,7 @@ const money = (currency: string, n: number) => `${currency} ${n}`;
 function lineText(l: OrderLine, currency: string): string[] {
   const price = l.total === null ? 'needs a manual quote' : money(currency, l.total);
   if (l.kind === 'shop') return [`${l.qty}x ${l.itemName ?? l.id} — ${price}`];
-  if (l.kind === 'tpl') return [`${l.qty}x ${l.itemName ?? l.id} (${l.config ?? ''}) — ${price}`];
+  if (l.kind === 'tpl' || l.kind === 'kit') return [`${l.qty}x ${l.itemName ?? l.id} (${l.config ?? ''}) — ${price}`];
   if (l.kind === 'design') {
     return [
       `${l.qty}x ${l.material} design ${fileLink(l.file ?? '')} — ${price}`,

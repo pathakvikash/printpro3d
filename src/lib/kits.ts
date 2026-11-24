@@ -1,12 +1,14 @@
 // Kits: a named bundle of existing shop parts with default settings, added to the cart as ordinary lines. No prices here:
 // every line is priced from its mesh like any other (quote.ts). Pure data and one cart check, safe for the browser.
 import { CATALOG } from './catalog.ts';
-import { MAX_LINES, MAX_TPL_LINES, lineKey, type CartLine } from './cart.ts';
+import { MAX_KIT_LINES, MAX_LINES, MAX_TPL_LINES, lineKey, type CartLine } from './cart.ts';
 import { defaultCfg, templateById, type Cfg } from './templateDefs.ts';
 import type { AssemblyPart, PartMaterial, V3 } from './assembly.ts';
+import { adaptedKits, isKitKey } from './kits/adapt.ts';
 
 // templateId is a template id (configured part, cart kind 'tpl') or a fixed catalogue id (cart kind 'shop', config ignored)
-export type KitItem = { templateId: string; config: Cfg; qty: number };
+// or a kit part key `<kitId>:<partId>` (src/lib/kits/adapt.ts; cart kind 'kit', `label` names it)
+export type KitItem = { templateId: string; config: Cfg; qty: number; label?: string };
 /** A bought-separately line: plain text, or text plus the ids of its pages in parts.ts. */
 export type BoughtItem = string | { text: string; parts: string[] };
 /** For kits not in this file (src/lib/kits/*.ts): `withParts('4x motors ...', 'motor-1404')` gives a row that links to its part pages. */
@@ -15,7 +17,14 @@ export const boughtText = (b: BoughtItem) => (typeof b === 'string' ? b : b.text
 export const boughtPartIds = (b: BoughtItem) => (typeof b === 'string' ? [] : b.parts);
 /** Kits (from the list given) whose bought-separately rows reference a part. */
 export const kitsUsingPart = <K extends { id: string; title: string; boughtParts: readonly BoughtItem[] }>(partId: string, kits: readonly K[]) => kits.filter((k) => k.boughtParts.some((b) => boughtPartIds(b).includes(partId)));
-export type Kit = { id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics'; items: KitItem[]; boughtParts: BoughtItem[];
+/** Third-party design: shown wherever its parts are listed (kit page, card, /credits). `files`: the STL files we ship, for the GPL source link. */
+export type KitCredit = { author: string; url: string; licence: string; files: string[] };
+export type Kit = { id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics' | 'toys-hobby' | 'smart-home'; items: KitItem[]; boughtParts: BoughtItem[];
+  badge?: string; credit?: KitCredit; approximate?: boolean;
+  /** assembly bought-part id (exact, else without trailing digits) -> part page id, so the assembly drawing uses its reference model */
+  refs?: Record<string, string>;
+  /** a kit that is several products: each is a Kit of its own (own items and finished build); the kit page lets the customer pick */
+  variants?: Kit[];
   /** The finished build for the viewer. `sizes` = real mesh bounding boxes by template id (the page has them); missing ones use nominal ones. Printed parts carry geometry = template id. */
   assembly?: (sizes?: Sizes) => AssemblyPart[] };
 export type Sizes = Partial<Record<string, V3>>;
@@ -90,7 +99,7 @@ function roverAssembly(sizes: Sizes = {}): AssemblyPart[] {
 }
 
 // A kit holds at most MAX_TPL_LINES distinct configured parts (one checkout rebuild each); repeats of a part are a quantity, not a line.
-export const KITS: Kit[] = [
+const BASE: Kit[] = [
   {
     id: 'fpv-3in-kit', title: 'FPV 3-inch build kit', category: 'drone-rc',
     blurb: 'The printed parts for a small FPV quad built around 3 inch props: our X frame plate (a small sample plate, so check its motor holes against your motors), a camera mount, 4 prop guards, landing gear, a battery tray and a GPS puck mount. Motors, electronics and battery are bought separately.',
@@ -120,18 +129,21 @@ export const KITS: Kit[] = [
     ],
   },
 ];
+export const KITS: Kit[] = [...BASE, ...adaptedKits()];
 
 export const kitById = (id: unknown) => (typeof id === 'string' ? KITS.find((k) => k.id === id) ?? null : null);
 
 /** The cart lines a kit adds. unitPrice per configured part comes from the page (mesh quote), never from this file. */
 export const kitLines = (k: Kit, unitPrice: (i: KitItem) => number): CartLine[] =>
-  k.items.map((i) => (templateById(i.templateId) ? { kind: 'tpl', id: i.templateId, cfg: i.config, qty: i.qty, unitPrice: unitPrice(i) } : { kind: 'shop', id: i.templateId, qty: i.qty }));
+  k.items.map((i) => (isKitKey(i.templateId) ? { kind: 'kit', id: i.templateId, label: i.label ?? i.templateId, cfg: i.config, qty: i.qty, unitPrice: unitPrice(i) } : templateById(i.templateId) ? { kind: 'tpl', id: i.templateId, cfg: i.config, qty: i.qty, unitPrice: unitPrice(i) } : { kind: 'shop', id: i.templateId, qty: i.qty }));
 
 /** Null when the kit can be added; otherwise the reason. The cart is never half-filled: all lines go in or none. */
 export function kitBlocked(cart: CartLine[], lines: CartLine[]): string | null {
   const keys = new Set([...cart, ...lines].map(lineKey));
   const tplKeys = new Set([...cart, ...lines].filter((l) => l.kind === 'tpl').map(lineKey));
   if (tplKeys.size > MAX_TPL_LINES) return `An order holds at most ${MAX_TPL_LINES} different configured parts and this kit adds ${lines.filter((l) => l.kind === 'tpl').length}. Check out or remove some configured parts from your cart first.`;
+  const kitKeys = new Set([...cart, ...lines].filter((l) => l.kind === 'kit').map(lineKey));
+  if (kitKeys.size > MAX_KIT_LINES) return `An order holds at most ${MAX_KIT_LINES} different kit parts and this kit adds ${lines.filter((l) => l.kind === 'kit').length}. Check out or remove some kit parts from your cart first.`;
   if (keys.size > MAX_LINES) return `Your cart holds at most ${MAX_LINES} lines. Remove some, then add the kit.`;
   return null;
 }

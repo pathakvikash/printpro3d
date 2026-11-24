@@ -2,25 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, shopCat } from './catalog.ts';
 import { MAX_TPL_LINES, addLine, lineKey, type CartLine } from './cart.ts';
+import { isKitKey } from './kits/adapt.ts';
 import { KITS, boughtPartIds, boughtText, kitBlocked, kitById, kitLines, kitsUsingPart } from './kits.ts';
 import { partById } from './parts.ts';
 import { TEMPLATES, normalizeCfg, templateById } from './templateDefs.ts';
 import { priceTemplate } from './templates.ts';
 import { eulerQuat, type AssemblyPart, type V3 } from './assembly.ts';
 
+// the two kits made of shop templates; the kits of src/lib/kits/ are covered by kitOrder.test.ts and their own tests
+const OWN = KITS.filter((k) => k.items.every((i) => !isKitKey(i.templateId)));
+
 test('kit ids are unique and do not clash with parts; each has a shop category and bought parts', () => {
   const ids = [...CATALOG, ...TEMPLATES, ...KITS].map((x) => x.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const k of KITS) {
     assert.equal(shopCat(k.id), k.category, k.id);
-    assert.ok(k.boughtParts.length >= 4 && k.items.length >= 5, k.id);
+    assert.ok(k.boughtParts.length >= 2 && k.items.length >= 3, k.id);
     assert.ok(!/[$₹]|https?:|\d+\s?(usd|inr)/i.test(k.blurb + k.boughtParts.map(boughtText).join(' ')), `${k.id}: no prices or links`);
   }
   assert.equal(kitById('nope'), null);
 });
 
 test('every kit item exists, its config is valid, it prices and fits the bed, and a kit fits one order', () => {
-  for (const k of KITS) {
+  for (const k of OWN) {
     const tplItems = k.items.filter((i) => templateById(i.templateId));
     for (const i of k.items) {
       assert.ok(Number.isInteger(i.qty) && i.qty >= 1, `${k.id} ${i.templateId} qty`);
@@ -37,7 +41,7 @@ test('every kit item exists, its config is valid, it prices and fits the bed, an
 });
 
 test('adding a kit is all or nothing and respects the 5 configured-part cap', () => {
-  const k = KITS[0];
+  const k = kitById('fpv-3in-kit')!;
   const lines = kitLines(k, () => 1);
   assert.equal(lines.length, k.items.length);
   assert.equal(kitBlocked([], lines), null);
@@ -51,7 +55,7 @@ test('adding a kit is all or nothing and respects the 5 configured-part cap', ()
   assert.match(msg ?? '', /at most 5 different configured parts/);
   assert.notEqual(lineKey(extra), lineKey(lines[1]));
   // the other kit shares battery-tray settings only if equal: different config is a different line
-  assert.ok(kitLines(KITS[1], () => 1).filter((l) => l.kind === 'tpl').length <= MAX_TPL_LINES);
+  assert.ok(kitLines(kitById('rover-kit')!, () => 1).filter((l) => l.kind === 'tpl').length <= MAX_TPL_LINES);
 });
 
 // axis-aligned box of a part after its rotation, from its 8 corners
@@ -70,7 +74,7 @@ const TOL = 0.5;
 const meshSizes = (k: (typeof KITS)[number]) => Object.fromEntries(k.items.filter((i) => templateById(i.templateId)).map((i) => { const z = priceTemplate(i.templateId, i.config, 1).stats.sizeMm; return [i.templateId, [z.x, z.y, z.z] as V3]; }));
 
 test('kit assemblies: the right parts, nominal sizes match the real meshes, printed parts neither float nor overlap', () => {
-  for (const k of KITS) {
+  for (const k of OWN) {
     assert.ok(k.assembly, k.id);
     const real = meshSizes(k);
     for (const [id, sz] of Object.entries(real)) sz.forEach((v, i) => assert.ok(Math.abs(v - (k.assembly!()[0] && sizeOf(k, id)[i])) <= TOL, `${k.id} ${id} nominal size drifted`));

@@ -2,7 +2,8 @@
 import path from 'node:path';
 import { CATALOG, type Item } from './catalog.ts';
 import { MAX_QTY } from './quote.ts';
-import { MAX_TPL_LINES } from './cart.ts';
+import { MAX_KIT_LINES, MAX_TPL_LINES } from './cart.ts';
+import { kitPartByKey, validateKitCfg } from './kits/adapt.ts';
 import { cfgKey, normalizeCfg, templateById, type Cfg, type TemplateDef } from './templateDefs.ts';
 
 // the same model extensions /api/upload accepts (upload names keep their extension)
@@ -13,6 +14,7 @@ export const isModelFile = (name: string) => MODEL_RE.test(name);
 export type Checked =
   | { n: number; kind: 'shop'; item: Item; qty: number }
   | { n: number; kind: 'tpl'; tpl: TemplateDef; cfg: Cfg; qty: number }
+  | { n: number; kind: 'kit'; id: string; cfg: Cfg; qty: number } // one printed part of a kit; id = `<kitId>:<partId>`
   | { n: number; kind: 'model'; file: string; material: string; qty: number }
   | { n: number; kind: 'design'; project: string; material: string; qty: number };
 
@@ -26,7 +28,7 @@ export function mergeChecked(reqs: Checked[]): Checked[] {
   const out: Checked[] = [];
   const at = new Map<string, number>();
   for (const r of reqs) {
-    const key = JSON.stringify(r.kind === 'shop' ? ['shop', r.item.id] : r.kind === 'tpl' ? ['tpl', r.tpl.id, cfgKey(r.tpl, r.cfg)] : r.kind === 'design' ? ['design', r.project, r.material] : ['model', r.file, r.material]);
+    const key = JSON.stringify(r.kind === 'shop' ? ['shop', r.item.id] : r.kind === 'tpl' ? ['tpl', r.tpl.id, cfgKey(r.tpl, r.cfg)] : r.kind === 'kit' ? ['kit', r.id, Object.keys(r.cfg).sort().map((k) => [k, r.cfg[k]])] : r.kind === 'design' ? ['design', r.project, r.material] : ['model', r.file, r.material]);
     const i = at.get(key);
     if (i === undefined) {
       at.set(key, out.length);
@@ -39,6 +41,7 @@ export function mergeChecked(reqs: Checked[]): Checked[] {
     out[i] = { ...cur, qty };
   }
   if (out.filter((r) => r.kind === 'tpl').length > MAX_TPL_LINES) throw new Error(`at most ${MAX_TPL_LINES} different configured parts per order`);
+  if (out.filter((r) => r.kind === 'kit').length > MAX_KIT_LINES) throw new Error(`at most ${MAX_KIT_LINES} different kit parts per order`);
   return out;
 }
 
@@ -50,7 +53,7 @@ const isQty = (n: unknown): n is number => Number.isInteger(n) && (n as number) 
 export function checkEntry(raw: unknown, n: number): Checked {
   const fail = (msg: string) => new Error(`item ${n}: ${msg}`);
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  if (o.kind !== 'shop' && o.kind !== 'model' && o.kind !== 'tpl' && o.kind !== 'design') throw fail('kind must be "shop", "tpl", "design" or "model"');
+  if (o.kind !== 'shop' && o.kind !== 'model' && o.kind !== 'tpl' && o.kind !== 'kit' && o.kind !== 'design') throw fail('kind must be "shop", "tpl", "kit", "design" or "model"');
   const qty = o.qty;
   if (!isQty(qty)) throw fail(`qty must be a whole number 1-${MAX_QTY}`);
   if (o.kind === 'tpl') {
@@ -58,6 +61,14 @@ export function checkEntry(raw: unknown, n: number): Checked {
     if (!tpl) throw fail('unknown template');
     try {
       return { n, kind: 'tpl', tpl, cfg: normalizeCfg(tpl, o.cfg, true), qty };
+    } catch (e) {
+      throw fail(e instanceof Error ? e.message : 'bad config');
+    }
+  }
+  if (o.kind === 'kit') {
+    if (typeof o.id !== 'string' || !kitPartByKey(o.id)) throw fail('unknown kit part');
+    try {
+      return { n, kind: 'kit', id: o.id, cfg: validateKitCfg(o.id, o.cfg), qty };
     } catch (e) {
       throw fail(e instanceof Error ? e.message : 'bad config');
     }
