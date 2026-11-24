@@ -3,7 +3,7 @@
 import Icon from './Icon';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { describeStatus, ORDER_STAGES, ORDER_STATUSES, type TrackType } from '@/lib/tracking';
+import { describeStatus, ORDER_STAGES, ORDER_STATUSES, REQUEST_STAGES, type TrackType } from '@/lib/tracking';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -236,6 +236,23 @@ export default function TrackOrder() {
         <Icon name="play" />See a demo order
       </button>
       {result && <OrderView id={result.id} data={result.data} />}
+      {!result && (
+        <div className={`${card} text-sm text-gray-700 dark:text-gray-200`}>
+          <p className="font-semibold text-gray-900 dark:text-white">Order stages</p>
+          <ol className="flex flex-wrap gap-x-2 gap-y-1">
+            {ORDER_STAGES.map((n, i) => (
+              <li key={n}>{i > 0 && <span aria-hidden className="mr-2 text-gray-400">→</span>}{n}</li>
+            ))}
+          </ol>
+          <p className="font-semibold text-gray-900 dark:text-white">Idea request stages</p>
+          <ol className="flex flex-wrap gap-x-2 gap-y-1">
+            {REQUEST_STAGES.map((n, i) => (
+              <li key={n}>{i > 0 && <span aria-hidden className="mr-2 text-gray-400">→</span>}{n}</li>
+            ))}
+          </ol>
+          <p className="text-gray-600 dark:text-gray-400">Where is my id? Enter the order id from your confirmation.</p>
+        </div>
+      )}
     </div>
   );
 }

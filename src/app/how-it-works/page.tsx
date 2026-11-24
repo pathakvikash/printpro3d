@@ -29,7 +29,7 @@ const FAQ = [
 export default function HowItWorksPage() {
   return (
     <PageShell wide title="How it works" lead="From file or idea to a printed part.">
-      <ol className="grid gap-10 md:grid-cols-3 pt-4">
+      <ol className="grid gap-6 md:grid-cols-3 pt-4">
         {STEPS.map((s, i) => (
           <li key={s.title} className="border-t-2 border-indigo-600 pt-5">
             <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
@@ -38,17 +38,29 @@ export default function HowItWorksPage() {
           </li>
         ))}
       </ol>
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">What happens to an order</h2>
+        <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {ORDER_STAGES.map((n, i) => (
+            <li key={n} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100">
+              <span className="block text-xs font-semibold text-indigo-600 dark:text-indigo-400">{i + 1}</span>{n}
+            </li>
+          ))}
+        </ol>
+      </div>
       <h2 className="pt-10 text-2xl font-bold text-gray-900 dark:text-white">Questions</h2>
-      <div className="divide-y divide-gray-200 dark:divide-gray-800 border-y border-gray-200 dark:border-gray-800">
+      <div className="grid items-start gap-x-10 border-t border-gray-200 dark:border-gray-800 md:grid-cols-2">
         {FAQ.map((f) => (
-          <details key={f.q} className="py-4">
+          <details key={f.q} className="border-b border-gray-200 py-4 dark:border-gray-800">
             <summary className="cursor-pointer font-semibold text-gray-900 dark:text-white">{f.q}</summary>
             <p className="mt-2 text-gray-600 dark:text-gray-300">{f.a}</p>
           </details>
         ))}
       </div>
       <p className="text-gray-600 dark:text-gray-300">
-        <Link href="/quote" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">Get an instant quote</Link> or{' '}
+        <Link href="/quote" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">Get an instant quote</Link>,{' '}
+        <Link href="/shop" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">browse the shop</Link>,{' '}
+        <Link href="/request" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">describe an idea</Link> or{' '}
         <Link href="/track" className="text-indigo-600 dark:text-indigo-400 underline hover:no-underline">track an order</Link>.
       </p>
     </PageShell>

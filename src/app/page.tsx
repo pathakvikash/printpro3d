@@ -5,14 +5,13 @@ import HomeShop from '@/components/HomeShop';
 import HeroPart from '@/components/HeroPart';
 import HeroDrop from '@/components/HeroDrop';
 import Capabilities from '@/components/Capabilities';
+import MaterialCards from '@/components/MaterialCards';
+import FlowStrip from '@/components/FlowStrip';
 import { modelFor, pickProvider } from '@/lib/aiDesign';
-import { BED_MM, MATERIALS, type MaterialKey } from '@/lib/quote';
-import { MATERIAL_INFO } from '@/lib/materialInfo';
+import { BED_MM } from '@/lib/quote';
 
 // read per request: the AI choice depends on MESHY_API_KEY at runtime, not at build time
 export const dynamic = 'force-dynamic';
-
-const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];
 
 // only claims the code backs: owner reviews each order and sends the payment link (api/orders), bed size from BED_MM
 const TRUST = [
@@ -49,9 +48,9 @@ const MORE = [
 ] as const;
 
 const STEPS = [
-  { title: 'Start your way', text: 'Upload a file, describe an idea, or pick a ready item.' },
-  { title: 'Choose material and quantity', text: 'The price updates as you choose.' },
-  { title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.' },
+  { title: 'Start your way', text: 'Upload a file, describe an idea, or pick a ready item.', links: [{ href: '/quote', label: 'Upload a file' }, { href: '/shop', label: 'Shop' }, { href: '/request', label: 'Describe an idea' }] },
+  { title: 'Choose material and quantity', text: 'The price updates as you choose.', links: [{ href: '/materials', label: 'Compare materials' }] },
+  { title: 'We check, confirm and print', text: 'We review every order and send you a payment link before we print.', links: [{ href: '/track', label: 'Track an order' }] },
 ];
 
 // OWNER: confirm this statement matches how you handle files
@@ -93,6 +92,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
         </div>
       </section>
 
+      <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950 sm:px-6">
+        <div className="mx-auto max-w-7xl"><FlowStrip current="pick" /></div>
+      </div>
+
       <section aria-label="How we work" className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-3 md:gap-10">
           {TRUST.map((t) => (
@@ -107,24 +110,22 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       <Capabilities />
 
       <section aria-labelledby="start-heading" className="py-16 sm:py-20 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <h2 id="start-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">Start with what you&apos;ve got.</h2>
           <p className="mt-3 max-w-xl text-gray-600 dark:text-gray-400">
             Have a 3D file, an idea, or an existing part? Choose a starting point and we&apos;ll take it from there.
           </p>
-          <ol className="mt-10 border-t border-gray-300 dark:border-gray-700">
+          <ol className="mt-10 grid gap-6 md:grid-cols-3">
             {STARTS.map((c, i) => (
-              <li key={c.title} className="border-b border-gray-300 dark:border-gray-700">
+              <li key={c.title}>
                 <Link
                   href={c.href}
-                  className="group grid gap-x-8 gap-y-2 py-7 sm:grid-cols-[3rem_1fr_13rem] sm:items-baseline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                  className="pp-lift group flex h-full flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
                 >
                   <span aria-hidden className="text-sm font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">0{i + 1}</span>
-                  <span>
-                    <span className="block text-2xl font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{c.title}</span>
-                    <span className="mt-2 block max-w-lg text-gray-600 dark:text-gray-400">{c.text}</span>
-                  </span>
-                  <span className="mt-2 font-semibold text-indigo-600 dark:text-indigo-400 sm:mt-0 sm:text-right">
+                  <span className="mt-2 block text-xl font-semibold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">{c.title}</span>
+                  <span className="mt-2 block flex-1 text-gray-600 dark:text-gray-400">{c.text}</span>
+                  <span className="mt-4 font-semibold text-indigo-600 dark:text-indigo-400">
                     <span className="underline-offset-4 group-hover:underline">{c.action}</span>
                     <span aria-hidden className="ml-1 inline-block transition-transform group-hover:translate-x-1"> →</span>
                   </span>
@@ -177,12 +178,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">How it works</h2>
-          <ol className="mt-10 grid gap-10 md:grid-cols-3">
+          <ol className="mt-10 grid gap-6 md:grid-cols-3">
             {STEPS.map((s, i) => (
               <li key={s.title} className="pp-lift rounded-xl border border-gray-200 border-t-2 border-t-indigo-600 bg-white p-5 dark:border-gray-800 dark:border-t-indigo-500 dark:bg-gray-950">
                 <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Step {i + 1}</p>
                 <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h3>
                 <p className="mt-2 text-gray-600 dark:text-gray-300">{s.text}</p>
+                <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium">
+                  {s.links.map((l) => (
+                    <Link key={l.href} href={l.href} className="text-indigo-600 underline underline-offset-4 hover:no-underline dark:text-indigo-400">{l.label}</Link>
+                  ))}
+                </p>
               </li>
             ))}
           </ol>
@@ -194,12 +200,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
         </div>
       </section>
 
-      {/* Materials teaser: names only, details on /materials */}
+      {/* Materials teaser: the same cards as /materials; details there */}
       <section className="py-20 bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Materials</h2>
           <p className="mt-3 text-gray-600 dark:text-gray-400">Each material has its own live price on the quote step.</p>
-          <p className="mt-6 text-lg text-gray-900 dark:text-white">{MATERIAL_KEYS.map((k) => MATERIAL_INFO[k].label).join(', ')}</p>
+          <div className="mt-8"><MaterialCards /></div>
           <p className="mt-4">
             <Link href="/materials" className="font-medium text-indigo-600 dark:text-indigo-400 underline underline-offset-4 hover:no-underline">
               Compare materials
