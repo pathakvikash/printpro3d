@@ -2,9 +2,7 @@
 // Template cards and the configure dialog for the shop. Config -> shapes -> CSG mesh (templates.ts), then the same mesh
 // feeds the 3D view, the blueprint, the spec rows and the price. The server rebuilds all of it from the config on order.
 
-import Icon from './Icon';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprint, blueprintData } from '@/lib/blueprint';
@@ -15,10 +13,12 @@ import { buildTemplate, templateMesh } from '@/lib/templates';
 import { buildOffThread } from '@/lib/buildOffThread';
 import type { Shape } from '@/lib/playground';
 import BlueprintSheet from './BlueprintSheet';
-import { money, secondaryBtn } from './ContactFields';
+import { money } from './ContactFields';
 import { QtyStepper } from './CartDrawer';
-import { addBtn, AddLabel, BackToShop, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
+import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
 import { useCart } from './CartProvider';
+import { kitBlocked } from '@/lib/kits';
+import type { CartLine } from '@/lib/cart';
 import FlowStrip from '@/components/FlowStrip';
 import Term from '@/components/Term';
 
@@ -48,6 +48,18 @@ export function TemplateCard({ t, live, reduceMotion, setVisible }: {
 }) {
   const [r, setR] = useState<Result | null>(() => defaults.get(t.id) ?? null);
   const box = useRef<HTMLDivElement>(null);
+  const { lines, add, toast } = useCart();
+  const [added, setAdded] = useAdded();
+  // default settings through the normal 'tpl' line (the server reprices); same configured-parts cap as a kit
+  const addDefault = () => {
+    if (!r?.q) return;
+    const line: CartLine = { kind: 'tpl', id: t.id, cfg: r.cfg, qty: 1, unitPrice: r.q.unitPrice };
+    const why = kitBlocked(lines, [line]);
+    if (why) { toast(why); return; }
+    add(line);
+    toast('Added to cart', true);
+    setAdded(true);
+  };
   useEffect(() => {
     if (r) return;
     // the CSG runs in a worker: on a phone the cards' meshes took seconds of main-thread time
@@ -86,8 +98,7 @@ export function TemplateCard({ t, live, reduceMotion, setVisible }: {
       rows={rows}
       previewRef={box}
       preview={live && r?.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} material={t.material} />}
-      // a real link: the actions row sits above the stretched title link, so a plain span here swallowed the click. Out of the tab order (the title link is the one stop).
-      actions={<Link href={`/shop/${t.id}`} tabIndex={-1} className={`${secondaryBtn} w-full`}><Icon name="wrench" />Configure</Link>}
+      actions={<CardActions kind="template" id={t.id} added={added} disabled={!r?.q || !!r.error} onPrimary={addDefault} />}
     />
   );
 }

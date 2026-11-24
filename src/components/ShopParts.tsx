@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from './Icon';
+import { cardActions, type CardKind } from '@/lib/cardActions';
 
 export const chipClass = (on: boolean) =>
   `rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
@@ -118,3 +119,23 @@ export function useAdded() {
 }
 
 export const previewBox = 'h-72 overflow-hidden rounded-xl bg-[#ebe8e1] dark:bg-[#141a2b] sm:h-96';
+
+// The two-action row every shop card ends with (pattern and labels live in lib/cardActions.ts): primary + secondary, equal size.
+// Secondary is out of the tab order on cards: the stretched title link is the one stop to the same page.
+export const secondaryCardBtn = 'inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:border-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
+export function CardActions({ kind, id, exampleId, onPrimary, disabled, added, title }: {
+  kind: CardKind; id: string; exampleId?: string | null; onPrimary?: () => void; disabled?: boolean; added?: boolean; title?: string;
+}) {
+  const { primary, secondary } = cardActions(kind, id, exampleId);
+  const label = <><Icon name={primary.icon} />{primary.label}</>;
+  return (
+    <>
+      {primary.href ? (
+        <Link href={primary.href} className={addBtn}>{label}</Link>
+      ) : (
+        <button type="button" disabled={disabled} onClick={onPrimary} title={title} className={addBtn}>{added ? <><Icon name="check" />Added</> : label}</button>
+      )}
+      <Link href={secondary.href} className={secondaryCardBtn}><Icon name={secondary.icon} />{secondary.label}</Link>
+    </>
+  );
+}

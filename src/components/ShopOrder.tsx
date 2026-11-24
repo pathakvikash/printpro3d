@@ -9,13 +9,13 @@ import { PRODUCTS, specFromMesh, type Product } from '@/lib/shopProducts';
 import { buildOffThread } from '@/lib/buildOffThread';
 import type { MaterialKey } from '@/lib/quote';
 import { money } from './ContactFields';
-import { QtyStepper, SaveButton } from './CartDrawer';
+import { SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
 import { TEMPLATES } from '@/lib/templateDefs';
 import { ComingSoon, TemplateCard } from './TemplateShop';
 import { KITS } from '@/lib/kits';
 import { KitCard } from './KitShop';
-import { addBtn, AddLabel, CardFrame, chipClass, useAdded, useReduceMotion } from './ShopParts';
+import { CardActions, CardFrame, chipClass, useAdded, useReduceMotion } from './ShopParts';
 
 // the 3D preview code loads only when a card first scrolls into view
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
@@ -26,7 +26,6 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
 }) {
   const { item, ex, dims } = p;
   const { lines, add, toast } = useCart();
-  const [qty, setQty] = useState(1);
   const [added, setAdded] = useAdded();
   // the print mesh is built in a worker: building every card's CSG during hydration blocked the page for ~0.7 s on desktop
   const [mesh, setMesh] = useState<Float32Array | null>();
@@ -74,19 +73,7 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
         )
       }
       save={<SaveButton savedKey={`shop:${item.id}`} name={item.name} />}
-      actions={
-        <>
-          <QtyStepper name={item.name} qty={qty} onChange={setQty} />
-          <button
-            type="button"
-            onClick={() => { add({ kind: 'shop', id: item.id, qty }); toast('Added to cart', true); setAdded(true); }}
-            className={addBtn}
-            title={inCart ? `In cart (${inCart.qty})` : undefined}
-          >
-            <AddLabel added={added} />
-          </button>
-        </>
-      }
+      actions={<CardActions kind="item" id={item.id} exampleId={item.exampleId} added={added} title={inCart ? `In cart (${inCart.qty})` : undefined} onPrimary={() => { add({ kind: 'shop', id: item.id, qty: 1 }); toast('Added to cart', true); setAdded(true); }} />}
     />
   );
 }
