@@ -33,3 +33,25 @@ export const CATALOG: Item[] = [
   { id: 'phone-stand', exampleId: 'phone-stand', name: 'Phone stand', category: 'gadget', price: 199, material: 'PLA', description: 'A sloped back and a front lip hold a phone upright, with a hole in the base for the charging cable.' },
   { id: 'shelf-bracket', exampleId: 'shelf-bracket', name: 'Shelf bracket', category: 'gadget', price: 179, material: 'PETG', description: 'An L-shaped bracket with two screw holes in each leg.' },
 ];
+
+// The shop sells drone/RC, robotics, toy/hobby and accessory parts only. Ids not listed here stay in CATALOG/TEMPLATES
+// (old carts, orders and the builder examples still resolve them) but are not shown in the shop.
+export const SHOP_CATEGORIES = [
+  { id: 'drone-rc', label: 'Drone & RC' },
+  { id: 'robotics', label: 'Robotics' },
+  { id: 'toys-hobby', label: 'Toys & Hobby' },
+  { id: 'accessories', label: 'Accessories' },
+] as const;
+export type ShopCategory = (typeof SHOP_CATEGORIES)[number]['id'];
+const SHOP_CAT: Record<string, ShopCategory> = {
+  'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc',
+  'motor-mount': 'robotics', 'motor-wheel': 'robotics', 'spacer-set': 'robotics', 'board-case': 'robotics', 'pi-case': 'robotics', 'enclosure-box': 'robotics',
+  'spinner-toy': 'toys-hobby', pawn: 'toys-hobby',
+  'grid-bin': 'accessories',
+};
+export const shopCat = (id: string): ShopCategory | null => SHOP_CAT[id] ?? null;
+export const shopCatLabel = (id: string) => SHOP_CATEGORIES.find((c) => c.id === id)?.label ?? id;
+const rank = (id: string) => SHOP_CATEGORIES.findIndex((c) => c.id === shopCat(id));
+// shop order: by shop category, then as listed
+export const shopVisible = <T extends { id: string }>(xs: readonly T[]): T[] =>
+  xs.filter((x) => shopCat(x.id)).sort((a, b) => rank(a.id) - rank(b.id));

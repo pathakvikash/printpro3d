@@ -72,7 +72,7 @@ export default function Navbar() {
           {/* Page links: desktop */}
           <ul className='hidden md:flex items-center gap-1 ml-6 mr-auto'>
             {LINKS.map((l) => {
-              const active = pathname === l.href;
+              const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
               return (
                 <li key={l.href}>
                   <Link
