@@ -35,6 +35,12 @@ test('propAt: hits data points, clamps throttle, model below range', () => {
   assert.deepEqual([propAt(run, -5).rpm, propAt(run, -5).thrustG], [0, 0]);
 });
 
+test('propAt: thrust is continuous at the first measured point and monotonic in throttle (bisection relies on it)', () => {
+  const below = propAt(run, run.points[0].throttle - 1e-6).thrustG;
+  assert.ok(Math.abs(below - run.points[0].thrustG) < 0.01, `${below} vs ${run.points[0].thrustG}`);
+  for (let t = 0; t < 100; t += 0.5) assert.ok(propAt(run, t + 0.5).thrustG >= propAt(run, t).thrustG, `drops after ${t}%`);
+});
+
 test('gearAt: published endpoints, stall, bounds', () => {
   const r = tt.runs[1];
   const free = gearAt(r, 100, 0);

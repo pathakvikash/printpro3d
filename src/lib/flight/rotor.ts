@@ -1,5 +1,5 @@
 // Rotor model on top of the measured bench points in motors.ts. Thrust/current/rpm are interpolated from measurements
-// inside the tested throttle range ('measured') and extrapolated by T = k rpm^2 below it ('model').
+// inside the tested throttle range ('measured') and extrapolated by T ~ rpm^2 from the first point below it ('model').
 // Torque uses an ASSUMED electrical-to-shaft efficiency; it only sets the yaw coefficient kappa = Q/T.
 import { MOTORS, propAt, fitK, type PropMotor, type PropRun } from '../motors.ts';
 

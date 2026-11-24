@@ -84,7 +84,7 @@ export function fitK(points: PropPoint[]): number {
 
 export type PropState = { rpm: number; thrustG: number; amps: number; watts: number; gPerW: number; basis: 'measured' | 'model' };
 
-/** Inside the tested throttle range: interpolate the points. Below it: thrust = k rpm^2, power ~ rpm^3 (model). */
+/** Inside the tested throttle range: interpolate the points. Below it: thrust ~ rpm^2 and power ~ rpm^3 scaled from the first point (model). */
 export function propAt(run: PropRun, throttlePct: number): PropState {
   const t = clamp(throttlePct, 0, 100);
   const pts = run.points, first = pts[0];
@@ -92,7 +92,7 @@ export function propAt(run: PropRun, throttlePct: number): PropState {
     const rpm = first.rpm * (t / first.throttle);
     const r = first.rpm ? rpm / first.rpm : 0;
     const watts = first.watts * r ** 3;
-    const thrustG = fitK(pts) * rpm ** 2;
+    const thrustG = first.thrustG * r ** 2; // T ~ rpm^2 anchored on the first point: continuous and monotonic (a global k fit jumped 206 -> 181 g at 25%)
     return { rpm, thrustG, amps: watts / (first.watts / first.amps), watts, gPerW: gramsPerWatt(thrustG, watts), basis: 'model' };
   }
   const xs = pts.map((p) => p.throttle);
