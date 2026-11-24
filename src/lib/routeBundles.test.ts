@@ -29,9 +29,9 @@ test('ModelPlayground (/playground) imports nothing that statically pulls three'
   }
 });
 
-// /shop's first load: the static import graph of the page (type-only imports and import() calls are not followed) must never reach
-// three, the CSG or the modules that build meshes. The cards load KitShop / TemplateShop / ExamplePreview after the page shows.
-test('/shop static import graph never reaches three, the CSG or a mesh builder', () => {
+// the static import graph of a route's entry files (type-only imports and import() calls are not followed) must never reach three,
+// the CSG or the modules that build meshes
+function heavyReached(entries: string[]) {
   const src = fileURLToPath(new URL('..', import.meta.url));
   const heavyPkg = /^(three($|\/)|three-bvh-csg|three-stdlib|@react-three\/)/;
   const heavyFile = /^(lib\/(templates|playground|kits|shopProducts|partModels|assemblyBlueprint)\.ts|lib\/kits\/|components\/(PrintMaterial|KitShop|TemplateShop|ExamplePreview|ModelViewer|WebGLCanvas)\.tsx$)/;
@@ -51,7 +51,19 @@ test('/shop static import graph never reaches three, the CSG or a mesh builder',
       if (hit) walk(hit);
     }
   };
-  for (const f of ['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop']) walk(join(src, 'components', `${f}.tsx`));
+  for (const f of entries) walk(join(src, f));
+  return { bad, seen };
+}
+
+test('/shop static import graph never reaches three, the CSG or a mesh builder', () => {
+  const { bad, seen } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'HomeKits'].map((f) => `components/${f}.tsx`));
+  assert.deepEqual(bad, []);
+  assert.ok(seen.size > 8, 'the walk found the graph');
+});
+
+// the layout loads CartDrawer on every page, so it counts too
+test('/cart (page, drawer, thumbnails) first load never reaches three, the CSG or a mesh builder', () => {
+  const { bad, seen } = heavyReached(['app/cart/page.tsx', 'components/CartPage.tsx', 'components/CartDrawer.tsx', 'components/CartThumb.tsx']);
   assert.deepEqual(bad, []);
   assert.ok(seen.size > 8, 'the walk found the graph');
 });
