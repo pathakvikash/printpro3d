@@ -14,6 +14,7 @@ import { setPendingFile } from '@/lib/pendingFile';
 import { ALLOWED_EXTS, extOf, fileProblem } from '@/lib/uploadRules';
 
 const ModelViewer = dynamic(() => import('./ModelViewer'), { ssr: false, loading: () => <div role="status" aria-label="Loading the 3D viewer" className="h-[340px] animate-pulse rounded-xl bg-gray-200 sm:h-[460px] dark:bg-gray-800" /> });
+const AssemblyDemo = dynamic(() => import('./assembly/AssemblyDemo'), { ssr: false, loading: () => <div role="status" aria-label="Loading the assembly demo" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
 type Lib = typeof import('@/lib/shopProducts'); // pulls three + the CSG: loaded after the page shows, not in its first load
 
@@ -36,6 +37,7 @@ export default function ModelPlayground() {
   const [light, setLight] = useState<LightKey>('studio');
   const [dims, setDims] = useState(true);
   const [spin, setSpin] = useState(false);
+  const [demo, setDemo] = useState(false);
   const [resetKey, setReset] = useState(0);
   const [note, setNote] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -185,6 +187,12 @@ export default function ModelPlayground() {
         <p className="text-sm text-gray-600 dark:text-gray-300">Pick a material to see its finish on the model above{stats ? " and this part's weight in it" : ''}.</p>
         <MaterialCards selected={material} onSelect={setMaterial} partVolumeCm3={stats?.volumeCm3} />
         <p className="text-xs text-gray-600 dark:text-gray-400">{KEYS.length} materials, same prices and weights as Get a quote.</p>
+      </section>
+
+      <section aria-label="Assembly demo" className="space-y-3">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Assembly demo</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">A sample drone kit: printed frame plate and camera mount, with the motors and battery you buy shown as grey placeholders. Try Exploded, Spin and Unboxing.</p>
+        {demo ? <AssemblyDemo /> : <button type="button" className={btn} onClick={() => setDemo(true)}>Open the assembly demo</button>}
       </section>
 
       <section aria-label="Send to Get a quote" className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
