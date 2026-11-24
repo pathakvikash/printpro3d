@@ -207,7 +207,7 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
       </div>
 
       <div aria-hidden className="h-16 md:hidden" />
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur md:hidden dark:border-gray-700 dark:bg-gray-900/95">
+      <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur md:hidden dark:border-gray-700 dark:bg-gray-900/95">
         <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : 'n/a'}</span>
         <button type="button" disabled={!canAdd} onClick={addToCart} className={`${addBtn} ml-auto`}><AddLabel added={added} /></button>
       </div>

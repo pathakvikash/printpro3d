@@ -45,6 +45,9 @@ html {
 .pp-bar { position: relative; height: 4px; overflow: hidden; border-radius: 9999px; background: rgb(148 163 184 / 0.25); }
 .pp-bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: var(--color-indigo-500); animation: pp-slide 1.2s ease-in-out infinite; }
 
+/* Product pages pin a price bar to the bottom below lg; keep the footer's last line clear of it. */
+@media (max-width: 1023.98px) { body:has(.pp-mobile-bar) footer { padding-bottom: 5rem; } }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

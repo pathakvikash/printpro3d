@@ -169,7 +169,7 @@ export function KitDetail({ kit }: { kit: Kit }) {
         </ul>
       </section>
       <div aria-hidden className="h-16 lg:hidden" />
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
+      <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
         <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : '…'}</span>
         <button type="button" disabled={!ready} onClick={addAll} className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add whole kit</>}</button>
       </div>
