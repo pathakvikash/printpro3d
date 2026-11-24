@@ -4,8 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { PrintMesh, PrintStage, prepGeometry, useReducedMotion } from './PrintMaterial';
 import type { MaterialKey } from '@/lib/quote';
+import { scalePositions } from '@/lib/blueprint';
 
-function useGeometry(url: string, ext: 'stl' | 'obj') {
+// A fresh geometry from a triangle soup; with scaleTo, a scaled copy whose longest side is scaleTo mm (the source array is never touched).
+function fromPositions(p: Float32Array, scaleTo?: number) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(scaleTo ? scalePositions(p, scaleTo) : p.slice(), 3));
+  return prepGeometry(g);
+}
+
+function useGeometry(url: string, ext: 'stl' | 'obj', scaleTo?: number) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -14,7 +22,11 @@ function useGeometry(url: string, ext: 'stl' | 'obj') {
       try {
         const lib = await import('three-stdlib');
         if (cancelled) return;
-        const done = (g: THREE.BufferGeometry) => { if (!cancelled) setGeometry(prepGeometry(g)); };
+        const done = (g: THREE.BufferGeometry) => {
+          if (cancelled) return;
+          const a = g.getAttribute('position').array as Float32Array;
+          setGeometry(scaleTo ? fromPositions(a, scaleTo) : prepGeometry(g));
+        };
         if (ext === 'stl') new lib.STLLoader().load(url, done, undefined, () => setError(true));
         else new lib.OBJLoader().load(url, (obj) => {
           const parts: THREE.BufferGeometry[] = [];
@@ -33,7 +45,7 @@ function useGeometry(url: string, ext: 'stl' | 'obj') {
       }
     })();
     return () => { cancelled = true; };
-  }, [url, ext]);
+  }, [url, ext, scaleTo]);
   return { geometry, error };
 }
 
@@ -47,11 +59,15 @@ function PlaceholderScene() {
 }
 
 // onPositions: hands the loaded triangle soup (mm) to the parent, e.g. for the blueprint; material: the finish shown (the quote's pick, PLA by default like the quote)
-export default function ModelViewer({ url, onPositions, material = 'PLA' }: { url?: string; onPositions?: (p: Float32Array) => void; material?: MaterialKey }) {
+// positions: show a triangle soup already in memory instead of loading url; scaleTo: show (and report) a copy scaled so its longest side is that many mm
+export default function ModelViewer({ url, positions, scaleTo, onPositions, material = 'PLA', className = 'h-full min-h-[320px] sm:min-h-[400px]' }: { url?: string; positions?: Float32Array | null; scaleTo?: number; onPositions?: (p: Float32Array) => void; material?: MaterialKey; className?: string }) {
   const reduce = useReducedMotion();
   const ext = url?.split('.').pop()?.toLowerCase();
   const kind = ext === 'stl' || ext === 'obj' ? ext : null;
-  const { geometry, error } = useGeometry(kind ? url! : '', kind ?? 'stl');
+  const loaded = useGeometry(!positions && kind ? url! : '', kind ?? 'stl', scaleTo);
+  const own = useMemo(() => (positions && positions.length >= 9 ? fromPositions(positions, scaleTo) : null), [positions, scaleTo]);
+  const geometry = own ?? loaded.geometry;
+  const error = loaded.error;
   useEffect(() => {
     const a = geometry?.getAttribute('position')?.array;
     if (a && onPositions) onPositions(a as Float32Array);
@@ -61,10 +77,10 @@ export default function ModelViewer({ url, onPositions, material = 'PLA' }: { ur
     return b ? { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z } : { x: 40, y: 40, z: 40 };
   }, [geometry]);
   return (
-    <div className="w-full h-full min-h-[400px] rounded-xl overflow-hidden">
+    <div className={`w-full rounded-xl overflow-hidden ${className}`}>
       {/* key: refit the camera when a different model loads */}
       <PrintStage key={geometry?.uuid ?? 'none'} size={size} material={material} interactive reduceMotion={reduce}>
-        {geometry ? <PrintMesh geometry={geometry} /> : (!kind || error) && <PlaceholderScene />}
+        {geometry ? <PrintMesh geometry={geometry} /> : (!(kind || positions) || error) && <PlaceholderScene />}
       </PrintStage>
     </div>
   );

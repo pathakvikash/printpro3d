@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Icon from '../Icon';
 import QuoteOrder from '../QuoteOrder';
+import ModelWithBlueprint from '../ModelWithBlueprint';
 import { card, secondaryBtn, submitBtn } from '../ContactFields';
 import { blueprintToShapes } from '@/lib/designBlueprint';
 import { canPlaceOrder, currentRevision, mapError, type ProjectView, type UiError } from '@/lib/buildFlow';
@@ -107,6 +108,8 @@ export function OrderStep({ p, stats, onNew }: { p: ProjectView; stats: MeshStat
   const rev = frozenRevision(p);
   const shapes = useMemo(() => (p.source === 'mesh' ? null : blueprintToShapes(rev.blueprint)), [p.source, rev]);
   const { tris } = useMesh(shapes);
+  const [meshPos, setMeshPos] = useState<Float32Array | null>(null); // mesh projects: what the viewer loaded from the finished file
+  const positions = p.source === 'mesh' ? meshPos : tris;
   if (p.status === 'ordered') {
     return (
       <section className={card}>
@@ -119,7 +122,8 @@ export function OrderStep({ p, stats, onNew }: { p: ProjectView; stats: MeshStat
   return (
     <div className="space-y-4">
       <p role="status" className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200"><Icon name="lock" />{rev.blueprint.title}, revision v{rev.n}: finalized and read-only.</p>
-      {canPlaceOrder(p.status) && p.finalFile && <QuoteOrder key={p.id} project={p.id} file={p.finalFile} stats={stats} positions={tris} label={rev.blueprint.title} onAnother={onNew} />}
+      {p.finalFile && (p.source === 'mesh' ? <ModelWithBlueprint url={`/api/upload/${p.finalFile}`} name={rev.blueprint.title} onPositions={setMeshPos} /> : tris && <ModelWithBlueprint positions={tris} name={rev.blueprint.title} />)}
+      {canPlaceOrder(p.status) && p.finalFile && <QuoteOrder key={p.id} project={p.id} file={p.finalFile} stats={stats} positions={positions} label={rev.blueprint.title} onAnother={onNew} />}
     </div>
   );
 }

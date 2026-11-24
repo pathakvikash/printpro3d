@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blueprint, blueprintData } from './blueprint.ts';
+import { blueprint, blueprintData, bounds, scalePositions } from './blueprint.ts';
 import { buildMesh } from './playground.ts';
 import { exampleById } from './examples.ts';
 import { CATALOG } from './catalog.ts';
+import { analyzeModel } from './analyzeModel.ts';
 import { LAYER_MM } from './printSpec.ts';
 
 const mesh = (id: string) => buildMesh(exampleById(id)!.shapes)!;
@@ -66,4 +67,33 @@ test('phone stand and cable clip texts match their meshes', () => {
   const ring = exampleById('cable-clip')!.shapes.find((s) => s.kind === 'cylinder' && s.mode === 'solid')!;
   assert.deepEqual(ring.rotation, { x: 0, y: 0, z: 0 });
   assert.ok(!/against a desk/i.test(text('cable-clip')) && /slot/.test(text('cable-clip')));
+});
+
+test('bounds and scalePositions: whole-model extents, scaling copies', () => {
+  // two disjoint boxes, offset from the origin and below z=0 (an L shape)
+  const box = (x: number, y: number, z: number, w: number, d: number, h: number) => [[x, y, z], [x + w, y, z], [x + w, y + d, z + h]].flat();
+  const pos = new Float32Array([...box(-5, 10, -3, 10, 10, 10), ...box(15, 10, 20, 15, 5, 17)]);
+  const b = bounds(pos);
+  assert.deepEqual(b.size, { x: 35, y: 10, z: 40 });
+  assert.deepEqual(blueprintData(pos, 'PLA').size, b.size);
+  const before = Array.from(pos);
+  const s = scalePositions(pos, 80);
+  assert.deepEqual(Array.from(pos), before); // original untouched
+  assert.notEqual(s, pos);
+  const sb = bounds(s).size;
+  assert.ok(Math.abs(Math.max(sb.x, sb.y, sb.z) - 80) < 1e-4);
+  assert.ok(Math.abs(sb.x / sb.z - 35 / 40) < 1e-5);
+  assert.equal(scalePositions(pos, 0), pos);
+});
+
+test('server upload analysis and client bounds give the same overall size', () => {
+  // a real closed multi-part model, shifted off the origin and below z=0
+  const pos = Float32Array.from(mesh('pi-case'), (v, i) => v + [-40, 25, -7][i % 3]);
+  const n = pos.length / 9;
+  const buf = Buffer.alloc(84 + n * 50);
+  buf.writeUInt32LE(n, 80);
+  for (let t = 0; t < n; t++) for (let k = 0; k < 9; k++) buf.writeFloatLE(pos[t * 9 + k], 84 + t * 50 + 12 + k * 4);
+  const s = analyzeModel(buf, '.stl')!;
+  const c = bounds(pos).size;
+  for (const d of ['x', 'y', 'z'] as const) assert.ok(Math.abs(s.sizeMm[d] - c[d]) < 0.01, d);
 });

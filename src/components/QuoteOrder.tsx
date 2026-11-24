@@ -1,10 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { blueprint } from '@/lib/blueprint';
 import { analyzeMesh } from '@/lib/meshAnalysis';
 import Icon from './Icon';
-import BlueprintSheet from './BlueprintSheet';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
@@ -26,7 +24,7 @@ export default function QuoteOrder({
 }: {
   file: string;
   stats: MeshStats | null;
-  positions?: Float32Array | null; // triangle soup of the uploaded mesh, for the drawing
+  positions?: Float32Array | null; // triangle soup of the model, for "What we detected"
   label?: string;
   onAnother?: () => void;
   onMaterial?: (k: MaterialKey) => void; // the preview above shows the picked finish
@@ -37,7 +35,6 @@ export default function QuoteOrder({
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
 
-  const sheet = useMemo(() => (positions && positions.length >= 9 ? blueprint(positions, { name: modelName, material }) : null), [positions, modelName, material]);
   const found = useMemo(() => (positions ? analyzeMesh(positions) : null), [positions]);
   const fits = stats ? fitsBed(stats.sizeMm) : false;
   const validQty = Number.isInteger(qty) && qty >= 1 && qty <= MAX_QTY;
@@ -135,14 +132,6 @@ export default function QuoteOrder({
             <li>{found.fitsBed ? 'Fits our print bed' : 'Does not fit our print bed'}. Orientation: {found.orientation}</li>
           </ul>
           <p className="text-xs text-gray-500 dark:text-gray-400">{found.limits.join(' ')}</p>
-        </section>
-      )}
-
-      {sheet && (
-        <section aria-labelledby="bp-h" className="space-y-3">
-          <h4 id="bp-h" className="font-semibold text-gray-900 dark:text-gray-100">Blueprint</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-300">Three views drawn from your file, in mm. Check the size before you order.</p>
-          <BlueprintSheet svg={sheet} filename="blueprint" />
         </section>
       )}
 

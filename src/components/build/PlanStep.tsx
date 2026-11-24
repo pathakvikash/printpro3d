@@ -4,7 +4,6 @@ import { useId, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Icon from '../Icon';
 import { card, input, label, secondaryBtn, submitBtn } from '../ContactFields';
-import { blueprint as drawSheet } from '@/lib/blueprint';
 import { blueprintToShapes, diffBlueprints, type Blueprint } from '@/lib/designBlueprint';
 import {
   BY_LABEL, CHANGE_MAX, EMAIL_KEY, aiUsage, bedFit, canUndo, currentRevision, diffRows, estGrams, fmtSize, isFrozen, mapError, noteItems, partRows, previousRevision,
@@ -12,9 +11,9 @@ import {
 } from '@/lib/buildFlow';
 import { ApiError, api } from './api';
 import { useMesh, useReducedMotion } from './useMesh';
+import ModelWithBlueprint from '../ModelWithBlueprint';
 import { ErrorNote, sectionH, subtle, td, th } from './ui';
 
-const BlueprintSheet = dynamic(() => import('../BlueprintSheet'), { ssr: false });
 const ExamplePreview = dynamic(() => import('../ExamplePreview'), { ssr: false });
 const Playground = dynamic(() => import('../Playground'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading the editor…</p> });
 
@@ -36,7 +35,7 @@ function Facts({ b, stats }: { b: Blueprint; stats: ReturnType<typeof useMesh>['
 export function PlanSummary({ p, bp }: { p: ProjectView; bp: Blueprint }) {
   const shapes = useMemo(() => blueprintToShapes(bp), [bp]);
   const { tris, stats, ready } = useMesh(shapes);
-  const sheet = useMemo(() => (tris && tris.length >= 9 ? drawSheet(tris, { name: bp.title, material: 'PLA' }) : null), [tris, bp.title]);
+  const upload = p.source === 'mesh' && p.meshFile ? `/api/upload/${p.meshFile}` : null; // the real uploaded mesh, not the box stand-in
   const notes = noteItems(bp.notes);
   return (
     <div className="space-y-4">
@@ -68,7 +67,13 @@ export function PlanSummary({ p, bp }: { p: ProjectView; bp: Blueprint }) {
           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
         </div>
       )}
-      {sheet ? <BlueprintSheet svg={sheet} filename={`plan-v${currentRevision(p).n}`} /> : <p className={subtle}>{ready ? 'We could not draw this one; the sizes above still apply.' : 'Drawing the blueprint…'}</p>}
+      {upload ? (
+        <ModelWithBlueprint url={upload} scaleTo={currentRevision(p).longestMm} name={bp.title} />
+      ) : tris && tris.length >= 9 ? (
+        <ModelWithBlueprint positions={tris} name={bp.title} />
+      ) : (
+        <p className={subtle}>{ready ? 'We could not draw this one; the sizes above still apply.' : 'Drawing the blueprint…'}</p>
+      )}
     </div>
   );
 }

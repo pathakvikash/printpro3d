@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Design and build - PrintPro3D', desc
 
 export default function BuildPage() {
   return (
-    <PageShell wide title="Design and build" lead="Plan it, approve the plan, then we build the print file and give you a price. Or make a model from shapes yourself.">
+    <PageShell wide back={{ href: '/shop', label: 'Back to Shop' }} title="Design and build" lead="Plan it, approve the plan, then we build the print file and give you a price. Or make a model from shapes yourself.">
       <Suspense fallback={null}>
         <BuildRoute />
       </Suspense>

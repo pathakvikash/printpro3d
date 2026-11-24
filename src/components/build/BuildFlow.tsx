@@ -3,7 +3,8 @@
 // The project id lives in localStorage so a reload resumes it. The server is the source of truth for status; this only mirrors it.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Icon from '../Icon';
 import { secondaryBtn } from '../ContactFields';
 import {
@@ -29,7 +30,11 @@ const writeId = (id: string | null) => { try { if (id) localStorage.setItem(PROJ
 const OFF: Caps = { ai: false, meshy: false, tier: '', revisions: 0 };
 
 export default function BuildFlow() {
-  const prefill = prefillPrompt(useSearchParams().get('prompt'));
+  const sp = useSearchParams();
+  const prefill = prefillPrompt(sp.get('prompt'));
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlStep = sp.get('step');
   const [caps, setCaps] = useState<Caps | null>(null);
   const [capsErr, setCapsErr] = useState<UiError | null>(null);
   const [project, setProject] = useState<ProjectView | null>(null);
@@ -39,6 +44,8 @@ export default function BuildFlow() {
   const [resumeErr, setResumeErr] = useState<UiError | null>(null);
   const [pending, setPending] = useState<string | null>(null); // a saved design waiting while a ?prompt= start is shown
   const top = useRef<HTMLDivElement>(null);
+  const live = useRef({ step, project }); // read by the URL effect without re-running it
+  live.current = { step, project };
 
   const adopt = useCallback((p: ProjectView, s?: MeshStats | null, to?: Step) => {
     setProject(p);
@@ -74,12 +81,29 @@ export default function BuildFlow() {
     return () => ctl.abort();
   }, [boot]);
 
-  const go = (s: Step) => {
-    if (!project || !stepAllowed(s, project.status)) return;
+  // each step is its own history entry (?step=), so the browser Back button walks the steps before leaving /build
+  const show = (s: Step) => {
     setStep(s);
+    router.push(`${pathname}?step=${s}`, { scroll: false });
     top.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
-  const fresh = () => { writeId(null); setProject(null); setStats(null); setStep('plan'); setPending(null); };
+  const go = (s: Step) => {
+    if (!project || !stepAllowed(s, project.status)) return;
+    show(s);
+  };
+  // browser Back/Forward changed ?step=
+  useEffect(() => {
+    const { step: cur, project: p } = live.current;
+    if (!p || !urlStep || urlStep === cur || !(urlStep in STEP_LABEL) || !stepAllowed(urlStep as Step, p.status)) return;
+    setStep(urlStep as Step);
+  }, [urlStep]);
+  // a project just opened (new or resumed): record its step in the URL without adding a history entry
+  const projectId = project?.id;
+  useEffect(() => {
+    if (projectId) router.replace(`${pathname}?step=${live.current.step}`, { scroll: false });
+  }, [projectId, pathname, router]);
+  const back = () => { if (window.history.length > 1) router.back(); else router.push('/shop'); };
+  const fresh = () => { router.replace(pathname, { scroll: false }); writeId(null); setProject(null); setStats(null); setStep('plan'); setPending(null); };
   const newDesign = () => {
     if (project && project.status !== 'ordered' && !window.confirm('Leave this design? It is not deleted, but this browser will stop reopening it.')) return;
     fresh();
@@ -121,12 +145,16 @@ export default function BuildFlow() {
     <div ref={top} className="scroll-mt-20 space-y-6">
       <div className="space-y-2">
         <Stepper steps={stepViews(project.status, step)} onGo={go} />
-        <button type="button" onClick={newDesign} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New design</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={back} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Back</button>
+          <Link href="/shop" className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Back to Shop</Link>
+          <button type="button" onClick={newDesign} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New design</button>
+        </div>
       </div>
       <p className="sr-only" role="status">{STEP_LABEL[step]} step</p>
       {step === 'plan' && <PlanStep p={project} caps={caps} onProject={send} onNext={() => go('approve')} />}
-      {step === 'approve' && <ApproveStep p={project} onProject={(p) => adopt(p, undefined)} onGo={(s) => { setStep(s); top.current?.scrollIntoView({ behavior: 'smooth' }); }} />}
-      {step === 'build' && <BuildStep p={project} onProject={(p, s) => adopt(p, s)} onGo={(s) => { setStep(s); top.current?.scrollIntoView({ behavior: 'smooth' }); }} />}
+      {step === 'approve' && <ApproveStep p={project} onProject={(p) => adopt(p, undefined)} onGo={show} />}
+      {step === 'build' && <BuildStep p={project} onProject={(p, s) => adopt(p, s)} onGo={show} />}
       {step === 'order' && <OrderStep p={project} stats={stats} onNew={fresh} />}
     </div>
   );

@@ -13,8 +13,8 @@ const NOTE = 'Not a tolerance guarantee.';
 type V3 = [number, number, number];
 type Seg = [V3, V3];
 
-export function blueprintData(positions: ArrayLike<number>, material: string) {
-  const stats = meshStats(positions);
+/** Axis-aligned bounds over ALL vertices: the one source of overall X/Y/Z for the sheet, the readouts and Build. */
+export function bounds(positions: ArrayLike<number>) {
   const min: V3 = [Infinity, Infinity, Infinity];
   const max: V3 = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i + 2 < positions.length; i += 3) for (let d = 0; d < 3; d++) {
@@ -22,6 +22,21 @@ export function blueprintData(positions: ArrayLike<number>, material: string) {
     max[d] = Math.max(max[d], positions[i + d]);
   }
   const size: Size = { x: max[0] - min[0], y: max[1] - min[1], z: max[2] - min[2] };
+  return { min, max, size };
+}
+
+/** A scaled COPY (the input is never touched) whose longest bounding-box side is longestMm; the input back when it cannot be scaled. */
+export function scalePositions(positions: Float32Array, longestMm: number): Float32Array {
+  const { size } = bounds(positions);
+  const cur = Math.max(size.x, size.y, size.z);
+  if (!(cur > 0) || !Number.isFinite(longestMm) || longestMm <= 0) return positions;
+  const k = longestMm / cur;
+  return positions.map((v) => v * k);
+}
+
+export function blueprintData(positions: ArrayLike<number>, material: string) {
+  const stats = meshStats(positions);
+  const { min, max, size } = bounds(positions);
   // the modelled pose (Z up) when it fits, else the lowest axis-aligned pose that fits. Laying a part down to save
   // layers is a print decision (supports, strength), not one to make for the customer: a pawn must not lie on its side.
   const [a, b, c] = [size.x, size.y, size.z];
