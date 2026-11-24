@@ -89,8 +89,10 @@ export function partBlueprint(part: Part): string | null {
 }
 
 /** A small 2D silhouette of the model (oblique view) as an SVG path in a 0..100 box, for thumbnails. No WebGL. */
-export function partThumb(part: Part): { d: string; vb: string } | null {
-  const m = partMesh(part);
+export const partThumb = (part: Part) => meshThumb(partMesh(part));
+
+/** The same silhouette for any triangle mesh (cart thumbnails of templates, shop items and kit parts). */
+export function meshThumb(m: Float32Array | null): { d: string; vb: string } | null {
   if (!m) return null;
   const c = Math.cos(Math.PI / 6), pts: [number, number][] = [];
   for (let i = 0; i + 2 < m.length; i += 3) pts.push([(m[i] - m[i + 1]) * c, -(m[i + 2] + (m[i] + m[i + 1]) * 0.5 * 0.58)]);

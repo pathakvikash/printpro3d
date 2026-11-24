@@ -11,16 +11,24 @@ export const submitBtn =
 export const secondaryBtn =
   'inline-flex min-h-11 whitespace-nowrap items-center justify-center gap-2 py-2.5 px-5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-medium hover:border-indigo-500 transition-colors';
 
+export type FieldErrors = Partial<Record<string, string>>;
+// props that mark an input invalid and tie it to its message (the checkout page shows these inline)
+export const invalidProps = (id: string, err?: string) => (err ? { 'aria-invalid': true as const, 'aria-describedby': `${id}-err` } : {});
+export const FieldError = ({ id, err }: { id: string; err?: string }) =>
+  err ? <p id={`${id}-err`} role="alert" className="mt-1 text-sm text-red-700 dark:text-red-300">{err}</p> : null;
+
 export function ContactFields({
   addressRequired = true,
   notes = true,
   address = true,
   idPrefix = '', // keeps ids unique when two contact forms are on one page
+  errors = {},
 }: {
   addressRequired?: boolean;
   notes?: boolean;
   address?: boolean; // false: no address box at all
   idPrefix?: string;
+  errors?: FieldErrors; // inline messages by field name
 }) {
   const p = idPrefix;
   return (
@@ -32,22 +40,26 @@ export function ContactFields({
       </div>
       <div>
         <label htmlFor={`${p}name`} className={label}>Name</label>
-        <input id={`${p}name`} name="name" required maxLength={100} className={input} />
+        <input id={`${p}name`} name="name" required maxLength={100} autoComplete="name" className={input} {...invalidProps(`${p}name`, errors.name)} />
+        <FieldError id={`${p}name`} err={errors.name} />
       </div>
       <div>
         <label htmlFor={`${p}email`} className={label}>Email</label>
-        <input id={`${p}email`} name="email" type="email" required maxLength={200} className={input} />
+        <input id={`${p}email`} name="email" type="email" required maxLength={200} autoComplete="email" className={input} {...invalidProps(`${p}email`, errors.email)} />
+        <FieldError id={`${p}email`} err={errors.email} />
       </div>
       <div>
         <label htmlFor={`${p}phone`} className={label}>Phone</label>
-        <input id={`${p}phone`} name="phone" type="tel" required maxLength={30} className={input} />
+        <input id={`${p}phone`} name="phone" type="tel" required maxLength={30} autoComplete="tel" className={input} {...invalidProps(`${p}phone`, errors.phone)} />
+        <FieldError id={`${p}phone`} err={errors.phone} />
       </div>
       {address && (
       <div>
         <label htmlFor={`${p}address`} className={label}>
           Shipping address{addressRequired ? '' : ' (optional for a 3D file only)'}
         </label>
-        <textarea id={`${p}address`} name="address" required={addressRequired} maxLength={500} rows={3} className={input} />
+        <textarea id={`${p}address`} name="address" required={addressRequired} maxLength={500} rows={3} autoComplete="street-address" className={input} {...invalidProps(`${p}address`, errors.address)} />
+        <FieldError id={`${p}address`} err={errors.address} />
       </div>
       )}
       {notes && (

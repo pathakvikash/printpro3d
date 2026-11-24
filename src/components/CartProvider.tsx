@@ -1,11 +1,13 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Icon from './Icon';
 import { addLine, parseCart, parseSaved, removeLine, setQty, toggleSaved, type CartLine } from '@/lib/cart';
 
 export const CART_KEY = 'printpro3d.cart.v1';
 export const SAVED_KEY = 'printpro3d.saved.v1';
 const TOAST_MS = 4000;
+const UNDO_MS = 8000;
 
 export type CartTab = 'cart' | 'saved';
 
@@ -25,7 +27,7 @@ type CartContextValue = {
   clear: () => void;
   toggle: (savedKey: string) => void;
   isSaved: (savedKey: string) => boolean;
-  toast: (message: string, viewCart?: boolean) => void;
+  toast: (message: string, viewCart?: boolean, undo?: () => void) => void; // undo: shows an Undo button (kept longer) that runs it
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -57,7 +59,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<CartTab>('cart');
   const [focusCheckout, setFocusCheckout] = useState(false);
-  const [toastState, setToastState] = useState<{ message: string; viewCart: boolean } | null>(null);
+  const [toastState, setToastState] = useState<{ message: string; viewCart: boolean; undo?: () => void } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // loaded after mount so the server HTML and the first render both start empty
@@ -97,11 +99,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
   const closeCart = useCallback(() => setDrawerOpen(false), []);
 
-  const toast = useCallback((message: string, viewCart = false) => {
+  const toast = useCallback((message: string, viewCart = false, undo?: () => void) => {
     clearTimeout(toastTimer.current);
-    setToastState({ message, viewCart });
-    toastTimer.current = setTimeout(() => setToastState(null), TOAST_MS);
+    setToastState({ message, viewCart, undo });
+    toastTimer.current = setTimeout(() => setToastState(null), undo ? UNDO_MS : TOAST_MS);
   }, []);
+
+  const runUndo = () => {
+    clearTimeout(toastTimer.current);
+    toastState?.undo?.();
+    setToastState(null);
+  };
 
   const dismissToast = () => {
     clearTimeout(toastTimer.current);
@@ -126,6 +134,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         {toastState && (
           <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-gray-900 dark:bg-gray-100 px-4 py-3 text-sm text-white dark:text-gray-900 shadow-lg">
             <span>{toastState.message}</span>
+            {toastState.undo && (
+              <button type="button" onClick={runUndo} aria-label="Undo" title="Undo" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap font-semibold text-indigo-300 dark:text-indigo-700 underline">
+                <Icon name="undo" />Undo
+              </button>
+            )}
             {toastState.viewCart && (
               <button type="button" onClick={dismissToast} aria-label="View cart" title="View cart" className="inline-flex min-h-10 items-center whitespace-nowrap font-semibold text-indigo-300 dark:text-indigo-700 underline">
                 Cart

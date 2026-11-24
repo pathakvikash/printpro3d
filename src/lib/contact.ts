@@ -1,6 +1,6 @@
 // Shared by /api/orders and /api/requests. Pure: takes a getter so it works for JSON and FormData.
 export const LIMITS = { name: 100, email: 200, phone: 30, address: 500, notes: 1000 } as const;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type Contact = { name: string; email: string; phone: string; address: string; notes: string };
 
