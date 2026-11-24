@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SHOP_CATEGORIES, shopCat, shopCatLabel, shopVisible } from '@/lib/catalog';
-import { PRODUCTS, specOf, type Product } from '@/lib/shopProducts';
+import { PRODUCTS, specFromMesh, type Product } from '@/lib/shopProducts';
+import { buildOffThread } from '@/lib/buildOffThread';
 import type { MaterialKey } from '@/lib/quote';
 import { money } from './ContactFields';
 import { QtyStepper, SaveButton } from './CartDrawer';
@@ -25,7 +26,14 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
   const { lines, add, toast } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useAdded();
-  const spec = useMemo(() => specOf(p, item.material), [p, item.material]);
+  // the print mesh is built in a worker: building every card's CSG during hydration blocked the page for ~0.7 s on desktop
+  const [mesh, setMesh] = useState<Float32Array | null>();
+  useEffect(() => {
+    let on = true;
+    buildOffThread(ex.shapes).then((m) => on && setMesh(m), () => on && setMesh(null));
+    return () => { on = false; };
+  }, [ex.shapes]);
+  const spec = useMemo(() => (mesh === undefined ? null : specFromMesh(p, mesh, item.material)), [p, mesh, item.material]);
   const box = useRef<HTMLDivElement>(null);
   const inCart = lines.find((l) => l.kind === 'shop' && l.id === item.id);
 
@@ -43,7 +51,7 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
   const rows: [string, string][] = [
     ['Size', dims],
     ['Material', item.material],
-    ['Weight', spec.grams != null ? `about ${spec.grams.toFixed(1)} g` : 'n/a'],
+    ['Weight', !spec ? '…' : spec.grams != null ? `about ${spec.grams.toFixed(1)} g` : 'n/a'],
     ['Price', `${money.format(item.price)} each`],
   ];
   return (
@@ -60,7 +68,7 @@ function ShopCard({ p, live, reduceMotion, setVisible }: {
             <Image src={item.photo} alt={item.photoAlt ?? item.name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
           </div>
         ) : (
-          live && <div className="h-full"><ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} material={item.material as MaterialKey} /></div>
+          live && mesh !== undefined && <div className="h-full"><ExamplePreview shapes={ex.shapes} mesh={mesh} reduceMotion={reduceMotion} material={item.material as MaterialKey} /></div>
         )
       }
       save={<SaveButton savedKey={`shop:${item.id}`} name={item.name} />}
