@@ -2,6 +2,8 @@
 
 ## Owner actions that block going live
 
+The full grouped list is in [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md). Everything after `3de4d31` is local, not pushed or deployed.
+
 1. Create a **private** Vercel Blob store and connect it to the project (sets `BLOB_READ_WRITE_TOKEN`).
 2. Set `ADMIN_TOKEN` (long random), `SITE_URL`, and for emails `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`.
 3. For AI: `ANTHROPIC_API_KEY` (or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL`) and `MESHY_API_KEY`.
@@ -23,6 +25,10 @@
 | CAPTCHA | Add Cloudflare Turnstile if the honeypot and limits are not enough |
 | Accounts and order history across devices | Orders are tracked by id |
 | Shipping and tax | Not modelled |
+
+## Known limits (blueprint flow)
+
+AI shapes are primitives only; uploaded meshes are scale-only; mass uses a 40% fill estimate; one sourced motor dataset; template hole sizes from memory; no live push or live verification of the new flow yet.
 
 ## Unverified
 

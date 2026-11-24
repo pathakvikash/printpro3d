@@ -4,7 +4,7 @@ Made-to-order 3D printing. A customer uploads a model, picks a ready-made part, 
 
 Scope: one piece to wholesale; games, gadgets, electronics enclosures and frames, toys and moving toys, RC and drone bodies. Deliver the printed part, the 3D file, or both.
 
-Status: working end to end locally, no online payment yet. Prices in the code are placeholders. See [context/GAPS.md](context/GAPS.md).
+Status: working end to end locally, no online payment yet. Prices in the code are placeholders. Commits after `3de4d31` are local, not pushed. See [context/GAPS.md](context/GAPS.md) and [context/OWNER-CHECKLIST.md](context/OWNER-CHECKLIST.md).
 
 > AI assistants: read [context/README.md](context/README.md) first. It explains the whole project in a few minutes.
 
@@ -24,14 +24,14 @@ Without keys: quoting, the shop, the builder, the cart, checkout and tracking al
 
 ## What the customer sees
 
-Real pages with a nav bar: `/quote`, `/request`, `/ai`, `/draw`, `/shop`, `/build`, `/track`, `/materials`, `/how-it-works`, `/contact`. The home page links to each. Old `/?start=<step>` links redirect to the new pages.
+Real pages with a nav bar: `/shop`, `/build`, `/quote`, `/request`, `/track`, `/materials`, `/how-it-works`, `/about`, `/contact`, plus `/blueprint/[id]`. `/draw`, `/ai` and `/motor-test` redirect to `/build`; old `/?start=<step>` links redirect too. Per-route detail, the design-project API, caps and flight-physics assumptions are in [context/OPERATIONS.md](context/OPERATIONS.md).
 
 | Step | What it does |
 | --- | --- |
 | File | Upload STL or OBJ, see size, volume and price per material, add to cart |
-| Shop | Seven ready items with live 3D previews, save for later, add to cart |
-| Build | In-browser shape builder (boxes, cylinders, holes), exports a model to the cart |
-| AI | "Draw it with AI" (photo or text to an editable shape model) and Meshy text/image to 3D |
+| Shop | Parametric templates with live 3D previews and size fields, server-repriced |
+| Build | Blueprint-first: template, AI prompt or uploaded mesh, then Approve, Finalize, order. Place parts, Simulate drone hover, get next-part suggestions |
+| Meshy | Meshy text/image to 3D as a mesh source (needs `MESHY_API_KEY`) |
 | Idea | Describe something we should design, attach pictures |
 | Track | Order and request tracking with a demo order to preview the stages |
 
@@ -42,6 +42,7 @@ Cart and saved list live in the browser. Checkout is one request; the server rec
 ```bash
 npm run order:status -- <order-id> <status>   # move an order, emails the customer
 npm run ai:models                             # list models the configured AI provider offers
+npm run designs:prune                         # delete unordered design projects older than 30 days (weekly)
 ```
 
 Or open `/admin` (needs `ADMIN_TOKEN`). Orders and requests are listed newest first; status changes and file downloads go through the admin API.
@@ -55,6 +56,7 @@ Everything is listed with a comment in [.env.example](.env.example). Summary:
 | Variable | Needed for |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Draw it with AI (Anthropic). Or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL` for any OpenAI-compatible provider |
+| `AI_DESIGN_TIER`, `AI_DESIGN_MODEL`, `AI_REVISIONS_PER_PROJECT`, `AI_DAILY_PER_EMAIL`, `AI_DAILY_TOTAL` | Blueprint AI model tier and caps |
 | `MESHY_API_KEY` | Meshy text/image to 3D |
 | `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`, `SITE_URL` | Owner email on new order, customer email on status change |
 | `ADMIN_TOKEN` | `/admin` and the admin API (unset = disabled) |

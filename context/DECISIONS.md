@@ -19,6 +19,19 @@
 | Setup fee and minimum order apply per model line | Simple and safe; revisit as per-order if owner prefers |
 | Admin via bearer token, no accounts | One owner; smallest safe surface |
 | Honeypot + per-IP limits, no CAPTCHA | No third-party dependency; add Turnstile if abuse appears |
+| Blueprint-first flow: approve a plan before any mesh is built (Fable-decided, 2026-11) | The customer sees and approves dimensions and parts first; an AI mistake costs a revision, not a print |
+| One `/build` page replaces `/draw`, `/ai`, `/motor-test` (Fable-decided) | One flow with a stepper; old URLs redirect |
+| Design lines orderable only when finalized; server reprices from its own STL (Fable-decided) | The browser cannot set a price or order an unbuilt design |
+| Template prices recomputed server-side from id + cfg (Fable-decided) | Sizes change volume; client totals can be forged |
+| AI revision cap 5 per project, 20 per email per day, 200 per day total (Fable-decided, owner to confirm) | Bounds paid calls; counted before the call; repeats are cached and free |
+| Default AI tier `mid` (Sonnet 5.5) (Fable-decided, owner to confirm) | Structured blueprints need more than the low tier; high is a switch away |
+| Prune unordered designs after 30 days, by command not cron (Fable-decided) | Keeps the store small; a command keeps it simple until a scheduler is chosen |
+| Rules first, AI only re-ranks suggestions; positions re-validated server-side (Fable-decided) | Works without a key and an AI cannot place a part outside the frame |
+| Flight model is a static, indicative estimate with one sourced motor dataset and a stated accuracy line (Fable-decided) | Nothing invented; labels say measured vs modelled |
+| Uploaded meshes are scale-only (Fable-decided) | Editing arbitrary meshes needs a real CAD kernel |
+| TypeScript held at 6.0 | typescript-eslint does not support 7 yet |
+| One repo per project: no `printpro3d-v2` | Push to the existing repo; the stray v2 repo is to be deleted by the owner |
+| Layer height 0.2 mm assumed in quotes and copy | Not in code; owner to confirm |
 
 ## Owner standing instructions
 
