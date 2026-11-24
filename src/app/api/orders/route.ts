@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { CURRENCY } from '@/lib/quote';
 import type { Item } from '@/lib/catalog';
 import { parseContact } from '@/lib/contact';
+import { parseShipping } from '@/lib/shipping';
 import { MAX_LINES } from '@/lib/cart';
 import { notifyNewOrder } from '@/lib/notify';
 import type { Cfg, TemplateDef } from '@/lib/templateDefs';
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const fields = parseContact((k) => body[k]);
+    const fields = { ...parseContact((k) => body[k]), ...parseShipping((k) => body[k]) };
     const reqs = requestItems(body).map((raw, i) => checkEntry(raw, i + 1));
 
     const lines: SavedLine[] = [];

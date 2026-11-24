@@ -10,6 +10,8 @@ import { MAX_QTY } from '@/lib/quote';
 import { templateById } from '@/lib/templateDefs';
 import { ContactFields, contactFrom, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart, type CartTab } from './CartProvider';
+import ShippingFields from './ShippingFields';
+import { shippingError } from '@/lib/shipping';
 
 // joined stepper: one bordered group, 44px tall, matching the Add to cart button
 const stepBtn =
@@ -148,12 +150,15 @@ function Drawer() {
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    const form = new FormData(e.currentTarget);
+    const bad = shippingError(form.get('state'), form.get('pin'));
+    if (bad) return setError(bad);
     setBusy(true);
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: lines.map(toPayloadItem), ...contactFrom(new FormData(e.currentTarget)) }),
+        body: JSON.stringify({ items: lines.map(toPayloadItem), ...contactFrom(form), state: form.get('state'), pin: form.get('pin') }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || res.statusText || 'Order failed');
@@ -294,6 +299,7 @@ function Drawer() {
           {unpriced > 0 && <> · plus {unpriced} we&apos;ll quote</>}
         </p>
         <ContactFields idPrefix="cart-" />
+        <ShippingFields idPrefix="cart-" />
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
         <div className="flex flex-col gap-3">
           <button type="submit" disabled={busy} className={submitBtn}>

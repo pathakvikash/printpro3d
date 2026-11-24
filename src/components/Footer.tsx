@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Logo from './Logo';
 import { business } from '@/lib/contact';
+import { BASED_LINE } from '@/lib/business';
 
 const COLUMNS = [
   { title: 'Order', links: [['/quote', 'Get a quote'], ['/request', 'Describe your idea'], ['/shop', 'Shop'], ['/build', 'Build it yourself'], ['/track', 'Track order']] },
@@ -18,6 +19,7 @@ export default function Footer() {
             <Logo size={32} />
           </Link>
           <p className="mt-2 text-sm text-gray-400">Custom 3D prints and designs, from one piece to wholesale.</p>
+          <p className="mt-1 text-sm text-gray-400">{BASED_LINE}</p>
         </div>
         <div className="flex gap-12 text-sm">
           {COLUMNS.map((c) => (

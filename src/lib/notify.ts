@@ -42,6 +42,8 @@ export type OrderNotice = {
   email: string;
   phone: string;
   address: string;
+  state?: string;
+  pin?: string;
   notes: string;
   total: number | null; // sum of priced lines, null when none is priced
   unpricedCount: number;
@@ -88,6 +90,7 @@ export async function notifyNewOrder(order: OrderNotice): Promise<boolean> {
         `Email: ${order.email}`,
         `Phone: ${order.phone}`,
         `Address: ${indent(order.address)}`,
+        ...(order.state && order.pin ? [`State / PIN: ${order.state} ${order.pin}, India`] : []),
         ...(order.notes ? [`Notes: ${indent(order.notes)}`] : []),
       ].join('\n'),
       order.email

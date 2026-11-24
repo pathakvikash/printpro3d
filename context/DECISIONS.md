@@ -39,3 +39,5 @@
 - Personal project: use GitHub account `pathakvikash` only (never the Lyric account or Lyric email).
 - Confirm the UI builds and renders correctly before posting live.
 - Keep the site fast; mobile first.
+
+| India only, starting from Patna (Bihar), 2026-11-24 | Owner decision. One source: `src/lib/business.ts`. Checkout fixes country to India and requires a state (static list) and a 6-digit PIN, checked in the browser and in `/api/orders` (`src/lib/shipping.ts`). Street address, pin of the base, pickup and delivery times are NOT decided and must not be invented |

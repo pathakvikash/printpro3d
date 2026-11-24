@@ -37,6 +37,10 @@ Real pages with a nav bar: `/shop`, `/build`, `/quote`, `/request`, `/track`, `/
 
 Cart and saved list live in the browser. Checkout is one request; the server recomputes every price.
 
+## Service area
+
+India only (for now), based in Patna, Bihar (`src/lib/business.ts`). Checkout asks for an Indian state and 6-digit PIN (`src/lib/shipping.ts`). Address, pickup and delivery times are owner-pending.
+
 ## Owner tasks
 
 ```bash

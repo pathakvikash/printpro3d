@@ -30,6 +30,7 @@ export const metadata: Metadata = {
     title: 'PrintPro3D - Professional 3D Printing Services',
     description: 'Made-to-order 3D design and printing, from a single piece to wholesale.',
     type: 'website',
+    locale: 'en_IN',
   },
 };
 

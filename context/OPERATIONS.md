@@ -118,3 +118,7 @@ See the README. The first deploy is a manual step by the owner: import the repo 
 ## Git
 
 Remote: `https://github.com/pathakvikash/printpro3d`. Use the `pathakvikash` account only. The machine's default git email may be the work one: set a repo-local author before committing and push with the personal token, never through the work login.
+
+## Service area and INTEGRATOR NOTE
+
+Source of truth: `src/lib/business.ts` (India only for now, base Patna, Bihar). Footer shows it. Orders carry `country`, `state`, `pin` (validated in `src/lib/shipping.ts`). Pages that should mention the service area later, once the owner gives details: `/contact` (location, pickup), `/how-it-works` (delivery FAQ: India only), `/quote` and `/shop` (delivery note), `/about`. Do not invent address, pin, phone, pickup or delivery times.

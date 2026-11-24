@@ -13,6 +13,7 @@ Only the owner can supply or do these. Nothing here is invented in code; the sit
 
 - [ ] WhatsApp number (`NEXT_PUBLIC_WHATSAPP_NUMBER`) and phone (`NEXT_PUBLIC_PHONE`)
 - [ ] Business name, city (`NEXT_PUBLIC_BUSINESS_NAME`, `NEXT_PUBLIC_BUSINESS_CITY`), address on `/about` and `/contact` (marked `// OWNER:`)
+- [ ] Patna base details still pending: full address and PIN, phone, whether local pickup exists, delivery times and charges (decided so far: India only, base Patna, Bihar; see `src/lib/business.ts`)
 - [ ] GSTIN (`NEXT_PUBLIC_GSTIN`), or state "not registered"
 
 ## Content
