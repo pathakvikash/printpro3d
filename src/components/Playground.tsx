@@ -141,6 +141,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     },
   }));
   const loadedExample = useRef(example?.id ?? null);
+  const [from, setFrom] = useState(example); // the example this started from; outlives ?example= once the URL drops it (see autosave)
   const touched = useRef(false); // an untouched example never overwrites the saved design
   const editor = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -241,7 +242,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
       loadedExample.current = example.id;
       touched.current = false;
       setH({ past: [], now: { shapes: structuredClone(example.shapes), parts: NO_PARTS }, future: [] });
-      setSelectedId(null); setPartSel(null); setSimulate(false);
+      setSelectedId(null); setPartSel(null); setSimulate(false); setFrom(example);
     }
   }, [example]);
   // after undoing an add, the selection may point at nothing
@@ -268,6 +269,12 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
       const sp = savedParts(parts); // no motors: the parser needs one, so the key is cleared (mass parts alone are not kept)
       if (sp) localStorage.setItem(PARTS_KEY, sp); else localStorage.removeItem(PARTS_KEY);
     } catch {}
+    if (example) { // edited example: drop ?example= so a reload reopens the saved work, not the pristine example
+      const u = new URL(window.location.href);
+      u.searchParams.delete('example'); u.searchParams.delete('price');
+      window.history.replaceState(window.history.state, '', u);
+      loadedExample.current = null; // following the example link again reloads it
+    }
   }, [shapes, parts, example, aiDraft, project]);
 
   useEffect(() => {
@@ -352,7 +359,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const spinNow = nextSpin(parts.motors);
 
   // ---- suggestions: rules always, AI re-ranking when the server has a key ----
-  const droneish = example?.category === 'drone' || wantSim || parts.motors.length > 0 || parts.components.length > 0;
+  const droneish = from?.category === 'drone' || wantSim || parts.motors.length > 0 || parts.components.length > 0;
   const rules = useMemo(() => (!project && !locked && droneish ? suggestItems(shapes, parts, { category: 'drone' }) : []), [project, locked, droneish, shapes, parts]);
   const designKey = useMemo(() => (rules.length ? JSON.stringify([shapes, parts]) : ''), [rules, shapes, parts]);
   const items = aiRes && aiRes.key === designKey ? aiRes.items : rules;
@@ -419,9 +426,9 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         </p>
       </div>}
 
-      {example && (
+      {from && (
         <p className="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-sm text-indigo-900 dark:text-indigo-200">
-          Started from the example &lsquo;{example.title}&rsquo;. Your changes are saved only in this browser.
+          Started from the example &lsquo;{from.title}&rsquo;. Your changes are saved only in this browser.
         </p>
       )}
 
