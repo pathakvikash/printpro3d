@@ -4,8 +4,8 @@ import type { Shape } from '../playground.ts';
 import type { Parts } from '../flight/layout.ts';
 import type { Vec3 } from '../flight/mass.ts';
 import { suggestNext, type SuggestContext } from './next.ts';
-import { settleZ, suggestPlacement, type Placement, type PlacementResult } from './placement.ts';
-import { checkPlacement, clamp, dimsFor, MAX_REASON, PART_KINDS, turnedSize, wrap180, type PartKind } from './validate.ts';
+import { quadSpin, settleZ, suggestPlacement, type Placement, type PlacementResult } from './placement.ts';
+import { checkPlacement, clamp, dimsFor, MAX_REASON, PART_KINDS, solidBoxes, turnedSize, union, wrap180, type PartKind } from './validate.ts';
 
 export type SuggestItem = { kind: PartKind; reason: string; count?: number; place: PlacementResult; ai?: boolean };
 
@@ -52,7 +52,7 @@ export function mergeAi(rules: SuggestItem[], reply: unknown, shapes: Shape[], p
     if (pl && pos && typeof pl.yawDeg === 'number' && typeof pl.tiltDeg === 'number' && Number.isFinite(pl.yawDeg + pl.tiltDeg)) {
       const yaw = wrap180(pl.yawDeg), tilt = clamp(pl.tiltDeg, -90, 90);
       if (!checkPlacement(base.kind, pos, shapes, turnedSize(base.kind, yaw), parts)) {
-        const spin = base.place.posMm && 'spin' in base.place ? base.place.spin : undefined;
+        const frame = union(solidBoxes(shapes)), spin = base.kind === 'motor' && frame ? quadSpin(pos, frame) : undefined; // the AI's corner sets the spin, not the rule's
         item.place = { posMm: pos, yawDeg: yaw, tiltDeg: tilt, basis: 'ai', reason: typeof pl.reason === 'string' && clean(pl.reason) ? clean(pl.reason) : item.reason, ...(spin ? { spin } : {}) };
       }
     }

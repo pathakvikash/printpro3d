@@ -118,3 +118,15 @@ test('parseBody: strict, motor-less parts allowed', () => {
   assert.ok(b && b.parts.motors.length === 0 && b.parts.components.length === 1);
   assert.equal(parseBody({ shapes: plate, parts: { motors: [], components: [{ id: 'c1', name: 'Battery', massG: 'x', pos: [0, 0, 13] }] } }), null);
 });
+
+test('mergeAi: a motor the AI moves to another corner gets that corner\'s quad-X spin', () => {
+  const rules = suggestItems(plate, none);
+  const rule = rules.find((r) => r.kind === 'motor')!.place;
+  assert.ok(rule.posMm && 'spin' in rule);
+  const mirrored: [number, number, number] = [-rule.posMm[0], rule.posMm[1], rule.posMm[2]]; // same row, other side
+  assert.equal(checkPlacement('motor', mirrored, plate, undefined, none), null);
+  const m = mergeAi(rules, { items: [{ kind: 'motor', place: { posMm: mirrored, yawDeg: 0, tiltDeg: 0 } }] }, plate, none)!;
+  const p = m[0].place;
+  assert.equal(p.posMm && p.basis, 'ai');
+  assert.equal('spin' in p && p.spin, rule.spin === 'cw' ? 'ccw' : 'cw');
+});

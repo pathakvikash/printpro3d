@@ -40,6 +40,9 @@ export function restZ(kind: PartKind, xy: [number, number], shapes: Shape[], par
 export const settleZ = (kind: PartKind, xy: [number, number], shapes: Shape[], parts: Parts, size?: Vec3): number =>
   restZ(kind, xy, shapes, parts, size) - (kind === 'motor' ? PART_SIZE.motor[2] / 2 : 0);
 
+/** quadX() spin for a motor at pos about the frame centre: front-right and rear-left CCW, front-left and rear-right CW (props-in). */
+export const quadSpin = (pos: Vec3, frame: Box): 'cw' | 'ccw' => ((pos[0] - (frame.lo[0] + frame.hi[0]) / 2) * (pos[1] - (frame.lo[1] + frame.hi[1]) / 2) > 0 ? 'ccw' : 'cw');
+
 function motorSpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult {
   const taken = parts.motors.map((m) => m.pos), cx = (frame.hi[0] + frame.lo[0]) / 2, cy = (frame.hi[1] + frame.lo[1]) / 2;
   let pads = mountPoints(shapes).filter((p) => Math.abs(p[0] - cx) > PAD_MIN_MM && Math.abs(p[1] - cy) > PAD_MIN_MM);
@@ -54,7 +57,7 @@ function motorSpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult {
   const free = pads.filter((p) => !taken.some((t) => Math.hypot(t[0] - p[0], t[1] - p[1]) < 8)).sort((a, b) => rank(a) - rank(b));
   if (!free.length) return none('Every mount pad already has a motor.');
   const pad = free.find((p) => !checkPlacement('motor', p, shapes, undefined, parts)) ?? free[0]; // skip a pad another part is sitting on
-  const spin = (pad[0] - cx) * (pad[1] - cy) > 0 ? 'ccw' : 'cw'; // quadX(): front-right and rear-left CCW, front-left and rear-right CW (props-in)
+  const spin = quadSpin(pad, frame);
   const pos: Vec3 = [pad[0], pad[1], pad[2]], why = checkPlacement('motor', pos, shapes, undefined, parts);
   if (why) return none(`The mount pad at (${round1(pad[0])}, ${round1(pad[1])}) is unusable: ${why}.`);
   const corner = `${pad[1] > cy ? 'front' : 'rear'}-${pad[0] > cx ? 'right' : 'left'}`;
