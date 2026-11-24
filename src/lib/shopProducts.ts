@@ -21,6 +21,7 @@ export const meshOf = (p: Product) => {
   if (!meshes.has(p.item.id)) meshes.set(p.item.id, buildMesh(p.ex.shapes));
   return meshes.get(p.item.id) ?? null;
 };
+export const cachedMesh = (p: Product) => meshes.get(p.item.id); // undefined: not built yet
 export const specOf = (p: Product, finish: string) => specFromMesh(p, meshOf(p), finish);
 // same numbers from a mesh built elsewhere (the shop grid builds it in a worker so the CSG does not block the page)
 export function specFromMesh(p: Product, m: Float32Array | null, finish: string) {

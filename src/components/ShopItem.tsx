@@ -5,12 +5,13 @@ import Icon from './Icon';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprint } from '@/lib/blueprint';
 import { LAYER_MM } from '@/lib/printSpec';
 import type { MaterialKey } from '@/lib/quote';
-import { meshOf, specOf, type Product } from '@/lib/shopProducts';
+import { cachedMesh, specFromMesh, type Product } from '@/lib/shopProducts';
+import { buildOffThread } from '@/lib/buildOffThread';
 import MaterialCards from './MaterialCards';
 import BlueprintSheet from './BlueprintSheet';
 import { money, secondaryBtn } from './ContactFields';
@@ -29,17 +30,23 @@ export default function ItemDetail({ p }: { p: Product }) {
   const [finish, setFinish] = useState(item.material as MaterialKey); // preview only; the part is sold in item.material
   const [tab, setTab] = useState<'3d' | 'photo'>('3d');
   const inCart = lines.find((l) => l.kind === 'shop' && l.id === item.id);
-  const spec = useMemo(() => specOf(p, finish), [p, finish]);
-  const svg = useMemo(() => {
-    const m = meshOf(p);
-    return m ? blueprint(m, { name: item.name, id: item.id, material: item.material }) : null;
-  }, [p, item]);
+  // print mesh from the worker (or the shop grid's cache): building it in render blocked a phone for ~1 s, and the preview built it a second time
+  const [mesh, setMesh] = useState<Float32Array | null | undefined>(() => cachedMesh(p));
+  useEffect(() => {
+    if (mesh !== undefined) return;
+    let on = true;
+    buildOffThread(ex.shapes).then((m) => on && setMesh(m), () => on && setMesh(null));
+    return () => { on = false; };
+  }, [mesh, ex.shapes]);
+  const spec = useMemo(() => (mesh === undefined ? { volume: null, grams: null, layers: null } : specFromMesh(p, mesh, finish)), [p, mesh, finish]);
+  const svg = useMemo(() => (mesh ? blueprint(mesh, { name: item.name, id: item.id, material: item.material }) : null), [mesh, item]);
+  const wait = (v: string) => (mesh === undefined ? '…' : v);
   const rows: [string, string][] = [
     ['Size', dims],
-    ['Volume', spec.volume != null ? `${spec.volume.toFixed(2)} cm³` : 'n/a'],
+    ['Volume', wait(spec.volume != null ? `${spec.volume.toFixed(2)} cm³` : 'n/a')],
     ['Material', item.material],
-    ['Est. weight', spec.grams != null ? `${spec.grams.toFixed(1)} g in ${finish}` : 'n/a'],
-    ['Layers', spec.layers != null ? `${spec.layers} at ${LAYER_MM} mm (assumed)` : 'n/a'],
+    ['Est. weight', wait(spec.grams != null ? `${spec.grams.toFixed(1)} g in ${finish}` : 'n/a')],
+    ['Layers', wait(spec.layers != null ? `${spec.layers} at ${LAYER_MM} mm (assumed)` : 'n/a')],
   ];
 
   return (
@@ -59,7 +66,7 @@ export default function ItemDetail({ p }: { p: Product }) {
             {tab === 'photo' && item.photo ? (
               <Image src={item.photo} alt={item.photoAlt ?? item.name} width={640} height={480} className="h-full w-full object-cover" />
             ) : (
-              <ExamplePreview shapes={ex.shapes} reduceMotion={reduceMotion} interactive material={finish} />
+              mesh !== undefined && <ExamplePreview shapes={ex.shapes} mesh={mesh} reduceMotion={reduceMotion} interactive material={finish} />
             )}
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Drag to turn. Scroll or pinch to zoom. Layer lines are drawn at their true {LAYER_MM} mm here.</p>
@@ -93,7 +100,7 @@ export default function ItemDetail({ p }: { p: Product }) {
 
       <section aria-label="Blueprint" className="space-y-2">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Blueprint</h2>
-        {svg && <BlueprintSheet svg={svg} filename={`${item.id}-blueprint`} />}
+        {svg ? <BlueprintSheet svg={svg} filename={`${item.id}-blueprint`} /> : mesh === undefined && <div role="status" aria-label="Drawing the blueprint" className="h-64 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />}
       </section>
 
       <section aria-labelledby="mat-h" className="border-t border-gray-200 pt-4 dark:border-gray-800">
