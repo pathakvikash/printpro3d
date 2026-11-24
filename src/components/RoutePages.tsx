@@ -1,9 +1,9 @@
 'use client';
 
 // Client wrappers: they hold the router callbacks and the ssr:false dynamic imports that server pages cannot.
+// No static imports of heavy components here: every route that imports this file ships them (ShopRoute lives in its own file for that reason).
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import ShopOrder from './ShopOrder';
 
 const loading = () => <p className="text-center text-sm text-gray-500 dark:text-gray-400">Loading…</p>;
 const AiGenerate = dynamic(() => import('./AiGenerate'), { ssr: false, loading });
@@ -21,10 +21,6 @@ export function AiGenerateRoute() {
 export function AiDesignRoute() {
   const router = useRouter();
   return <AiDesign onDesigner={() => router.push('/request')} />;
-}
-export function ShopRoute() {
-  const router = useRouter();
-  return <ShopOrder onWholesale={() => router.push('/request')} />;
 }
 export function BuildRoute() {
   return <BuildFlow />;

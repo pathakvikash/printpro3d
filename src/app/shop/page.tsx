@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import PageShell from '@/components/PageShell';
-import { ShopRoute } from '@/components/RoutePages';
+import ShopRoute from '@/components/ShopRoute';
 
 export const metadata: Metadata = { title: 'Shop ready-made parts - PrintPro3D', description: 'Our own designs, printed to order. Pick a part, a material and a quantity.' };
 
