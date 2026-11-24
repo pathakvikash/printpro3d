@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { PrintMesh, PrintStage, prepGeometry, useReducedMotion } from './PrintMaterial';
+import { PrintMesh, PrintStage, prepGeometry, useReducedMotion, type StageOptions } from './PrintMaterial';
 import type { MaterialKey } from '@/lib/quote';
 import { scalePositions } from '@/lib/blueprint';
 
@@ -60,7 +60,7 @@ function PlaceholderScene() {
 
 // onPositions: hands the loaded triangle soup (mm) to the parent, e.g. for the blueprint; material: the finish shown (the quote's pick, PLA by default like the quote)
 // positions: show a triangle soup already in memory instead of loading url; scaleTo: show (and report) a copy scaled so its longest side is that many mm
-export default function ModelViewer({ url, positions, scaleTo, onPositions, material = 'PLA', className = 'h-full min-h-[320px] sm:min-h-[400px]' }: { url?: string; positions?: Float32Array | null; scaleTo?: number; onPositions?: (p: Float32Array) => void; material?: MaterialKey; className?: string }) {
+export default function ModelViewer({ url, positions, scaleTo, onPositions, material = 'PLA', className = 'h-full min-h-[320px] sm:min-h-[400px]', stage }: { stage?: StageOptions; url?: string; positions?: Float32Array | null; scaleTo?: number; onPositions?: (p: Float32Array) => void; material?: MaterialKey; className?: string }) {
   const reduce = useReducedMotion();
   const ext = url?.split('.').pop()?.toLowerCase();
   const kind = ext === 'stl' || ext === 'obj' ? ext : null;
@@ -79,7 +79,7 @@ export default function ModelViewer({ url, positions, scaleTo, onPositions, mate
   return (
     <div className={`w-full rounded-xl overflow-hidden ${className}`}>
       {/* key: refit the camera when a different model loads */}
-      <PrintStage key={geometry?.uuid ?? 'none'} size={size} material={material} interactive reduceMotion={reduce}>
+      <PrintStage key={geometry?.uuid ?? 'none'} size={size} material={material} interactive reduceMotion={reduce} stage={stage}>
         {geometry ? <PrintMesh geometry={geometry} /> : (!(kind || positions) || error) && <PlaceholderScene />}
       </PrintStage>
     </div>

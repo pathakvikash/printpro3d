@@ -11,6 +11,7 @@ const LINKS = [
   { href: '/shop', label: 'Shop' },
   { href: '/quote', label: 'Get a quote' },
   { href: '/build', label: 'Build' },
+  { href: '/playground', label: 'Playground' },
   { href: '/materials', label: 'Materials' },
   { href: '/how-it-works', label: 'How it works' },
   { href: '/track', label: 'Track order' },
@@ -78,7 +79,7 @@ export default function Navbar() {
                   <Link
                     href={l.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${active ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    className={`px-2 lg:px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${active ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
                   >
                     {l.label}
                   </Link>
@@ -90,7 +91,7 @@ export default function Navbar() {
           {/* Right side */}
           <div className='flex items-center gap-1 sm:gap-4'>
             {business.phone && (
-              <a href={`tel:${phoneHref}`} className='hidden lg:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap'>
+              <a href={`tel:${phoneHref}`} className='hidden xl:inline text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white whitespace-nowrap'>
                 {business.phone}
               </a>
             )}
@@ -133,7 +134,7 @@ export default function Navbar() {
 
             <Link
               href='/quote'
-              className='px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap'
+              className='md:max-xl:hidden px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all duration-200 whitespace-nowrap'
             >
               Start a project
             </Link>

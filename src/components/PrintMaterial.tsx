@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import { Environment, Lightformer, OrbitControls } from '@react-three/drei';
+import { Environment, Lightformer, Line, OrbitControls } from '@react-three/drei';
 import { toCreasedNormals } from 'three-stdlib';
 import SafeCanvas from './WebGLCanvas';
 import { BED_MM, type MaterialKey } from '@/lib/quote';
@@ -103,17 +103,25 @@ export function PrintMesh({ geometry, ...over }: { geometry: THREE.BufferGeometr
   );
 }
 
-/** Studio light box built from Lightformers (rendered once, no HDRI). Z-up. */
-export function StudioLight({ dark }: { dark: boolean }) {
+export const LIGHTS = { studio: 'Studio', daylight: 'Daylight', dramatic: 'Dramatic', flat: 'Flat' } as const;
+export type LightKey = keyof typeof LIGHTS;
+// ambient level, environment level, and the light panels (intensity, position, scale, colour) per preset
+const LIGHT_SETS: Record<LightKey, { amb: number; env: number; panels: [number, [number, number, number], [number, number], string][] }> = {
+  studio: { amb: 0.2, env: 1, panels: [[3, [0, 0, 9], [12, 12], '#ffffff'], [3, [-9, -4, 4], [8, 10], '#ffffff'], [2, [9, -3, 2], [5, 9], '#dfe6ff'], [1.5, [0, 9, 1], [14, 3], '#fff1dc']] },
+  daylight: { amb: 0.35, env: 1.1, panels: [[5, [0, 0, 10], [16, 16], '#fff4de'], [1.5, [-9, -4, 3], [10, 10], '#cfe2ff'], [1, [9, 3, 2], [8, 8], '#ffffff']] },
+  dramatic: { amb: 0.04, env: 1, panels: [[7, [9, -6, 4], [4, 12], '#ffe9cf'], [1.2, [-9, 5, 2], [3, 10], '#8fb2ff']] },
+  flat: { amb: 0.6, env: 0.6, panels: [[1.6, [0, 0, 9], [14, 14], '#ffffff'], [1.4, [-9, -4, 3], [10, 10], '#ffffff'], [1.4, [9, 4, 3], [10, 10], '#ffffff'], [1.2, [0, 9, 1], [14, 4], '#ffffff']] },
+};
+
+/** Light box built from Lightformers (rendered once, no HDRI). Z-up. `light` picks the preset; studio is the default look. */
+export function StudioLight({ dark, light = 'studio' }: { dark: boolean; light?: LightKey }) {
+  const L = LIGHT_SETS[light];
   return (
     <>
-      <ambientLight intensity={dark ? 0.12 : 0.2} />
-      <Environment resolution={256} environmentIntensity={dark ? 0.7 : 1}>
+      <ambientLight intensity={dark ? L.amb * 0.6 : L.amb} />
+      <Environment key={light} resolution={256} environmentIntensity={dark ? L.env * 0.7 : L.env}>
         <color attach="background" args={['#555960']} />
-        <Lightformer form="rect" intensity={3} position={[0, 0, 9]} scale={[12, 12, 1]} color="#ffffff" />
-        <Lightformer form="rect" intensity={3} position={[-9, -4, 4]} scale={[8, 10, 1]} color="#ffffff" />
-        <Lightformer form="rect" intensity={2} position={[9, -3, 2]} scale={[5, 9, 1]} color="#dfe6ff" />
-        <Lightformer form="rect" intensity={1.5} position={[0, 9, 1]} scale={[14, 3, 1]} color="#fff1dc" />
+        {L.panels.map(([intensity, position, [w, h], color], i) => <Lightformer key={i} form="rect" intensity={intensity} position={position} scale={[w, h, 1]} color={color} />)}
       </Environment>
     </>
   );
@@ -165,26 +173,63 @@ function Bed({ dark }: { dark: boolean }) {
   );
 }
 
-function FitCamera({ dist, target }: { dist: number; target: THREE.Vector3 }) {
+function FitCamera({ dist, target, home, resetKey = 0 }: { dist: number; target: THREE.Vector3; home: THREE.Vector3; resetKey?: number }) {
   const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as { update?: () => void } | null;
+  const controls = useThree((s) => s.controls) as { update?: () => void; target?: THREE.Vector3 } | null;
   useEffect(() => {
     const dir = camera.position.clone().sub(target).normalize();
     camera.position.copy(target).addScaledVector(dir, dist);
     controls?.update?.();
   }, [dist, camera, controls, target]);
+  // camera reset: back to the opening view and centre (undoes pan, zoom and orbit)
+  useEffect(() => {
+    if (!resetKey) return;
+    camera.position.copy(target).addScaledVector(home.clone().sub(target).normalize(), dist);
+    controls?.target?.copy(target);
+    controls?.update?.();
+  }, [resetKey, camera, controls, target, home, dist]);
   return null;
+}
+
+/** The part's overall bounding box (X red, Y green, Z blue) so the size is visible on the model itself. */
+function DimBox({ size }: { size: { x: number; y: number; z: number } }) {
+  const lines = useMemo(() => {
+    const e = new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z));
+    return e;
+  }, [size.x, size.y, size.z]);
+  useEffect(() => () => lines.dispose(), [lines]);
+  const axis = (a: 'x' | 'y' | 'z', color: string) => {
+    // one bright edge per axis, along the box's bottom-front corner, in the same units as the model (mm)
+    const p: Record<typeof a, [[number, number, number], [number, number, number]]> = {
+      x: [[-size.x / 2, -size.y / 2, 0], [size.x / 2, -size.y / 2, 0]],
+      y: [[size.x / 2, -size.y / 2, 0], [size.x / 2, size.y / 2, 0]],
+      z: [[size.x / 2, size.y / 2, 0], [size.x / 2, size.y / 2, size.z]],
+    };
+    return <Line key={a} points={p[a]} color={color} lineWidth={2.5} />;
+  };
+  return (
+    <>
+      <lineSegments geometry={lines} position={[0, 0, size.z / 2]}>
+        <lineBasicMaterial color="#818cf8" transparent opacity={0.6} />
+      </lineSegments>
+      {axis('x', '#ef4444')}{axis('y', '#22c55e')}{axis('z', '#3b82f6')}
+    </>
+  );
 }
 
 const seg = (on: boolean) =>
   `px-2.5 py-1 text-xs font-medium border-r border-gray-300 dark:border-gray-600 last:border-r-0 ${on ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-700 dark:text-gray-200'}`;
 
+/** Extras the /playground page turns on; every field is optional and the default is the old behaviour. */
+export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number; dims?: boolean; autoRotate?: boolean };
+
 /** Draggable turntable with studio light. `interactive` adds zoom and the Solid / Mesh / Layers + bed controls. */
-export function PrintStage({ size, material = 'PETG', interactive = false, reduceMotion, children }: {
+export function PrintStage({ size, material = 'PETG', interactive = false, reduceMotion, stage = {}, children }: {
   size: { x: number; y: number; z: number };
   material?: MaterialKey;
   interactive?: boolean;
   reduceMotion: boolean;
+  stage?: StageOptions;
   children: ReactNode;
 }) {
   const dark = useDark();
@@ -198,6 +243,7 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   const d = maxDim * 1.9;
   const dist = bed ? Math.max(d * 1.2, 380) : d * 1.2;
   const target = useMemo(() => new THREE.Vector3(0, 0, size.z / 2), [size.z]);
+  const home = useMemo(() => new THREE.Vector3(d * 0.8, -d, d * 0.75 + size.z / 2), [d, size.z]);
   const ctx: Ctx = { material, layerMm, view, clipZ: view === 'layers' ? layer * TRUE_LAYER_MM + 0.01 : 1e4 };
   const [onControls, setControls] = useState<{ domElement: HTMLElement } | null>(null);
   useEffect(() => {
@@ -214,23 +260,24 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
         onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
         camera={{ position: [d * 0.8, -d, d * 0.75 + size.z / 2], up: [0, 0, 1], fov: 40, near: 1, far: 4000 }}
       >
-        <StudioLight dark={dark} />
+        <StudioLight dark={dark} light={stage.light} />
         <StageCtx.Provider value={ctx}>{children}</StageCtx.Provider>
         {bed ? <Bed dark={dark} /> : <Shadow scale={maxDim * 2.6} dark={dark} />}
-        <FitCamera dist={dist} target={target} />
+        {stage.dims && <DimBox size={size} />}
+        <FitCamera dist={dist} target={target} home={home} resetKey={stage.resetKey} />
         <OrbitControls
           ref={(c) => setControls(c as unknown as { domElement: HTMLElement } | null)}
           makeDefault
           target={target}
-          enablePan={false}
+          enablePan={!!stage.pan}
           enableZoom={interactive}
-          autoRotate={!reduceMotion}
+          autoRotate={stage.autoRotate ?? !reduceMotion}
           autoRotateSpeed={1.2}
           maxPolarAngle={Math.PI / 2 - 0.04}
         />
       </SafeCanvas>
       <span className="pointer-events-none absolute right-2 top-2 rounded border border-gray-300/70 bg-white/80 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
-        {material} · {interactive ? `${TRUE_LAYER_MM} mm layers` : `layers drawn ${CARD_EXAGGERATION}× larger`}
+        {material} · {interactive ? `${TRUE_LAYER_MM} mm layers (assumed)` : `layers drawn ${CARD_EXAGGERATION}× larger`}
       </span>
       {interactive && (
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-x-3 gap-y-1 bg-white/80 px-2 py-1.5 backdrop-blur dark:bg-gray-900/80">
