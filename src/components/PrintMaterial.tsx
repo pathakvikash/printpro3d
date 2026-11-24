@@ -192,7 +192,8 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   const [bed, setBed] = useState(false);
   const layerMm = interactive ? TRUE_LAYER_MM : TRUE_LAYER_MM * CARD_EXAGGERATION;
   const total = Math.max(1, Math.round(size.z / TRUE_LAYER_MM));
-  const [layer, setLayer] = useState(total);
+  const [picked, setLayer] = useState<number | null>(null); // null = top layer, so a taller part is not left clipped
+  const layer = Math.min(picked ?? total, total);
   const maxDim = Math.max(size.x, size.y, size.z);
   const d = maxDim * 1.9;
   const dist = bed ? Math.max(d * 1.2, 380) : d * 1.2;
@@ -246,7 +247,7 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
           {view === 'layers' && (
             <label className="flex min-w-40 flex-1 items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
               <span className="whitespace-nowrap font-mono">Layer {layer} of {total}</span>
-              <input type="range" min={1} max={total} value={layer} onChange={(e) => setLayer(+e.target.value)} aria-label="Layer shown" className="min-w-0 flex-1" />
+              <input type="range" min={1} max={total} value={layer} onChange={(e) => setLayer(+e.target.value === total ? null : +e.target.value)} aria-label="Layer shown" className="min-w-0 flex-1" />
             </label>
           )}
         </div>
