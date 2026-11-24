@@ -119,7 +119,7 @@ export const TEMPLATES: TemplateDef[] = [
   },
   {
     id: 'drone-camera-mount', name: 'Drone camera mount (TPU-friendly)', category: 'drone', material: 'TPU', colour: 'black',
-    blurb: 'A base plate on a standard M3 hole pattern with two cheeks that hold an FPV camera at a tilt. Camera sizes are typical: check your camera.',
+    blurb: 'A base plate with four 3.2 mm (M3) holes on a square pattern and two cheeks that hold an FPV camera at a tilt. Camera sizes and hole patterns are typical (smaller stacks often use M2): check your camera and frame.',
     fields: [
       sel('cam', 'Camera width', [['14', '14 mm (micro)'], ['19', '19 mm'], ['20', '20 mm']], '19'),
       rng('tilt', 'Tilt angle', 0, 40, 1, 25, 'deg', 'Typical FPV is 15 to 35'),
