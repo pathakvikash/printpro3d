@@ -33,7 +33,7 @@ const toPayloadItem = (l: CartLine) =>
         ? { kind: 'kit' as const, id: l.id, cfg: l.cfg, qty: l.qty }
       : l.kind === 'design'
         ? { kind: 'design' as const, project: l.project, material: l.material, qty: l.qty }
-        : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty };
+        : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty, label: l.label }; // label carries My items' colour note to the owner
 
 function QtyField({ name, value, onCommit }: { name: string; value: number; onCommit: (n: number) => void }) {
   // the draft lets the customer clear the box while typing; only valid whole numbers reach the cart

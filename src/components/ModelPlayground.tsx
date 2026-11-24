@@ -158,7 +158,7 @@ export default function ModelPlayground() {
               <h2 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{c.label}</h2>
               <ul className="flex flex-wrap gap-2">
                 {list.map((p) => (
-                  <li key={`${p.kind}:${p.id}`}>
+                  <li key={`${p.kind}:${p.id}`} className="max-w-full">
                     <button type="button" aria-pressed={isActive(p.kind, p.id)} className={chip(isActive(p.kind, p.id))} onClick={() => pick({ kind: p.kind, id: p.id })}>{p.name}</button>
                   </li>
                 ))}
