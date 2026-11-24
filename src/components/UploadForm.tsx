@@ -274,7 +274,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
 
       {/* Preview */}
       {uploadedUrl && (
-        <div className="pp-fade grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+        <div className="pp-fade grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
           <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Your Model Preview</h3>
