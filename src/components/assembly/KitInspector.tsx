@@ -6,20 +6,24 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { blueprint, bounds } from '@/lib/blueprint';
 import type { Kit } from '@/lib/kits';
-import { FinishedBuild, useParts } from '../KitShop';
+import { FinishedBuild, VariantPicker, useParts } from '../KitShop';
+import CreditLine from '../KitCredit';
 import BoughtList from '../BoughtList';
 
 const BlueprintSheet = dynamic(() => import('../BlueprintSheet'), { ssr: false });
 const mm = (n: number) => n.toFixed(1);
 
-export default function KitInspector({ kit }: { kit: Kit }) {
+export default function KitInspector({ kit: top }: { kit: Kit }) {
+  const [vi, setVi] = useState(0); // a kit of several products (led-decor): pick one
+  const kit = top.variants?.[vi] ?? top;
   const parts = useParts(kit);
   const [sel, setSel] = useState<string | null>(null);
-  const id = sel ?? kit.items[0]?.templateId ?? null;
+  const id = kit.items.some((i) => i.templateId === sel) ? sel : kit.items[0]?.templateId ?? null;
   const cur = parts.find((p) => p.item.templateId === id);
   const sheet = useMemo(() => (cur?.mesh ? blueprint(cur.mesh, { name: cur.name, material: cur.material }) : null), [cur]);
   return (
     <div className="space-y-6">
+      {top.variants && <VariantPicker kit={top} index={vi} onPick={setVi} />}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <FinishedBuild kit={kit} parts={parts} focusId={id} />
         <section aria-label="Blueprint of the selected part" className="space-y-2">
@@ -53,9 +57,10 @@ export default function KitInspector({ kit }: { kit: Kit }) {
           </table>
         </div>
       </section>
+      {kit.credit && <CreditLine credit={kit.credit} files className="break-words" />}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div><BoughtList items={kit.boughtParts} /></div>
-        <p className="text-sm text-gray-600 dark:text-gray-300"><Link href={`/shop/${kit.id}`} className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Open the kit page</Link> to see prices and add the whole kit to your cart.</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300"><Link href={`/shop/${top.id}`} className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Open the kit page</Link> to see prices and add the whole kit to your cart.</p>
       </div>
     </div>
   );

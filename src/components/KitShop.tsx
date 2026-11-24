@@ -12,13 +12,15 @@ import { assemblyBlueprint } from '@/lib/assemblyBlueprint';
 import { partMesh } from '@/lib/partModels';
 import { partById } from '@/lib/parts';
 import { kitBlocked, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
+import { isKitKey, kitPartByKey } from '@/lib/kits/adapt';
+import CreditLine from './KitCredit';
 import * as THREE from 'three';
 import { prepGeometry } from './PrintMaterial';
 import type { V3 } from '@/lib/assembly';
 import { meshStats, quote, SETUP_FEE } from '@/lib/quote';
 import { normalizeCfg, templateById } from '@/lib/templateDefs';
 import { buildTemplate } from '@/lib/templates';
-import { buildOffThread } from '@/lib/buildOffThread';
+import { buildOffThread, kitMeshOffThread } from '@/lib/buildOffThread';
 import { productById } from '@/lib/shopProducts';
 import type { Shape } from '@/lib/playground';
 import { money } from './ContactFields';
@@ -32,14 +34,18 @@ const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false })
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
-export type Part = { item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
+export type Part = { kit: boolean; item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
 
 // everything about one kit item that does not need the mesh
 function describe(item: KitItem) {
+  if (isKitKey(item.templateId)) { // a printed part of a kit file (src/lib/kits/): its mesh comes from kitMeshOffThread, not from shapes
+    const hit = kitPartByKey(item.templateId);
+    return { name: item.label ?? hit?.part.label ?? item.templateId, material: hit?.part.material ?? 'PLA', shapes: [] as Shape[], template: false, kit: true };
+  }
   const t = templateById(item.templateId);
-  if (t) return { name: t.name, material: t.material, shapes: buildTemplate(t, normalizeCfg(t, item.config)).shapes, template: true };
+  if (t) return { name: t.name, material: t.material, shapes: buildTemplate(t, normalizeCfg(t, item.config)).shapes, template: true, kit: false };
   const p = productById(item.templateId);
-  return { name: p?.item.name ?? item.templateId, material: p?.item.material ?? '', shapes: p?.ex.shapes ?? [], template: false };
+  return { name: p?.item.name ?? item.templateId, material: p?.item.material ?? '', shapes: p?.ex.shapes ?? [], template: false, kit: false };
 }
 
 export function useParts(kit: Kit): Part[] {
@@ -48,21 +54,24 @@ export function useParts(kit: Kit): Part[] {
   useEffect(() => {
     let on = true;
     base.forEach((b, i) => {
-      buildOffThread(b.shapes, b.template).then((m) => m, () => null).then((m) => on && setMeshes((cur) => cur.map((x, j) => (j === i ? m : x))));
+      (b.kit ? kitMeshOffThread(b.item.templateId, b.item.config) : buildOffThread(b.shapes, b.template)).then((m) => m, () => null).then((m) => on && setMeshes((cur) => cur.map((x, j) => (j === i ? m : x))));
     });
     return () => { on = false; };
   }, [base]);
   return base.map((b, i) => {
     const mesh = meshes[i];
     let unit: number | null = null, total: number | null = null;
-    if (b.template) {
+    if (b.kit) {
+      const stats = mesh ? meshStats(mesh) : null;
+      if (stats) { unit = quote(stats, b.material, 1).unitPrice; total = quote(stats, b.material, b.item.qty).total; }
+    } else if (b.template) {
       const stats = mesh ? blueprintData(mesh, b.material)?.stats : null;
       if (stats) { unit = quote(stats, b.material, 1).unitPrice; total = quote(stats, b.material, b.item.qty).total; }
     } else {
       const price = productById(b.item.templateId)?.item.price;
       if (price != null) { unit = price; total = price * b.item.qty; }
     }
-    return { item: b.item, name: b.name, material: b.material, shapes: b.shapes, mesh, unit, total };
+    return { kit: b.kit, item: b.item, name: b.name, material: b.material, shapes: b.shapes, mesh, unit, total };
   });
 }
 
@@ -90,7 +99,8 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
     for (const p of parts) meshes[p.item.templateId] = p.mesh!;
     const ref = (a: { id: string }) => {
       const id = a.id.replace(/\d+$/, '');
-      const pid = kit.id === 'rover-kit' && id === 'motor' ? 'adafruit-tt-48' : BOUGHT_MODEL[id];
+      // the kits of src/lib/kits/ name their own reference parts (refs); the two template kits use the table above
+      const pid = kit.items.some((i) => isKitKey(i.templateId)) ? kit.refs?.[a.id] ?? kit.refs?.[id] : kit.id === 'rover-kit' && id === 'motor' ? 'adafruit-tt-48' : BOUGHT_MODEL[id];
       const part = pid ? partById(pid) : null;
       return part ? partMesh(part) : null;
     };
@@ -102,7 +112,8 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
     <section aria-labelledby="kit-finished" className="space-y-2">
       <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
       {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
-      <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
+      {kit.credit && <CreditLine credit={kit.credit} />}
       {sheet && (
         <div className="space-y-2 pt-2">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Assembly drawing</h3>
@@ -116,7 +127,7 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
 export function KitCard({ kit }: { kit: Kit }) {
   const descs = useMemo(() => kit.items.map((i) => ({ i, ...describe(i) })), [kit]);
   const names = descs.map((d) => `${d.i.qty > 1 ? `${d.i.qty} x ` : ''}${d.name}`);
-  const sources = useMemo(() => descs.map((d) => ({ id: d.i.templateId, shapes: d.shapes, template: d.template })), [descs]);
+  const sources = useMemo(() => descs.map((d) => ({ id: d.i.templateId, shapes: d.shapes, template: d.template, kit: d.kit ? { key: d.i.templateId, cfg: d.i.config } : undefined })), [descs]);
   const { lines, add, toast } = useCart();
   const [added, setAdded] = useAdded();
   const parts = useParts(kit); // unit prices for the cart lines come from the meshes, as on the kit page
@@ -129,21 +140,47 @@ export function KitCard({ kit }: { kit: Kit }) {
     toast('Kit added to cart', true);
     setAdded(true);
   };
-  const rows: [string, string][] = [['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} kinds`], ['Bought separately', `${kit.boughtParts.length} items`]];
+  const rows: [string, string][] = kit.variants
+    ? [['Products', `${kit.variants.length}: ${kit.variants.map((v) => v.title).join(', ')}`], ['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} kinds (first product)`]]
+    : [['Printed parts', `${kitPartCount(kit)} in ${kit.items.length} kinds`], ['Bought separately', `${kit.boughtParts.length} items`]];
+  if (kit.credit) rows.push(['Design', `by ${kit.credit.author}, ${kit.credit.licence}`]);
   return (
     <CardFrame
       href={`/shop/${kit.id}`}
-      category={`${shopCatLabel(shopCat(kit.id) ?? '')} · Kit`}
+      category={`${shopCatLabel(shopCat(kit.id) ?? '')} · Kit${kit.badge ? ` · ${kit.badge}` : ''}`}
       name={kit.title}
       blurb={kit.blurb}
       rows={rows}
       preview={kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
-      actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={addAll} />}
+      actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={addAll} title={kit.variants ? `Add the ${kit.variants[0].title} kit to cart (choose the product on the kit page)` : undefined} />}
     />
   );
 }
 
+const PRODUCT_LABEL = (v: Kit) => v.id.split('/')[1]?.replace(/^./, (c) => c.toUpperCase()) ?? v.title;
+
+export function VariantPicker({ kit, index, onPick }: { kit: Kit; index: number; onPick: (i: number) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Product" className="flex flex-wrap gap-2">
+      {kit.variants!.map((v, i) => (
+        <button key={v.id} type="button" role="radio" aria-checked={i === index} aria-label={v.title} title={v.title} onClick={() => onPick(i)}
+          className={`inline-flex h-11 items-center gap-2 rounded-[10px] border px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${i === index ? 'border-indigo-600 bg-indigo-50 text-indigo-900 dark:bg-indigo-950 dark:text-indigo-100' : 'border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}`}>
+          <Icon name="cube" />{PRODUCT_LABEL(v)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A kit of several products (led-decor) lets the customer pick one; everything below follows the pick.
 export function KitDetail({ kit }: { kit: Kit }) {
+  const [vi, setVi] = useState(0);
+  const active = kit.variants?.[vi] ?? kit;
+  const picker = kit.variants && <VariantPicker kit={kit} index={vi} onPick={setVi} />;
+  return <KitDetailBody key={active.id} kit={active} top={kit} picker={picker} />;
+}
+
+function KitDetailBody({ kit, top, picker }: { kit: Kit; top: Kit; picker?: React.ReactNode }) {
   const { lines, add, toast } = useCart();
   const reduceMotion = useReduceMotion();
   const [added, setAdded] = useAdded();
@@ -163,10 +200,12 @@ export function KitDetail({ kit }: { kit: Kit }) {
       <BackToShop />
       <FlowStrip current="adjust" />
       <div>
-        <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{shopCatLabel(shopCat(kit.id) ?? '')} · Kit</span>
-        <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{kit.title}</h1>
-        <p className="mt-2 max-w-3xl text-gray-700 dark:text-gray-300">{kit.blurb}</p>
+        <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{shopCatLabel(shopCat(top.id) ?? '')} · Kit{top.badge ? ` · ${top.badge}` : ''}</span>
+        <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{top.title}{top.badge && <span className="ml-3 align-middle rounded-full border border-amber-300 bg-amber-50 px-3 py-0.5 text-sm font-medium text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">{top.badge}</span>}</h1>
+        <p className="mt-2 max-w-3xl text-gray-700 dark:text-gray-300">{top.blurb}</p>
+        {top.credit && <CreditLine credit={top.credit} files className="mt-2 max-w-3xl break-words" />}
       </div>
+      {picker}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <FinishedBuild kit={kit} parts={parts} />
         <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
@@ -186,15 +225,17 @@ export function KitDetail({ kit }: { kit: Kit }) {
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {parts.map((p) => {
             const t = templateById(p.item.templateId);
+            const page = !p.kit; // printed parts of the kit files have no page of their own
             return (
               <li key={p.item.templateId} className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
                 <div className="h-36 bg-[#ebe8e1] dark:bg-[#141a2b]" aria-hidden>
                   {p.mesh && <ExamplePreview shapes={p.shapes} mesh={p.mesh} reduceMotion={reduceMotion} material={p.material as 'PLA'} />}
                 </div>
                 <div className="space-y-1 p-3 text-sm">
-                  <Link href={`/shop/${p.item.templateId}`} className="font-semibold text-gray-900 hover:underline dark:text-gray-100">{p.name}</Link>
-                  <p className="text-gray-500 dark:text-gray-400">{p.item.qty} × {p.material}{t ? ' · kit settings' : ''}</p>
+                  {page ? <Link href={`/shop/${p.item.templateId}`} className="font-semibold text-gray-900 hover:underline dark:text-gray-100">{p.name}</Link> : <span className="font-semibold text-gray-900 dark:text-gray-100">{p.name}</span>}
+                  <p className="text-gray-500 dark:text-gray-400">{p.item.qty} × {p.material}{t || (p.kit && Object.keys(p.item.config).length > 0) ? ' · kit settings' : ''}</p>
                   <p className="font-mono text-gray-900 dark:text-gray-100">{p.total != null ? money.format(p.total) : '…'}</p>
+                  {kit.credit && <CreditLine credit={kit.credit} className="break-words" />}
                 </div>
               </li>
             );

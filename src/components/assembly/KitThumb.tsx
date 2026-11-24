@@ -6,13 +6,14 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { PRESETS, prepGeometry } from '@/components/PrintMaterial';
-import { buildOffThread } from '@/lib/buildOffThread';
+import { buildOffThread, kitMeshOffThread } from '@/lib/buildOffThread';
+import type { Cfg } from '@/lib/templateDefs';
 import { meshStats } from '@/lib/quote';
 import type { Kit } from '@/lib/kits';
 import type { Shape } from '@/lib/playground';
 import type { V3 } from '@/lib/assembly';
 
-export type ThumbSource = { id: string; shapes: Shape[]; template: boolean };
+export type ThumbSource = { id: string; shapes: Shape[]; template: boolean; kit?: { key: string; cfg: Cfg } };
 
 const W = 800, H = 480, DEG = Math.PI / 180;
 const cache = new Map<string, string>();
@@ -21,7 +22,7 @@ let queue: Promise<unknown> = Promise.resolve(); // one render at a time: never 
 
 function render(kit: Kit, sources: ThumbSource[]): Promise<string | null> {
   const run = async () => {
-    const meshes = await Promise.all(sources.map((s) => buildOffThread(s.shapes, s.template).catch(() => null)));
+    const meshes = await Promise.all(sources.map((s) => (s.kit ? kitMeshOffThread(s.kit.key, s.kit.cfg) : buildOffThread(s.shapes, s.template)).catch(() => null)));
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
     sources.forEach((s, i) => {
       const m = meshes[i], st = m && meshStats(m);
