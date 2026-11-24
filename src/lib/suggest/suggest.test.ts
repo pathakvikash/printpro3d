@@ -59,6 +59,12 @@ test('placement: battery moves the CG toward the thrust centroid', () => {
   assert.equal(checkPlacement('battery', r.posMm, plate, undefined, parts), null);
 });
 
+test('placement: centred parts put the battery dead centre (the grid passes through the thrust centre)', () => {
+  const r = suggestPlacement('battery', plate, { ...quad(), components: [comp('ESC', [0, 0, 6], 15)] });
+  assert.ok(r.posMm, r.reason);
+  assert.deepEqual([r.posMm[0], r.posMm[1]], [0, 0]);
+});
+
 test('placement: flight controller at centre, camera at front with typical tilt', () => {
   const fc = suggestPlacement('fc', plate, quad());
   assert.ok(fc.posMm && fc.posMm[0] === 0 && fc.posMm[1] === 0);

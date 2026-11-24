@@ -74,7 +74,8 @@ function batterySpot(shapes: Shape[], parts: Parts, frame: Box): PlacementResult
   let best: { pos: Vec3; yaw: number; score: number; dist: number } | null = null;
   for (const yaw of [0, 90]) {
     const [hw, hd] = yaw ? [d / 2, w / 2] : [w / 2, d / 2], size: Vec3 = [hw * 2, hd * 2, PART_SIZE.battery[2]];
-    for (let x = frame.lo[0] + hw; x <= frame.hi[0] - hw + 1e-9; x += GRID_MM) for (let y = frame.lo[1] + hd; y <= frame.hi[1] - hd + 1e-9; y += GRID_MM) {
+    const from = (lo: number, c: number) => c + GRID_MM * Math.ceil((lo - c) / GRID_MM - 1e-9); // grid through the thrust centre, so the centre itself is a candidate
+    for (let x = from(frame.lo[0] + hw, centroid[0]); x <= frame.hi[0] - hw + 1e-9; x += GRID_MM) for (let y = from(frame.lo[1] + hd, centroid[1]); y <= frame.hi[1] - hd + 1e-9; y += GRID_MM) {
       const pos: Vec3 = [x, y, restZ('battery', [x, y], shapes, parts, size)];
       if (checkPlacement('battery', pos, shapes, size, parts)) continue; // on real material, in the bed, clear of the frame and of parts already placed
       const score = off(cgOf(pos)), dist = Math.hypot(x - centroid[0], y - centroid[1]);
