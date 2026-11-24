@@ -8,9 +8,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Icon from '../Icon';
 import { secondaryBtn } from '../ContactFields';
 import {
-  PROJECT_KEY, STEP_LABEL, defaultStep, mapError, parseStoredId, prefillPrompt, settleStep, stepAllowed, stepViews,
+  PROJECT_KEY, STEP_LABEL, currentRevision, defaultStep, mapError, parseStoredId, prefillPrompt, settleStep, stepAllowed, stepViews,
   type Caps, type ProjectView, type Step, type UiError,
 } from '@/lib/buildFlow';
+import { DESIGNS_KEY, parseDesigns, removeDesign, upsertDesign, type DesignEntry } from '@/lib/designList';
 import type { MeshStats } from '@/lib/quote';
 import { ApiError, api } from './api';
 import Stepper from './Stepper';
@@ -26,12 +27,20 @@ const OrderStep = dynamic(() => import('./FinishSteps').then((m) => m.OrderStep)
 const Playground = dynamic(() => import('../Playground'), { ssr: false, loading: note('Loading the builder…') });
 
 const readId = () => { try { return parseStoredId(localStorage.getItem(PROJECT_KEY)); } catch { return null; } };
-const writeId = (id: string | null) => { try { if (id) localStorage.setItem(PROJECT_KEY, id); else localStorage.removeItem(PROJECT_KEY); } catch {} };
+// PROJECT_KEY points at the design this browser reopens; DESIGNS_KEY lists every design it has opened (the old single id is migrated into it).
+const readList = () => { try { return parseDesigns(localStorage.getItem(DESIGNS_KEY), localStorage.getItem(PROJECT_KEY)); } catch { return []; } };
+const writeList = (l: DesignEntry[]) => { try { localStorage.setItem(DESIGNS_KEY, JSON.stringify(l)); } catch {} };
+const writeId = (id: string | null, title = '') => {
+  try {
+    if (id) { localStorage.setItem(PROJECT_KEY, id); writeList(upsertDesign(readList(), id, title)); } else localStorage.removeItem(PROJECT_KEY); // dropping the pointer keeps the list entry
+  } catch {}
+};
 const OFF: Caps = { ai: false, meshy: false, tier: '', revisions: 0 };
 
 export default function BuildFlow() {
   const sp = useSearchParams();
   const prefill = prefillPrompt(sp.get('prompt'));
+  const intent = !!prefill || !!sp.get('example') || sp.get('from') === 'ai'; // a link that says what to start from beats the saved design
   const router = useRouter();
   const pathname = usePathname();
   const urlStep = sp.get('step');
@@ -42,7 +51,9 @@ export default function BuildFlow() {
   const [step, setStep] = useState<Step>('plan');
   const [booting, setBooting] = useState(true);
   const [resumeErr, setResumeErr] = useState<UiError | null>(null);
-  const [pending, setPending] = useState<string | null>(null); // a saved design waiting while a ?prompt= start is shown
+  const [pending, setPending] = useState<string | null>(null); // a saved design waiting while a ?prompt= / ?example= start is shown
+  const [designs, setDesigns] = useState<DesignEntry[]>([]);
+  const [listNote, setListNote] = useState('');
   const top = useRef<HTMLDivElement>(null);
   const live = useRef({ step, project }); // read by the URL effect without re-running it
   live.current = { step, project };
@@ -50,7 +61,7 @@ export default function BuildFlow() {
   const adopt = useCallback((p: ProjectView, s?: MeshStats | null, to?: Step) => {
     setProject(p);
     setStats((old) => (s !== undefined ? s : old));
-    writeId(p.id);
+    writeId(p.id, currentRevision(p).blueprint.title);
     setStep((cur) => settleStep(to ?? cur, p.status));
   }, []);
 
@@ -59,8 +70,9 @@ export default function BuildFlow() {
     setCapsErr(null);
     setResumeErr(null);
     const id = readId();
-    const wantResume = id && !prefill;
-    if (id && prefill) setPending(id);
+    const wantResume = id && !intent;
+    if (id && intent) setPending(id);
+    setDesigns(readList());
     void api.caps(signal).then(setCaps, (e) => { if (e?.name === 'AbortError') return; setCaps(OFF); setCapsErr(e instanceof ApiError ? mapError(e.status, e.message) : mapError(0)); });
     if (!wantResume) { setBooting(false); return; }
     api.get(id, signal).then(
@@ -73,7 +85,7 @@ export default function BuildFlow() {
         setBooting(false);
       },
     );
-  }, [adopt, prefill]);
+  }, [adopt, intent]);
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -103,14 +115,28 @@ export default function BuildFlow() {
     if (projectId) router.replace(`${pathname}?step=${live.current.step}`, { scroll: false });
   }, [projectId, pathname, router]);
   const back = () => { if (window.history.length > 1) router.back(); else router.push('/shop'); };
-  const fresh = () => { router.replace(pathname, { scroll: false }); writeId(null); setProject(null); setStats(null); setStep('plan'); setPending(null); };
+  const fresh = () => { router.replace(pathname, { scroll: false }); writeId(null); setDesigns(readList()); setListNote(''); setProject(null); setStats(null); setStep('plan'); setPending(null); };
   const newDesign = () => {
-    if (project && project.status !== 'ordered' && !window.confirm('Leave this design? It is not deleted, but this browser will stop reopening it.')) return;
+    if (project && project.status !== 'ordered' && !window.confirm('Leave this design? It is not deleted: you can reopen it from My designs.')) return;
     fresh();
   };
   const resume = async () => {
     if (!pending) return;
     try { const r = await api.get(pending); adopt(r.project, r.stats ?? null, defaultStep(r.project.status)); setPending(null); } catch (e) { setResumeErr(e instanceof ApiError ? mapError(e.status, e.message) : mapError(0)); }
+  };
+
+  const openDesign = async (id: string) => {
+    setListNote('');
+    try { const r = await api.get(id); adopt(r.project, r.stats ?? null, defaultStep(r.project.status)); setPending(null); } catch (e) {
+      const u = e instanceof ApiError ? mapError(e.status, e.message) : mapError(0);
+      if (u.kind === 'missing') { const l = removeDesign(readList(), id); writeList(l); setDesigns(l); setListNote('That design is no longer on the server, so it was removed from the list.'); } else setResumeErr(u);
+    }
+  };
+  const removeEntry = (d: DesignEntry) => {
+    if (!window.confirm('Remove this design from the list? It stays on the server; only this browser forgets it.')) return;
+    const l = removeDesign(readList(), d.id); writeList(l); setDesigns(l);
+    if (pending === d.id) setPending(null);
+    try { if (parseStoredId(localStorage.getItem(PROJECT_KEY)) === d.id) localStorage.removeItem(PROJECT_KEY); } catch {}
   };
 
   if (booting || !caps) return <p role="status" className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</p>;
@@ -130,6 +156,21 @@ export default function BuildFlow() {
             You have a design in progress.
             <button type="button" onClick={resume} className="inline-flex items-center gap-1 font-semibold underline hover:no-underline"><Icon name="arrow" />Resume it</button>
           </p>
+        )}
+        {(designs.length > 0 || listNote) && (
+          <section aria-labelledby="my-designs" className="space-y-2">
+            <h2 id="my-designs" className="text-sm font-semibold text-gray-900 dark:text-gray-100">My designs</h2>
+            {listNote && <p role="status" className="text-sm text-gray-600 dark:text-gray-300">{listNote}</p>}
+            <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+              {designs.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100">{d.title || 'Untitled design'}<span className="ml-2 font-normal text-gray-500 dark:text-gray-400">{new Date(d.updatedAt).toLocaleDateString()}</span></span>
+                  <button type="button" onClick={() => openDesign(d.id)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Open</button>
+                  <button type="button" onClick={() => removeEntry(d)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Remove</button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
         <StartPanel caps={caps} initialPrompt={prefill} onProject={(p) => adopt(p, null, 'plan')} />
         <div className="space-y-2">
