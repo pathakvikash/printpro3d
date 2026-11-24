@@ -133,7 +133,7 @@ export default function Navbar() {
             </button>
 
             {/* Account / settings menu: desktop (the hamburger mirrors it on mobile) */}
-            <div ref={acctBox} className='relative hidden md:block'>
+            <div ref={acctBox} className='relative hidden md:block' onBlur={(e) => { if (e.relatedTarget && !acctBox.current?.contains(e.relatedTarget)) setAcct(false); }}>
               <button
                 ref={acctBtn}
                 type='button'
