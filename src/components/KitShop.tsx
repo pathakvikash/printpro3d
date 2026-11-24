@@ -5,20 +5,20 @@
 import Icon from './Icon';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { shopCat, shopCatLabel } from '@/lib/catalog';
 import { blueprintData } from '@/lib/blueprint';
 import { assemblyBlueprint } from '@/lib/assemblyBlueprint';
 import { partMesh } from '@/lib/partModels';
 import { partById } from '@/lib/parts';
 import { kitBlocked, kitById, kitLines, kitPartCount, type Kit, type KitItem } from '@/lib/kits';
-import { isKitKey, kitPartByKey } from '@/lib/kits/adapt';
+import { isKitKey, kitPartByKey, kitSettings, settingsSummary } from '@/lib/kits/adapt';
 import CreditLine from './KitCredit';
 import * as THREE from 'three';
 import { prepGeometry } from './PrintMaterial';
 import type { V3 } from '@/lib/assembly';
 import { meshStats, quote, SETUP_FEE } from '@/lib/quote';
-import { normalizeCfg, templateById } from '@/lib/templateDefs';
+import { normalizeCfg, templateById, type Cfg, type Field } from '@/lib/templateDefs';
 import { buildTemplate } from '@/lib/templates';
 import { buildOffThread, kitMeshOffThread } from '@/lib/buildOffThread';
 import { productById } from '@/lib/shopProducts';
@@ -27,7 +27,8 @@ import { money } from './ContactFields';
 import { useCart } from './CartProvider';
 import FlowStrip from '@/components/FlowStrip';
 import BoughtList from './BoughtList';
-import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useReduceMotion } from './ShopParts';
+import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
+import { FieldControl } from './TemplateShop';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
 const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
@@ -48,20 +49,32 @@ function describe(item: KitItem) {
   return { name: p?.item.name ?? item.templateId, material: p?.item.material ?? '', shapes: p?.ex.shapes ?? [], template: false, kit: false };
 }
 
+type Built = { item: KitItem; mesh: Float32Array | null | undefined };
+
 export function useParts(kit: Kit): Part[] {
   const base = useMemo(() => kit.items.map((item) => ({ item, ...describe(item) })), [kit]);
-  const [meshes, setMeshes] = useState<(Float32Array | null | undefined)[]>(() => kit.items.map(() => undefined));
+  // `item` says which kit object a mesh was built for: after a settings change the old mesh stays on screen but carries no price until the new one arrives
+  const [meshes, setMeshes] = useState<Built[]>(() => kit.items.map((item) => ({ item, mesh: undefined })));
+  const done = useRef(new Map<string, Float32Array | null>()); // part + settings -> mesh, so stepping back to a value already built is instant
   useEffect(() => {
     let on = true;
     base.forEach((b, i) => {
-      (b.kit ? kitMeshOffThread(b.item.templateId, b.item.config) : buildOffThread(b.shapes, b.template)).then((m) => m, () => null).then((m) => on && setMeshes((cur) => cur.map((x, j) => (j === i ? m : x))));
+      const key = `${b.item.templateId}|${JSON.stringify(b.item.config)}`;
+      const set = (m: Float32Array | null | undefined) => on && setMeshes((cur) => cur.map((x, j) => (j === i ? { item: b.item, mesh: m } : x)));
+      if (done.current.has(key)) return set(done.current.get(key));
+      (b.kit ? kitMeshOffThread(b.item.templateId, b.item.config) : buildOffThread(b.shapes, b.template)).then((m) => m, () => null).then((m) => {
+        if (done.current.size > 40) done.current.delete(done.current.keys().next().value!);
+        done.current.set(key, m);
+        set(m);
+      });
     });
     return () => { on = false; };
   }, [base]);
-  return base.map((b, i) => {
-    const mesh = meshes[i];
+  return useMemo(() => base.map((b, i) => {
+    const mesh = meshes[i]?.mesh, fresh = meshes[i]?.item === b.item;
     let unit: number | null = null, total: number | null = null;
-    if (b.kit) {
+    if (!fresh) { /* priced once the rebuilt mesh arrives */ }
+    else if (b.kit) {
       const stats = mesh ? meshStats(mesh) : null;
       if (stats) { unit = quote(stats, b.material, 1).unitPrice; total = quote(stats, b.material, b.item.qty).total; }
     } else if (b.template) {
@@ -72,14 +85,14 @@ export function useParts(kit: Kit): Part[] {
       if (price != null) { unit = price; total = price * b.item.qty; }
     }
     return { kit: b.kit, item: b.item, name: b.name, material: b.material, shapes: b.shapes, mesh, unit, total };
-  });
+  }), [base, meshes]);
 }
 
 // Assembly part id (digits stripped) -> its reference model in parts.ts, for the assembly drawing; others stay placeholders.
 const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps-puck-25', camera: 'camera-19', motor: 'motor-1404', prop: 'prop-3in', esp32: 'board-esp32-devkit', sg90: 'servo-sg90' };
 
 // The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
-export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]; focusId?: string | null }) {
+export function FinishedBuild({ kit, parts, focusId, updating }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean }) {
   const built = useMemo(() => {
     if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
@@ -111,7 +124,7 @@ export function FinishedBuild({ kit, parts, focusId }: { kit: Kit; parts: Part[]
   return (
     <section aria-labelledby="kit-finished" className="space-y-2">
       <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">The finished build</h2>
-      {built ? <AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} /> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
+      {built ? <div className="relative"><AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} />{updating && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}</div> : <div role="status" aria-label="Building the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
       <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
       {kit.credit && <CreditLine credit={kit.credit} />}
       {sheet && (
@@ -132,8 +145,9 @@ export function KitCard({ kit }: { kit: Kit }) {
   const [added, setAdded] = useAdded();
   const parts = useParts(kit); // unit prices for the cart lines come from the meshes, as on the kit page
   const ready = parts.every((p) => p.unit != null);
+  const settings = useMemo(() => kitSettings(kit), [kit]);
   const addAll = () => {
-    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0);
+    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0, { note: settings ? settingsSummary(settings.fields, settings.defaults) : undefined });
     const why = kitBlocked(lines, mk);
     if (why) { toast(why); return; }
     mk.forEach(add);
@@ -178,23 +192,64 @@ export function VariantPicker({ kit, index, onPick }: { kit: Kit; index: number;
   );
 }
 
+// ---------- settings in the URL (shareable link): only values that differ from the defaults ----------
+
+function writeQuery(q: Record<string, string>) {
+  const url = new URL(window.location.href);
+  url.search = new URLSearchParams(q).toString();
+  window.history.replaceState(window.history.state, '', url);
+}
+const queryText = (fields: Field[], cfg: Cfg, defaults: Cfg) => Object.fromEntries(fields.filter((f) => cfg[f.key] !== defaults[f.key]).map((f) => [f.key, String(cfg[f.key])]));
+function cfgFromQuery(fields: Field[], defaults: Cfg): Cfg {
+  const q = new URLSearchParams(window.location.search), out: Cfg = { ...defaults };
+  for (const f of fields) {
+    const v = q.get(f.key);
+    if (v !== null) out[f.key] = f.type === 'range' ? Number(v) : f.type === 'bool' ? v === 'true' : v;
+  }
+  return out;
+}
+
 // A kit of several products (led-decor) lets the customer pick one; everything below follows the pick.
 export function KitDetail({ kit }: { kit: Kit }) {
   const [vi, setVi] = useState(0);
+  useEffect(() => { // shared link: ?product=clock
+    const i = kit.variants?.findIndex((v) => v.id.split('/')[1] === new URLSearchParams(window.location.search).get('product')) ?? -1;
+    if (i > 0) setVi(i);
+  }, [kit]);
   const active = kit.variants?.[vi] ?? kit;
-  const picker = kit.variants && <VariantPicker kit={kit} index={vi} onPick={setVi} />;
+  const pick = (i: number) => { setVi(i); writeQuery({ product: kit.variants![i].id.split('/')[1] }); };
+  const picker = kit.variants && <VariantPicker kit={kit} index={vi} onPick={pick} />;
   return <KitDetailBody key={active.id} kit={active} top={kit} picker={picker} />;
 }
 
-function KitDetailBody({ kit, top, picker }: { kit: Kit; top: Kit; picker?: React.ReactNode }) {
+function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?: React.ReactNode }) {
   const { lines, add, toast } = useCart();
   const reduceMotion = useReduceMotion();
   const [added, setAdded] = useAdded();
+  // settings: the kit file's config fields; every change is checked with the kit's own strict validation, then built in the worker once it settles
+  const settings = useMemo(() => kitSettings(base), [base]);
+  const [cfg, setCfg] = useState<Cfg>(() => settings?.defaults ?? {});
+  const [problem, setProblem] = useState<string | null>(null);
+  const applied = useDebounced(cfg, 250);
+  const kit = useMemo(() => settings?.build({ ...settings.defaults, ...applied }) ?? base, [settings, applied, base]);
+  useEffect(() => {
+    if (!settings) return;
+    try { const q = cfgFromQuery(settings.fields, settings.defaults); settings.build(q); if (settings.fields.some((f) => q[f.key] !== settings.defaults[f.key])) setCfg(q); } catch { /* a bad shared link shows the defaults */ }
+  }, [settings]);
+  const change = (next: Cfg) => {
+    if (!settings) return;
+    try { settings.build(next); } catch (e) { setProblem(e instanceof Error ? e.message : 'These settings cannot be built.'); return; }
+    setProblem(null);
+    setCfg(next);
+    writeQuery({ ...(base.id.includes('/') ? { product: base.id.split('/')[1] } : {}), ...queryText(settings.fields, next, settings.defaults) });
+  };
+  const changed = !!settings && settings.fields.some((f) => cfg[f.key] !== settings.defaults[f.key]);
+  const pending = applied !== cfg;
   const parts = useParts(kit);
-  const ready = parts.every((p) => p.unit != null);
+  const ready = !pending && parts.every((p) => p.unit != null);
   const total = ready ? parts.reduce((n, p) => n + (p.total ?? 0), 0) : null;
   const addAll = () => {
-    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0);
+    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0, { name: top.title, note: settings ? settingsSummary(settings.fields, cfg) : undefined });
     const why = kitBlocked(lines, mk);
     if (why) { toast(why); return; }
     mk.forEach(add);
@@ -213,12 +268,28 @@ function KitDetailBody({ kit, top, picker }: { kit: Kit; top: Kit; picker?: Reac
       </div>
       {picker}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <FinishedBuild kit={kit} parts={parts} />
+        <div className="space-y-6">
+          <FinishedBuild kit={kit} parts={parts} updating={!ready} />
+        </div>
         <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
+          {settings && (
+            <fieldset id="kit-settings" className="scroll-mt-24 space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+              <legend className="px-1 text-sm font-semibold text-gray-900 dark:text-white">Settings</legend>
+              {settings.fields.map((f) => (
+                <div key={f.key}>
+                  <FieldControl f={f} value={cfg[f.key]} onChange={(v) => change({ ...cfg, [f.key]: v })} />
+                  {f.help && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{f.help}</p>}
+                </div>
+              ))}
+              {problem && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{problem}</p>}
+              <button type="button" disabled={!changed} onClick={() => change(settings.defaults)} aria-label="Reset settings to defaults" title="Reset settings to defaults"
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><Icon name="reset" />Reset</button>
+            </fieldset>
+          )}
           <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} pieces (${kit.items.length} different parts)`], ['Bought separately', `${kit.boughtParts.length} items`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
           <div className="flex gap-3"><CardActions kind="kit" id={top.id} added={added} disabled={!ready} onPrimary={addAll} secondaryHref="#kit-parts" title={top.variants ? `Add the ${kit.title} kit to cart` : undefined} /></div>
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. {settings ? 'Change the settings above before you add it.' : 'Open a part to change its settings before you add it.'}</p>
           <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
             <BoughtList items={kit.boughtParts} />
           </div>

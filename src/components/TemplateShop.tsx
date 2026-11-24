@@ -105,7 +105,7 @@ export function TemplateCard({ t, live, reduceMotion, setVisible }: {
 
 const ctl = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
 
-function FieldControl({ f, value, onChange }: { f: Field; value: number | string | boolean; onChange: (v: number | string | boolean) => void }) {
+export function FieldControl({ f, value, onChange }: { f: Field; value: number | string | boolean; onChange: (v: number | string | boolean) => void }) {
   const id = useId();
   if (f.type === 'bool') {
     return (

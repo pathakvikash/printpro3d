@@ -20,7 +20,7 @@ export type CartLine =
   // a parametric template with the customer's settings; `unitPrice` is the per-piece price shown when it was configured (display only, the server recomputes from `cfg`)
   | { kind: 'tpl'; id: string; cfg: Cfg; qty: number; unitPrice: number }
   // one printed part of a kit (src/lib/kits/adapt.ts); `id` is `<kitId>:<partId>`, `label` and `unitPrice` are display only, the server rebuilds the part from the kit file and `cfg`
-  | { kind: 'kit'; id: string; label: string; cfg: Cfg; qty: number; unitPrice: number }
+  | { kind: 'kit'; id: string; label: string; note?: string; cfg: Cfg; qty: number; unitPrice: number }
   // a customer's own model (upload, builder or AI): `file` is the stored upload name,
   // `estimate` the line total shown when it was quoted (null = we quote it manually)
   | { kind: 'model'; file: string; label: string; notes?: string; material: string; qty: number; estimate: number | null }
@@ -63,7 +63,7 @@ export function parseCart(raw: unknown): CartLine[] {
       const id = str(o.id, 60), unit = o.unitPrice, cfg = o.cfg;
       const plain = !!cfg && typeof cfg === 'object' && !Array.isArray(cfg) && Object.keys(cfg).length <= 20 && Object.values(cfg).every((v) => ['string', 'number', 'boolean'].includes(typeof v));
       if (!/^[a-z0-9-]+:[A-Za-z0-9-]+$/.test(id) || !plain || typeof unit !== 'number' || !Number.isFinite(unit) || unit < 0) continue;
-      out.push({ kind: 'kit', id, label: str(o.label, 80) || id, cfg: cfg as Cfg, qty: o.qty, unitPrice: unit });
+      out.push({ kind: 'kit', id, label: str(o.label, 80) || id, ...(str(o.note, 300) ? { note: str(o.note, 300) } : {}), cfg: cfg as Cfg, qty: o.qty, unitPrice: unit });
     } else if (o.kind === 'design') {
       const project = str(o.project, 40);
       const material = str(o.material, 20);

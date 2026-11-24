@@ -31,6 +31,7 @@ export default function Navbar() {
   const acctBtn = useRef<HTMLButtonElement>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
+  const themeLabel = `Theme: ${mounted && theme === 'dark' ? 'dark' : 'light'} (switch to ${mounted && theme === 'dark' ? 'light' : 'dark'})`;
   const { count, openCart } = useCart();
 
   useEffect(() => {
@@ -156,8 +157,8 @@ export default function Navbar() {
                     </li>
                   ))}
                   <li className='border-t border-gray-200 dark:border-gray-700 mt-1 pt-1'>
-                    <button type='button' onClick={toggleTheme} aria-label='Switch theme' title='Switch theme' className={`${itemCls} w-full whitespace-nowrap text-left`}>
-                      Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'}
+                    <button type='button' onClick={toggleTheme} aria-label={themeLabel} title={themeLabel} className={`${itemCls} w-full whitespace-nowrap text-left`}>
+                      <Icon name={mounted && theme === 'dark' ? 'moon' : 'sun'} className='mr-2 inline h-4 w-4 align-text-bottom' />Theme
                     </button>
                   </li>
                 </ul>
@@ -205,8 +206,8 @@ export default function Navbar() {
             </li>
           ))}
           <li className='mt-1 border-t border-gray-200 pt-1 dark:border-gray-800'>
-            <button type='button' onClick={toggleTheme} aria-label='Switch theme' title='Switch theme' className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
-              Theme: {mounted && theme === 'dark' ? 'Dark' : 'Light'}
+            <button type='button' onClick={toggleTheme} aria-label={themeLabel} title={themeLabel} className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
+              <Icon name={mounted && theme === 'dark' ? 'moon' : 'sun'} className='mr-2 inline h-4 w-4 align-text-bottom' />Theme
             </button>
           </li>
         </ul>
