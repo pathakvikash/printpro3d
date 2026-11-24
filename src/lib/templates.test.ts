@@ -146,3 +146,24 @@ test('grid bin and drone mount: descriptions state what the mesh has; server pri
     assert.equal(templateOrderLine(t, defaultCfg(t), 2).total, quote(priceTemplate(t.id, defaultCfg(t), 2).stats, t.material, 2).total);
   }
 });
+
+test('grid bin foot fits the opening of a bin with the thickest wall; tilted drone cheeks are bonded along their bottom edge', () => {
+  const g = templateById('grid-bin')!;
+  const wall = g.fields.find((f) => f.key === 'wall')!;
+  for (const ux of [1, 4]) {
+    const b = buildTemplate(g, normalizeCfg(g, { ...defaultCfg(g), ux, uy: ux, wall: wall.type === 'range' ? wall.max : 0 }, true));
+    const cavity = b.shapes.find((s) => s.mode === 'hole')!;
+    const feet = b.shapes.filter((s) => s.mode === 'solid' && s.position.z < 2);
+    const outer = Math.max(...feet.map((s) => s.position.x + s.size.x / 2));
+    assert.ok(outer <= cavity.size.x / 2 - 0.25, `${ux} units: foot edge ${outer} vs opening ${cavity.size.x / 2}`);
+  }
+  const d = templateById('drone-camera-mount')!;
+  const b = buildTemplate(d, normalizeCfg(d, { ...defaultCfg(d), tilt: 40 }, true));
+  const cheeks = b.shapes.filter((s) => s.rotation.x === 40 && s.kind === 'box');
+  assert.equal(cheeks.length, 2);
+  for (const c of cheeks) {
+    const th = (40 * Math.PI) / 180, hiCornerZ = c.position.z + (c.size.y / 2) * Math.sin(th) - (c.size.z / 2) * Math.cos(th);
+    const fill = b.shapes.find((s) => s.mode === 'solid' && s.rotation.x === 0 && Math.abs(s.position.x - c.position.x) < 0.01 && s.position.z > 3);
+    assert.ok(fill && fill.position.z - fill.size.z / 2 < 3 && fill.position.z + fill.size.z / 2 > hiCornerZ - 1, 'cheek wedge reaches from the plate to its high corner');
+  }
+});

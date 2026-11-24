@@ -272,13 +272,14 @@ function wheel(c: Cfg): Built {
 // ---------- grid storage bin ----------
 
 const UNIT = 42, HU = 7, FOOT = 2.4, FLOOR = 1.2, DROP = 3; // dividers and tab stay DROP mm below the rim so a stacked foot clears them
+const FOOTW = UNIT - 5.5; // 0.5 mm per side inside the opening of a bin with the thickest (2 mm) wall
 
 function gridBin(c: Cfg): Built {
   const ux = c.ux as number, uy = c.uy as number, hu = c.hu as number, w = c.wall as number, nd = c.div as number, tab = !!c.label;
   const OX = ux * UNIT - 0.5, OY = uy * UNIT - 0.5, H = hu * HU, IX = OX - 2 * w, IY = OY - 2 * w, floorZ = FOOT + FLOOR;
   const sh: Shape[] = [box([OX, OY, H - FOOT], [0, 0, (FOOT + H) / 2])];
   for (let i = 0; i < ux; i++) for (let j = 0; j < uy; j++) {
-    sh.push(box([UNIT - 4.5, UNIT - 4.5, FOOT + 0.5], [(i - (ux - 1) / 2) * UNIT, (j - (uy - 1) / 2) * UNIT, (FOOT + 0.5) / 2])); // stepped foot, overlaps the floor
+    sh.push(box([FOOTW, FOOTW, FOOT + 0.5], [(i - (ux - 1) / 2) * UNIT, (j - (uy - 1) / 2) * UNIT, (FOOT + 0.5) / 2])); // stepped foot, overlaps the floor
   }
   sh.push(box([IX, IY, H + 1 - floorZ], [0, 0, (floorZ + H + 1) / 2], 'hole'));
   const top = H - DROP;
@@ -286,7 +287,7 @@ function gridBin(c: Cfg): Built {
   if (tab) sh.push(late(box([IX + 1, 8.5, 1.2], [0, -IY / 2 + 3.75, top - 0.6])));
   return {
     shapes: sh, holes: 0, parts: 1,
-    description: `A storage bin ${ux} × ${uy} units (${r1(OX)} × ${r1(OY)} mm, 42 mm per unit), ${hu} units tall (${H} mm, 7 mm per unit) with ${r1(w)} mm walls and a ${FLOOR} mm floor. Each unit has a plain stepped foot (${r1(UNIT - 4.5)} mm square, ${FOOT} mm deep) that drops into the opening of the bin below. ${nd ? `${nd} divider${nd > 1 ? 's' : ''} across the X length, ${nd + 1} compartments. ` : 'No dividers. '}${tab ? 'An 8 mm deep label tab along the inside of the front wall. ' : 'No label tab. '}Dividers and tab sit ${DROP} mm below the rim so a stacked bin clears them. This is not the certified Gridfinity profile (no magnet pockets or interlock chamfers): check fit on your baseplate.`,
+    description: `A storage bin ${ux} × ${uy} units (${r1(OX)} × ${r1(OY)} mm, 42 mm per unit), ${hu} units tall (${H} mm, 7 mm per unit) with ${r1(w)} mm walls and a ${FLOOR} mm floor. Each unit has a plain stepped foot (${r1(FOOTW)} mm square, ${FOOT} mm deep) that drops into the opening of the bin below. ${nd ? `${nd} divider${nd > 1 ? 's' : ''} across the X length, ${nd + 1} compartments. ` : 'No dividers. '}${tab ? 'An 8 mm deep label tab along the inside of the front wall. ' : 'No label tab. '}Dividers and tab sit ${DROP} mm below the rim so a stacked bin clears them. This is not the certified Gridfinity profile (no magnet pockets or interlock chamfers): check fit on your baseplate.`,
   };
 }
 
@@ -303,6 +304,9 @@ function droneMount(c: Cfg): Built {
   const y0 = yr - G / 2 - 3, y1 = yf + G / 2 + 3;
   const sh: Shape[] = [box([X, y1 - y0, T], [0, (y0 + y1) / 2, T / 2])];
   for (const k of [-1, 1]) sh.push(S('box', [T, d, h], [k * cx, cy, zc], 'solid', [tilt, 0, 0]));
+  // A tilted cheek touches the plate only at its lowest corner; fill the wedge under its bottom edge so it is bonded along its length.
+  const ya = cy - (d / 2) * cs + (h / 2) * sn + 0.5, yb = cy + (d / 2) * cs + (h / 2) * sn - 0.5, zt = 1 + d * sn - 0.5;
+  if (zt > T + 0.5) for (const k of [-1, 1]) sh.push(box([T - 0.4, yb - ya, zt - 1.5], [k * cx, (ya + yb) / 2, (1.5 + zt) / 2]));
   for (const x of [-s / 2, s / 2]) for (const y of [-s / 2, s / 2]) sh.push(cyl(3.2, x, y, -1, T + 1, 'hole'));
   for (const y of [yr, yf]) sh.push(box([sw, G, T + 2], [0, y, T / 2], 'hole'));
   for (const k of [-1, 1]) sh.push(S('cylinder', [2.2, 2.2, T + 1.4], [k * cx, cy, zc], 'hole', [0, 90, 0]));
