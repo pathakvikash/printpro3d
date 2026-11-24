@@ -40,7 +40,10 @@ const OFF: Caps = { ai: false, meshy: false, tier: '', revisions: 0 };
 export default function BuildFlow() {
   const sp = useSearchParams();
   const prefill = prefillPrompt(sp.get('prompt'));
-  const intent = !!prefill || !!sp.get('example') || sp.get('from') === 'ai'; // a link that says what to start from beats the saved design
+  const asked = !!prefill || !!sp.get('example') || sp.get('from') === 'ai'; // a link that says what to start from beats the saved design
+  // latched: ?step= and the builder's own replaceState drop ?example=/?prompt=, and boot must not then rerun and swap in the saved design
+  const [intent, setIntent] = useState(asked);
+  if (asked && !intent) setIntent(true);
   const router = useRouter();
   const pathname = usePathname();
   const urlStep = sp.get('step');
