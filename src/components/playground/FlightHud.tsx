@@ -66,6 +66,7 @@ export default function FlightHud({ motors, components, frame, frameMm, frameSta
             <>
               <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
                 <dt>All-up weight</dt><dd className="font-medium">{Math.round(t.massKg * 1000)} g{frameState === 'building' && ' (frame mass loading)'}</dd>
+                <dd className="col-span-2 text-[11px] text-amber-800 dark:text-amber-200">Motors, props and wiring are not in this weight: add their total as a Payload part to count them.</dd>
                 <dt>Thrust / weight</dt><dd className="font-medium">{t.thrustToWeight.toFixed(2)}</dd>
                 <dt>Hover throttle <Tag b={t.basis.thrust} /></dt><dd className="font-medium">{f1(t.hoverThrottlePct)} %</dd>
                 <dt>Hover current</dt><dd className="font-medium">{f1(t.hoverAmps)} A</dd>

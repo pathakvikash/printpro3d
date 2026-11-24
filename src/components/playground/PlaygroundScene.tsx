@@ -124,7 +124,7 @@ function MassGlyph({ name, massG, estimate, ghost, faint, selected, yawDeg = 0, 
         </mesh>
       </group>
       {!faint && (
-        <Html position={[0, 0, h / 2 + 8]} center style={{ pointerEvents: 'none' }}>
+        <Html position={[0, 0, h / 2 + 8]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
           <span className="whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] text-white">
             {name} · {massG === null ? '? g' : `${massG} g${estimate ? ' (est.)' : ''}`}
           </span>
@@ -142,7 +142,7 @@ function SimOverlay({ view }: { view: SimView }) {
         <sphereGeometry args={[3.5, 16, 12]} />
         <meshBasicMaterial color="#ef4444" depthTest={false} />
       </mesh>
-      <Html position={view.cg} style={{ pointerEvents: 'none' }}><span className="ml-3 whitespace-nowrap rounded bg-red-600 px-1 py-0.5 text-[10px] text-white">CG</span></Html>
+      <Html position={view.cg} zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}><span className="ml-3 whitespace-nowrap rounded bg-red-600 px-1 py-0.5 text-[10px] text-white">CG</span></Html>
       {view.arrows.map((a, i) => {
         const len = Math.max(6, Math.max(0, a.thrustN) * 12);
         return (
