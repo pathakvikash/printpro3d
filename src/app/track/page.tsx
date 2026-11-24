@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Track your order - PrintPro3D', desc
 
 export default function TrackPage() {
   return (
-    <PageShell title="Track your order" lead="Enter the id from your confirmation to see where your order is.">
+    <PageShell wide title="Track your order" lead="Enter the id from your confirmation to see where your order is.">
       <Suspense fallback={null}>
         <TrackOrder />
       </Suspense>

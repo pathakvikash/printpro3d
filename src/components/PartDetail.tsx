@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { KITS, kitsUsingPart } from '@/lib/kits';
 import { CATEGORY_LABEL, LIPO_NOTE, REFERENCE_BADGE, isSourcedMotor, type Part } from '@/lib/parts';
 import { partMesh, partReference } from '@/lib/partModels';
-import { BackToShop, SpecRows } from './ShopParts';
-import { submitBtn } from './ContactFields';
+import { BackToShop, CardActions, SpecRows } from './ShopParts';
 import ModelWithBlueprint from './ModelWithBlueprint';
 
 export default function PartDetail({ part }: { part: Part }) {
@@ -30,7 +29,7 @@ export default function PartDetail({ part }: { part: Part }) {
         </div>
         <aside aria-label="Part details" className="min-w-0 space-y-4 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
           <p className="inline-block rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">{REFERENCE_BADGE}</p>
-          <SpecRows rows={part.specs.map((x) => [x.label, x.value])} />
+          <div id="part-specs" className="scroll-mt-24"><SpecRows rows={part.specs.map((x) => [x.label, x.value])} /></div>
           <p className="text-xs text-gray-600 dark:text-gray-400">
             <span className="font-medium">Accuracy: {part.accuracy === 'sourced' ? 'standard dimensions, sourced' : 'typical'}.</span>{' '}
             {part.accuracy === 'typical' && 'Check these against the part you have in hand.'}
@@ -42,7 +41,7 @@ export default function PartDetail({ part }: { part: Part }) {
             </p>
           )}
           {part.category === 'battery' && <p role="note" className="rounded-lg bg-amber-50 p-2 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">{LIPO_NOTE}</p>}
-          <Link href={`/request?part=${encodeURIComponent(part.id)}`} aria-label="Enquire about this part" title="Enquire about this part" className={submitBtn}>Enquire</Link>
+          <div className="flex gap-3"><CardActions kind="part" id={part.id} secondaryHref="#part-specs" /></div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Available from us — enquire for price. We reply with availability and the next steps.</p>
           {isSourcedMotor(part.id) && <Link href="/playground?mode=build&example=drone-plate&sim=1" aria-label="Test it in Build" title="Test it in Build" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"><Icon name="play" className="h-4 w-4" />Test</Link>}
         </aside>

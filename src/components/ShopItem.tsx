@@ -17,7 +17,7 @@ import BlueprintSheet from './BlueprintSheet';
 import { money, secondaryBtn } from './ContactFields';
 import { QtyStepper, SaveButton } from './CartDrawer';
 import { useCart } from './CartProvider';
-import { addBtn, AddLabel, BackToShop, previewBox, SpecRows, useAdded, useReduceMotion } from './ShopParts';
+import { CardActions, BackToShop, previewBox, SpecRows, useAdded, useReduceMotion } from './ShopParts';
 
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 
@@ -87,14 +87,11 @@ export default function ItemDetail({ p }: { p: Product }) {
             {money.format(item.price)} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">each · made to order</span>
           </p>
           <SpecRows rows={rows} />
-          <div className="flex items-center gap-3 pt-1">
-            <QtyStepper name={item.name} qty={qty} onChange={setQty} />
-            <button type="button" onClick={() => { add({ kind: 'shop', id: item.id, qty }); toast('Added to cart', true); setAdded(true); }} aria-label="Add to cart" title="Add to cart" className={addBtn}>
-              <AddLabel added={added} />
-            </button>
+          <QtyStepper name={item.name} qty={qty} onChange={setQty} />
+          <div className="flex gap-3 pt-1">
+            <CardActions kind="item" id={item.id} exampleId={item.exampleId} added={added} onPrimary={() => { add({ kind: 'shop', id: item.id, qty }); toast('Added to cart', true); setAdded(true); }} />
           </div>
           {inCart && <p className="text-sm text-gray-500 dark:text-gray-400">In cart ({inCart.qty})</p>}
-          <Link href={`/playground?mode=build&example=${item.exampleId}`} aria-label="Customise this product" title="Customise this product" className={`${secondaryBtn} w-full whitespace-nowrap`}><Icon name="wrench" />Customise</Link>
         </div>
       </div>
 

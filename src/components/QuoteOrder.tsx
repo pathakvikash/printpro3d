@@ -136,6 +136,39 @@ export default function QuoteOrder({
         <p className="text-sm text-gray-600 dark:text-gray-300">{MATERIAL_INFO[material].blurb} <Link href="/materials" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Compare materials</Link></p>
       </fieldset>
 
+      {/* price and Add stay in view on wide screens (at 1440 x 900 the Add button must not fall below the fold) */}
+      <div className="-mx-5 space-y-3 border-y border-gray-200 bg-white px-5 py-3 lg:sticky lg:bottom-0 lg:z-10 dark:border-gray-700 dark:bg-gray-900">
+      {price !== null ? (
+        <p className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-900 dark:bg-indigo-950/40">
+          <Icon name="tag" className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Estimated price</span>
+          <span className="ml-auto text-2xl font-bold text-indigo-600 dark:text-indigo-400">{money.format(price)}</span>
+        </p>
+      ) : (
+        <p className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
+          {!stats
+            ? 'We will quote this one manually'
+            : !fits
+              ? `Larger than our ${BED_MM.x}×${BED_MM.y}×${BED_MM.z} mm print area — we will quote this one manually`
+              : 'Enter a quantity between 1 and ' + MAX_QTY}
+        </p>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button type="button" onClick={() => addToCart(false)} disabled={!validQty} aria-label={project ? 'Place order' : 'Add to cart'} title={project ? 'Place order' : 'Add to cart'} className={submitBtn}>
+          <Icon name="cart" />{project ? 'Order' : 'Add'}
+        </button>
+        <button type="button" onClick={() => addToCart(true)} disabled={!validQty} aria-label={project ? 'Place order and checkout' : 'Add and checkout'} title={project ? 'Place order and checkout' : 'Add and checkout'} className={`${secondaryBtn} w-full disabled:opacity-50`}>
+          <Icon name="check" />Checkout
+        </button>
+      </div>
+      </div>
+      {!project && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+          <button type="button" onClick={saveItemHere} aria-label="Save to My items" title="Save to My items (kept in this browser)" className={`${secondaryBtn} !w-auto`}><Icon name="save" />Save</button>
+          {savedMsg && <><span role="status">{savedMsg}</span><Link href="/my-items" aria-label="View My items" title="View My items" className={`${secondaryBtn} !w-auto`}><Icon name="cube" />Items</Link></>}
+        </div>
+      )}
       {!project && (
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -162,36 +195,6 @@ export default function QuoteOrder({
         </section>
       )}
 
-      {price !== null ? (
-        <p className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-900 dark:bg-indigo-950/40">
-          <Icon name="tag" className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Estimated price</span>
-          <span className="ml-auto text-2xl font-bold text-indigo-600 dark:text-indigo-400">{money.format(price)}</span>
-        </p>
-      ) : (
-        <p className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
-          {!stats
-            ? 'We will quote this one manually'
-            : !fits
-              ? `Larger than our ${BED_MM.x}×${BED_MM.y}×${BED_MM.z} mm print area — we will quote this one manually`
-              : 'Enter a quantity between 1 and ' + MAX_QTY}
-        </p>
-      )}
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => addToCart(false)} disabled={!validQty} aria-label={project ? 'Place order' : 'Add to cart'} title={project ? 'Place order' : 'Add to cart'} className={submitBtn}>
-          <Icon name="cart" />{project ? 'Order' : 'Add'}
-        </button>
-        <button type="button" onClick={() => addToCart(true)} disabled={!validQty} aria-label={project ? 'Place order and checkout' : 'Add and checkout'} title={project ? 'Place order and checkout' : 'Add and checkout'} className={`${secondaryBtn} w-full disabled:opacity-50`}>
-          <Icon name="check" />Checkout
-        </button>
-      </div>
-      {!project && (
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-          <button type="button" onClick={saveItemHere} aria-label="Save to My items" title="Save to My items (kept in this browser)" className={`${secondaryBtn} !w-auto`}><Icon name="save" />Save</button>
-          {savedMsg && <><span role="status">{savedMsg}</span><Link href="/my-items" aria-label="View My items" title="View My items" className={`${secondaryBtn} !w-auto`}><Icon name="cube" />Items</Link></>}
-        </div>
-      )}
     </div>
   );
 }

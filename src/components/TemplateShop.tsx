@@ -191,7 +191,7 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
         </div>
 
         <div className="space-y-3">
-          <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+          <fieldset id="settings" className="scroll-mt-24 space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
             <legend className="px-1 text-sm font-semibold text-gray-900 dark:text-white">Your settings</legend>
             {t.fields.map((f) => (
               <FieldControl key={f.key} f={f} value={cfg[f.key]} onChange={(v) => setCfg((c) => ({ ...c, [f.key]: v }))} />
@@ -202,18 +202,9 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
             {total != null ? money.format(total) : 'n/a'} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">for {qty} · made to order · includes {money.format(SETUP_FEE)} setup</span>
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">Suggested material {t.material}, colour {t.colour}. Price is an estimate from the mesh; we confirm before payment.</p>
-          <div className="flex items-center gap-3 pt-1">
-            <QtyStepper name={t.name} qty={qty} onChange={setQty} />
-            <button
-              type="button"
-              disabled={!canAdd}
-              onClick={addToCart}
-              aria-label="Add to cart"
-              title="Add to cart"
-              className={addBtn}
-            >
-              <AddLabel added={added} />
-            </button>
+          <QtyStepper name={t.name} qty={qty} onChange={setQty} />
+          <div className="flex gap-3 pt-1">
+            <CardActions kind="template" id={t.id} added={added} disabled={!canAdd} onPrimary={addToCart} secondaryHref="#settings" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
         </div>

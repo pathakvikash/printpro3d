@@ -210,9 +210,7 @@ function KitDetailBody({ kit, top, picker }: { kit: Kit; top: Kit; picker?: Reac
         <FinishedBuild kit={kit} parts={parts} />
         <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
           <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} pieces (${kit.items.length} different parts)`], ['Bought separately', `${kit.boughtParts.length} items`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
-          <button type="button" disabled={!ready} onClick={addAll} aria-label="Add whole kit to cart" title="Add whole kit to cart" className={`${addBtn} w-full`}>
-            {added ? <AddLabel added /> : <><Icon name="cart" />Add</>}
-          </button>
+          <div className="flex gap-3"><CardActions kind="kit" id={top.id} added={added} disabled={!ready} onPrimary={addAll} secondaryHref="#kit-parts" title={top.variants ? `Add the ${kit.title} kit to cart` : undefined} /></div>
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. Open a part to change its settings before you add it.</p>
           <div className="border-t border-gray-200 pt-3 dark:border-gray-700">

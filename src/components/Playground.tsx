@@ -647,6 +647,16 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
 
       {note && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{note}</p>}
 
+      {!project && (
+        <>
+          <div aria-hidden className="h-16 lg:hidden" />
+          <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
+            <span className="min-w-0 truncate text-sm text-gray-700 dark:text-gray-200">{size ? `${fmt(size.x)} × ${fmt(size.y)} × ${fmt(size.z)} mm` : 'Add a solid shape'}</span>
+            <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} ml-auto inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
+          </div>
+        </>
+      )}
+
       <div ref={offerRef} className="scroll-mt-20">
         {offer && <UploadForm key={offer.key} initialFile={offer.file} onQuote={scrollToOffer} />}
       </div>

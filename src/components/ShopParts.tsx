@@ -123,10 +123,12 @@ export const previewBox = 'h-72 overflow-hidden rounded-xl bg-[#ebe8e1] dark:bg-
 // The two-action row every shop card ends with (pattern and labels live in lib/cardActions.ts): primary + secondary, equal size.
 // Secondary is out of the tab order on cards: the stretched title link is the one stop to the same page.
 export const secondaryCardBtn = 'inline-flex whitespace-nowrap h-11 flex-1 items-center justify-center gap-2 rounded-[10px] border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 transition-colors hover:border-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
-export function CardActions({ kind, id, exampleId, onPrimary, disabled, added, title }: {
-  kind: CardKind; id: string; exampleId?: string | null; onPrimary?: () => void; disabled?: boolean; added?: boolean; title?: string;
+// secondaryHref: on a product's own page the secondary points at a place on that page instead of at the page itself
+export function CardActions({ kind, id, exampleId, onPrimary, disabled, added, title, secondaryHref }: {
+  kind: CardKind; id: string; exampleId?: string | null; onPrimary?: () => void; disabled?: boolean; added?: boolean; title?: string; secondaryHref?: string;
 }) {
-  const { primary, secondary } = cardActions(kind, id, exampleId);
+  const { primary, secondary: sec } = cardActions(kind, id, exampleId);
+  const secondary = secondaryHref ? { ...sec, href: secondaryHref } : sec;
   const label = <><Icon name={primary.icon} />{primary.label}</>;
   return (
     <>
