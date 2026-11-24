@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Icon from '../Icon';
-import { BackLink } from '../ShopParts';
 import { secondaryBtn } from '../ContactFields';
 import {
   PROJECT_KEY, STEP_LABEL, currentRevision, defaultStep, mapError, parseStoredId, prefillPrompt, settleStep, stepAllowed, stepViews,
@@ -146,6 +145,25 @@ export default function BuildFlow() {
   if (booting || !caps) return <p role="status" className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</p>;
 
   if (!project) {
+  const designsEl = (
+  (designs.length > 0 || listNote) && (
+    <section aria-labelledby="my-designs" className="space-y-2">
+      <h2 id="my-designs" className="text-sm font-semibold text-gray-900 dark:text-gray-100">My designs</h2>
+      {listNote && <p role="status" className="text-sm text-gray-600 dark:text-gray-300">{listNote}</p>}
+      <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+        {designs.map((d) => (
+          <li key={d.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
+            <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100">{d.title || 'Untitled design'}<span className="ml-2 font-normal text-gray-500 dark:text-gray-400">{new Date(d.updatedAt).toLocaleDateString()}</span></span>
+            <button type="button" onClick={() => openDesign(d.id)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Open</button>
+            <button type="button" onClick={() => removeEntry(d)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Remove</button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+  );
+
+  const startEl = <StartPanel caps={caps} initialPrompt={prefill} onProject={(p) => adopt(p, null, 'plan')} />;
     return (
       <div className="space-y-8">
         <ErrorNote err={capsErr} />
@@ -161,26 +179,27 @@ export default function BuildFlow() {
             <button type="button" onClick={resume} className="inline-flex items-center gap-1 font-semibold underline hover:no-underline"><Icon name="arrow" />Resume it</button>
           </p>
         )}
-        {(designs.length > 0 || listNote) && (
-          <section aria-labelledby="my-designs" className="space-y-2">
-            <h2 id="my-designs" className="text-sm font-semibold text-gray-900 dark:text-gray-100">My designs</h2>
-            {listNote && <p role="status" className="text-sm text-gray-600 dark:text-gray-300">{listNote}</p>}
-            <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
-              {designs.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100">{d.title || 'Untitled design'}<span className="ml-2 font-normal text-gray-500 dark:text-gray-400">{new Date(d.updatedAt).toLocaleDateString()}</span></span>
-                  <button type="button" onClick={() => openDesign(d.id)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Open</button>
-                  <button type="button" onClick={() => removeEntry(d)} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Remove</button>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {intent ? (
+          <>
+            <Playground />
+            <details className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <summary className="cursor-pointer text-sm font-semibold text-gray-900 dark:text-gray-100">Start something else</summary>
+              <div className="mt-4 space-y-8">
+                {designsEl}
+                {startEl}
+              </div>
+            </details>
+          </>
+        ) : (
+          <>
+            {designsEl}
+            {startEl}
+            <div className="space-y-2">
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">Or build freely, with no plan: add shapes yourself and get a price.</p>
+              <Playground />
+            </div>
+          </>
         )}
-        <StartPanel caps={caps} initialPrompt={prefill} onProject={(p) => adopt(p, null, 'plan')} />
-        <div className="space-y-2">
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">Or build freely, with no plan: add shapes yourself and get a price.</p>
-          <Playground />
-        </div>
       </div>
     );
   }
@@ -192,7 +211,6 @@ export default function BuildFlow() {
         <Stepper steps={stepViews(project.status, step)} onGo={go} />
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={back} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="undo" />Back</button>
-          <BackLink href="/shop" className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="arrow" />Back to Shop</BackLink>
           <button type="button" onClick={newDesign} className={`${secondaryBtn} px-3 py-1.5 text-sm`}><Icon name="plus" />New design</button>
         </div>
       </div>

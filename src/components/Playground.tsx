@@ -23,6 +23,7 @@ import {
 import { BED_MM, fitsBed, meshStats } from '@/lib/quote';
 import { exampleById } from '@/lib/examples';
 import { buildOffThread } from '@/lib/buildOffThread';
+import FlowStrip from '@/components/FlowStrip';
 import {
   DEFAULT_SIZE, KINDS, LABEL, MAX_SHAPES, MIN_SIZE, clampCoord, minZ, parseDesign, solidsSize, toStl,
   type Kind, type Shape, type V3,
@@ -429,6 +430,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
 
   return (
     <div className="space-y-6">
+      {!project && <FlowStrip current="adjust" />}
       {!project && <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Build it myself</h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -511,7 +513,39 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
           </div>
         </div>
 
-        <aside className="space-y-4 min-w-0">
+        <aside className="space-y-4 min-w-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <div className={panel} aria-live="polite">
+            <h3 className={heading}>{project ? 'Your model' : 'Your model / Get a price'}</h3>
+            {size ? (
+              <>
+                <p className="text-sm text-gray-700 dark:text-gray-200">
+                  {fmt(size.x)} × {fmt(size.y)} × {fmt(size.z)} mm <span className="text-gray-500 dark:text-gray-400">(length × width × height)</span>
+                </p>
+                <p className={`text-sm font-medium ${fits ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                  {fits ? 'Fits our print area.' : `Too big for our ${BED_MM.x}×${BED_MM.y}×${BED_MM.z} mm print area; we can still quote it manually.`}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape to see its size.</p>
+            )}
+                      {project ? (
+              project.onSave && !project.readOnly && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={save} disabled={!h.past.length || !hasSolid || saving} className={`${primary} inline-flex items-center gap-2`}>
+                    <Icon name="check" />{saving ? 'Saving…' : 'Save as a new revision'}
+                  </button>
+                  {!h.past.length && <p className="text-sm text-gray-500 dark:text-gray-400">Change something to save a revision.</p>}
+                </div>
+              )
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" onClick={price} disabled={!hasSolid || busy} className={primary}>{busy ? 'Building…' : 'Get a price'}</button>
+                {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
+                <button type="button" onClick={download} disabled={!hasSolid || busy} className={`${btn} py-3`}>Download STL</button>
+                {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
+              </div>
+            )}
+          </div>
           <div className={panel}>
             <h3 className={heading}>Shapes</h3>
             {shapes.length === 0 ? (
@@ -608,41 +642,9 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             </div>
           )}
 
-          <div className={panel} aria-live="polite">
-            <h3 className={heading}>Your model</h3>
-            {size ? (
-              <>
-                <p className="text-sm text-gray-700 dark:text-gray-200">
-                  {fmt(size.x)} × {fmt(size.y)} × {fmt(size.z)} mm <span className="text-gray-500 dark:text-gray-400">(length × width × height)</span>
-                </p>
-                <p className={`text-sm font-medium ${fits ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
-                  {fits ? 'Fits our print area.' : `Too big for our ${BED_MM.x}×${BED_MM.y}×${BED_MM.z} mm print area; we can still quote it manually.`}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape to see its size.</p>
-            )}
-          </div>
         </aside>
       </div>
 
-      {project ? (
-        project.onSave && !project.readOnly && (
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={save} disabled={!h.past.length || !hasSolid || saving} className={`${primary} inline-flex items-center gap-2`}>
-              <Icon name="check" />{saving ? 'Saving…' : 'Save as a new revision'}
-            </button>
-            {!h.past.length && <p className="text-sm text-gray-500 dark:text-gray-400">Change something to save a revision.</p>}
-          </div>
-        )
-      ) : (
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={price} disabled={!hasSolid || busy} className={primary}>{busy ? 'Building…' : 'Get a price'}</button>
-          {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
-          <button type="button" onClick={download} disabled={!hasSolid || busy} className={`${btn} py-3`}>Download STL</button>
-          {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
-        </div>
-      )}
       {note && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{note}</p>}
 
       <div ref={offerRef} className="scroll-mt-20">

@@ -1,6 +1,6 @@
 'use client';
 // Plan: the draft (parts, size, fit, weight, drawing, assumptions) and how to change it: AI revision, hand edit, undo, compare with the previous revision.
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import Icon from '../Icon';
 import { card, input, label, secondaryBtn, submitBtn } from '../ContactFields';
@@ -19,11 +19,11 @@ const Playground = dynamic(() => import('../Playground'), { ssr: false, loading:
 
 const readEmail = () => { try { return localStorage.getItem(EMAIL_KEY) ?? ''; } catch { return ''; } };
 
-function Facts({ b, stats }: { b: Blueprint; stats: ReturnType<typeof useMesh>['stats'] }) {
+function Facts({ b, stats, stack }: { b: Blueprint; stats: ReturnType<typeof useMesh>['stats']; stack?: boolean }) {
   const fit = bedFit(b);
   const g = estGrams(stats);
   return (
-    <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <dl className={`grid grid-cols-1 gap-3 ${stack ? '' : 'sm:grid-cols-3'}`}>
       <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Overall size</dt><dd className="text-sm font-semibold text-gray-900 dark:text-gray-100">{fmtSize(b.envelope)}</dd></div>
       <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Print bed</dt><dd className={`text-sm font-semibold ${fit.ok ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{fit.text}</dd></div>
       <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Estimated weight</dt><dd className="text-sm font-semibold text-gray-900 dark:text-gray-100">{g === null ? 'Working it out…' : `about ${g.toFixed(0)} g in PLA`}</dd></div>
@@ -32,18 +32,25 @@ function Facts({ b, stats }: { b: Blueprint; stats: ReturnType<typeof useMesh>['
 }
 
 /** The plan as the customer should read it: shared by Plan and Approve. */
-export function PlanSummary({ p, bp }: { p: ProjectView; bp: Blueprint }) {
+/** With `rail`, the facts and assumptions move to a sticky right rail (with `rail` under them) and `after` stays under the plan on the left. */
+export function PlanSummary({ p, bp, rail, after }: { p: ProjectView; bp: Blueprint; rail?: ReactNode; after?: ReactNode }) {
   const shapes = useMemo(() => blueprintToShapes(bp), [bp]);
   const { tris, stats, ready } = useMesh(shapes);
   const upload = p.source === 'mesh' && p.meshFile ? `/api/upload/${p.meshFile}` : null; // the real uploaded mesh, not the box stand-in
   const notes = noteItems(bp.notes);
-  return (
+  const notesBox = notes.length > 0 && (
+    <div className="rounded-xl bg-amber-50 p-4 dark:bg-amber-950/40">
+      <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Assumptions to check</h4>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
+    </div>
+  );
+  const main = (
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{bp.title}</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">Revision v{currentRevision(p).n} · {BY_LABEL[currentRevision(p).by]}</p>
       </div>
-      <Facts b={bp} stats={stats} />
+      {!rail && <Facts b={bp} stats={stats} />}
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
         <table className="w-full min-w-[420px]">
           <caption className="sr-only">Parts of this design</caption>
@@ -61,12 +68,7 @@ export function PlanSummary({ p, bp }: { p: ProjectView; bp: Blueprint }) {
           </ul>
         </div>
       )}
-      {notes.length > 0 && (
-        <div className="rounded-xl bg-amber-50 p-4 dark:bg-amber-950/40">
-          <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200">Assumptions to check</h4>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
-        </div>
-      )}
+      {!rail && notesBox}
       {upload ? (
         <ModelWithBlueprint url={upload} scaleTo={currentRevision(p).longestMm} name={bp.title} />
       ) : tris && tris.length >= 9 ? (
@@ -74,6 +76,24 @@ export function PlanSummary({ p, bp }: { p: ProjectView; bp: Blueprint }) {
       ) : (
         <p className={subtle}>{ready ? 'We could not draw this one; the sizes above still apply.' : 'Drawing the blueprint…'}</p>
       )}
+    </div>
+  );
+  if (!rail) return main;
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0 space-y-6">
+        <h2 className="sr-only">Plan</h2>
+        <section className={card}>{main}</section>
+        {after}
+      </div>
+      <aside aria-label="Summary" className="min-w-0 lg:sticky lg:top-20 lg:self-start">
+        <div className={`${card} space-y-4`}>
+          <h3 className={sectionH}>At a glance</h3>
+          <Facts b={bp} stats={stats} stack />
+          {notesBox}
+          {rail}
+        </div>
+      </aside>
     </div>
   );
 }
@@ -158,6 +178,75 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
   const rows = revisionRows(p);
   const frozen = isFrozen(p.status);
 
+  const rest = (
+    <>
+      {frozen && <p role="status" className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200"><Icon name="lock" />This design is {p.status}, so it can no longer be changed.</p>}
+
+      {!editing && !frozen && (
+        <section className={card} aria-labelledby={`${id}-chg`}>
+          <h3 id={`${id}-chg`} className={sectionH}>Change the plan</h3>
+
+          {mesh ? (
+            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); const v = Number(mm); if (v > 0 && !busy) void act('scale', () => api.manualScale(p.id, v)); }}>
+              <p className={subtle}>This is an uploaded model, so it can only be scaled. The box shows its overall size.</p>
+              <div>
+                <label htmlFor={`${id}-mm`} className={label}>Longest side (mm){cur.longestMm ? `, now ${cur.longestMm}` : ''}</label>
+                <input id={`${id}-mm`} type="number" min={1} step="any" value={mm} onChange={(e) => setMm(e.target.value)} className={`${input} sm:max-w-[12rem]`} />
+              </div>
+              <button type="submit" disabled={!(Number(mm) > 0) || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="wrench" />{busy === 'scale' ? 'Scaling…' : 'Rescale'}</button>
+            </form>
+          ) : caps.ai ? (
+            <form onSubmit={submitAi} className="space-y-3">
+              <div>
+                <label htmlFor={`${id}-req`} className={label}>What should change?</label>
+                <textarea id={`${id}-req`} value={text} onChange={(e) => setText(e.target.value)} maxLength={CHANGE_MAX} rows={2} className={input} disabled={use.exhausted}
+                  placeholder="Make it 10 mm taller and add a hole in the middle" aria-describedby={`${id}-cnt`} />
+                <p id={`${id}-cnt`} className="mt-1 text-xs text-gray-500 dark:text-gray-400">{text.length} / {CHANGE_MAX} characters · AI changes: {use.text}</p>
+              </div>
+              {needEmail && (
+                <div>
+                  <label htmlFor={`${id}-em`} className={label}>Your email (needed for AI changes)</label>
+                  <input id={`${id}-em`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={input} />
+                </div>
+              )}
+              {use.exhausted && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">This design has used its {use.cap} AI changes. You can still edit it by hand.</p>}
+              <button type="submit" disabled={!canAi || busy !== null} className={`${submitBtn} sm:w-auto`}><Icon name="bolt" />{busy === 'ai' ? 'Changing…' : 'Change with AI'}</button>
+            </form>
+          ) : (
+            <p className={subtle}>AI changes are not set up on this site. You can edit by hand.</p>
+          )}
+
+          <ErrorNote err={err} />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {!mesh && <button type="button" onClick={() => { setEditing(true); setErr(null); }} className={secondaryBtn}><Icon name="edit" />Edit by hand</button>}
+            <button type="button" disabled={!canUndo(p) || busy !== null} onClick={() => void act('undo', () => api.undo(p.id))} className={`${secondaryBtn} disabled:opacity-50`}><Icon name="undo" />{busy === 'undo' ? 'Undoing…' : 'Undo'}</button>
+          </div>
+        </section>
+      )}
+
+      {!editing && <section className={card}><Compare p={p} /></section>}
+
+      <section className={card} aria-labelledby={`${id}-rev`}>
+        <h3 id={`${id}-rev`} className={sectionH}>Revisions</h3>
+        <ol className="space-y-2">
+          {rows.map((r) => (
+            <li key={r.n} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{r.label}</span>
+              {r.current && <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-medium text-white">Current</span>}
+              {r.approved && <span className="rounded-full bg-green-600 px-2 py-0.5 text-xs font-medium text-white">Approved</span>}
+              <span className="text-gray-500 dark:text-gray-400">{BY_LABEL[r.by]}</span>
+              {r.request && <span className="min-w-0 break-words text-gray-700 dark:text-gray-300">“{r.request}”</span>}
+            </li>
+          ))}
+        </ol>
+      </section>
+    </>
+  );
+  const next = !editing && !frozen && (
+    <button type="button" onClick={onNext} className={`${submitBtn} w-full`}><Icon name="arrow" />Looks right, go to Approve</button>
+  );
+
+  if (!editing) return <PlanSummary p={p} bp={bp} rail={next || <></>} after={<div className="space-y-6">{rest}</div>} />;
   return (
     <div className="space-y-6">
       <section className={card} aria-labelledby={`${id}-plan`}>
@@ -238,12 +327,6 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
           ))}
         </ol>
       </section>
-
-      {!editing && !frozen && (
-        <div className="flex">
-          <button type="button" onClick={onNext} className={`${submitBtn} sm:w-auto`}><Icon name="arrow" />Looks right, go to Approve</button>
-        </div>
-      )}
     </div>
   );
 }
