@@ -1,16 +1,23 @@
 'use client';
 // One electronics part: reference 3D model, blueprint, standard dimensions, accuracy and source, and an enquiry link. No price, no cart.
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icon from './Icon';
 import Link from 'next/link';
 import { KITS, kitsUsingPart } from '@/lib/kits';
 import { CATEGORY_LABEL, LIPO_NOTE, REFERENCE_BADGE, isSourcedMotor, type Part } from '@/lib/parts';
-import { partMesh, partReference } from '@/lib/partModels';
+import { partReference, partShapes } from '@/lib/partModels';
+import { buildOffThread } from '@/lib/buildOffThread';
 import { BackToShop, CardActions, SpecRows } from './ShopParts';
 import ModelWithBlueprint from './ModelWithBlueprint';
 
 export default function PartDetail({ part }: { part: Part }) {
-  const mesh = useMemo(() => partMesh(part), [part]);
+  // built in a worker after mount (never during prerender); undefined = building, null = could not be closed
+  const [mesh, setMesh] = useState<Float32Array | null | undefined>();
+  useEffect(() => {
+    let on = true;
+    buildOffThread(partShapes(part)).then((m) => on && setMesh(m), () => on && setMesh(null));
+    return () => { on = false; };
+  }, [part]);
   const reference = useMemo(() => partReference(part), [part]);
   const kits = kitsUsingPart(part.id, KITS);
   return (
@@ -23,7 +30,9 @@ export default function PartDetail({ part }: { part: Part }) {
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="min-w-0">
-          {mesh
+          {mesh === undefined
+            ? <div role="status" aria-label="Building the reference model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />
+            : mesh
             ? <ModelWithBlueprint positions={mesh} name={part.title} id={part.id} reference={reference} />
             : <p role="alert" className="rounded-xl border border-gray-200 p-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300">The reference model could not be built.</p>}
         </div>

@@ -9,7 +9,7 @@ import { blueprint, blueprintData } from '@/lib/blueprint';
 import { LAYER_MM } from '@/lib/printSpec';
 import { quote, SETUP_FEE } from '@/lib/quote';
 import { defaultCfg, normalizeCfg, type Cfg, type Field, type TemplateDef } from '@/lib/templateDefs';
-import { buildTemplate, templateMesh } from '@/lib/templates';
+import { buildTemplate } from '@/lib/templates';
 import { buildOffThread } from '@/lib/buildOffThread';
 import type { Shape } from '@/lib/playground';
 import BlueprintSheet from './BlueprintSheet';
@@ -31,7 +31,7 @@ const catLabel = (id: string) => shopCatLabel(shopCat(id) ?? id);
 
 type Result = ReturnType<typeof compute>;
 // meshOf: build the mesh some other way (the shop grid builds it in a worker); the rest is cheap
-function compute(t: TemplateDef, raw: Cfg, meshOf: (shapes: Shape[]) => Float32Array | null = templateMesh) {
+function compute(t: TemplateDef, raw: Cfg, meshOf: (shapes: Shape[]) => Float32Array | null) {
   const cfg = normalizeCfg(t, raw);
   const built = buildTemplate(t, cfg);
   const mesh = meshOf(built.shapes);
@@ -156,9 +156,28 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
   const applied = useDebounced(cfg, 250); // CSG runs on the settled values only
   const [aiOpen, setAiOpen] = useState(false);
   const [proposal, setProposal] = useState<Cfg | null>(null); // an AI settings proposal being previewed; nothing is applied until Accept
-  const pending = !proposal && applied !== cfg;
-  const r = useMemo(() => compute(t, proposal ?? applied), [t, proposal, applied]);
-  const cur = useMemo(() => (proposal ? compute(t, applied) : r), [t, proposal, applied, r]);
+  const [done, setDone] = useState<Record<string, Result>>({}); // normalised settings -> result; the CSG runs in a worker after mount, never during prerender
+  const key = (c: Cfg) => JSON.stringify(normalizeCfg(t, c));
+  const wanted = proposal ?? applied;
+  useEffect(() => {
+    let on = true;
+    for (const c of proposal ? [proposal, applied] : [applied]) {
+      const k = key(c);
+      if (done[k]) continue;
+      const shapes = buildTemplate(t, normalizeCfg(t, c)).shapes;
+      buildOffThread(shapes, true).then((m) => m, () => null).then((m) => {
+        if (on) setDone((d) => ({ ...(Object.keys(d).length > 40 ? {} : d), [k]: compute(t, c, () => m) }));
+      });
+    }
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, proposal, applied]);
+  const last = useRef<Result | null>(null);
+  const fresh = done[key(wanted)];
+  const r: Result = fresh ?? last.current ?? { ...compute(t, wanted, () => null), error: null }; // until the first mesh arrives: cheap metadata only
+  useEffect(() => { if (fresh) last.current = fresh; });
+  const cur = proposal ? done[key(applied)] ?? r : r;
+  const pending = (!proposal && applied !== cfg) || !fresh;
   const svg = useMemo(() => (r.mesh ? blueprint(r.mesh, { name: t.name, id: t.id, material: t.material }) : null), [r, t]);
   const total = r.stats ? quote(r.stats, t.material, qty).total : null;
 

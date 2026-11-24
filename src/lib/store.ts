@@ -20,7 +20,7 @@ export const onBlobStore = onBlob;
 
 /** Folder holding the namespaces on the disk backends. */
 export function dataRoot(): string {
-  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
+  if (process.env.DATA_DIR) return path.resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR);
   if (process.env.VERCEL) {
     if (!warned) {
       warned = true;
@@ -28,10 +28,10 @@ export function dataRoot(): string {
     }
     return path.join(tmpdir(), 'printpro3d');
   }
-  return process.cwd();
+  return /*turbopackIgnore: true*/ process.cwd();
 }
 
-const filePath = (ns: string, key: string) => path.join(dataRoot(), ns, key);
+const filePath = (ns: string, key: string) => path.join(/*turbopackIgnore: true*/ dataRoot(), ns, key);
 const blobName = (ns: string, key: string) => `${ns}/${key}`;
 const blob = () => import('@vercel/blob');
 const bad = (ns: string, key: string) => new Error(`invalid storage name: ${ns}/${key}`);
@@ -110,7 +110,7 @@ export async function list(ns: string): Promise<string[]> {
     return keys;
   }
   try {
-    return (await readdir(path.join(dataRoot(), ns))).filter((k) => KEY.test(k) && !k.includes('.tmp-'));
+    return (await readdir(path.join(/*turbopackIgnore: true*/ dataRoot(), ns))).filter((k) => KEY.test(k) && !k.includes('.tmp-'));
   } catch {
     return [];
   }

@@ -78,3 +78,17 @@ test('AI customise panels load only through next/dynamic', () => {
   const { bad } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'HomeKits'].map((f) => `components/${f}.tsx`));
   assert.deepEqual(bad, []);
 });
+
+// Prerender (next build, static generation of /shop/[id], /shop/part/[id], /blueprint/[id]) must never run the CSG: it timed out
+// the Vercel build on 2 cores. Meshes are built in a worker after mount; server code and render bodies only read cheap metadata.
+test('no server page or product-page component builds a mesh while rendering', () => {
+  const read = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const builders = /\b(buildMesh|templateMesh|partMesh|partBlueprint|meshOf|specOf|kitPartMesh)\(/;
+  for (const f of ['app/shop/[id]/page.tsx', 'app/shop/part/[id]/page.tsx', 'app/blueprint/[id]/page.tsx', 'app/page.tsx', 'app/shop/page.tsx', 'app/playground/page.tsx', 'components/ProductDetail.tsx', 'components/ShopItem.tsx', 'components/PartDetail.tsx', 'components/ExampleBlueprint.tsx']) {
+    assert.doesNotMatch(read(f), builders, f);
+  }
+  const tpl = read('components/TemplateShop.tsx');
+  assert.doesNotMatch(tpl, /useMemo\(\(\) => compute\(/); // the configurator's mesh comes from buildOffThread in an effect
+  assert.doesNotMatch(tpl, /\btemplateMesh\b/);
+  assert.match(tpl, /buildOffThread\(shapes, true\)/);
+});
