@@ -7,6 +7,7 @@ import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type Mesh
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart } from './CartProvider';
+import Term from './Term';
 
 // illustrative colours, same as MaterialCards
 const SWATCH: Record<MaterialKey, string> = { PLA: '#bfb49c', PETG: '#3f86ad', ABS: '#4a4f57', TPU: '#c2553f' };
@@ -98,7 +99,7 @@ export default function QuoteOrder({
 
       <fieldset className="space-y-2">
         <legend className={label}>Material</legend>
-        <div role="radiogroup" aria-label="Material" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div role="radiogroup" aria-label="Material" className="grid grid-cols-2 gap-2">
           {MATERIAL_KEYS.map((key) => {
             const selected = material === key;
             const total = priceFor(key);
@@ -126,9 +127,9 @@ export default function QuoteOrder({
         <section aria-labelledby="det-h" className="space-y-2 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
           <h4 id="det-h" className="font-semibold text-gray-900 dark:text-gray-100">What we detected</h4>
           <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700 dark:text-gray-300">
-            <li>Size: {found.sizeMm.x.toFixed(1)} × {found.sizeMm.y.toFixed(1)} × {found.sizeMm.z.toFixed(1)} mm, {found.triangles.toLocaleString()} triangles</li>
+            <li>Size: {found.sizeMm.x.toFixed(1)} × {found.sizeMm.y.toFixed(1)} × {found.sizeMm.z.toFixed(1)} mm, {found.triangles.toLocaleString()} <Term k="triangles">triangles</Term></li>
             <li>{found.isClosed ? `Volume: ${found.volumeCm3!.toFixed(2)} cm³` : 'Not watertight (open surface), so we cannot give a volume'}</li>
-            <li>{found.pieces === 1 ? '1 piece' : `${found.pieces} separate pieces`}{found.throughHoles !== null && `, ${found.throughHoles} ${found.throughHoles === 1 ? 'opening' : 'openings'} through the part`}</li>
+            <li>{found.pieces === 1 ? '1 piece' : `${found.pieces} separate pieces`}{found.throughHoles !== null && <>, {found.throughHoles} <Term k="openings">{found.throughHoles === 1 ? 'opening' : 'openings'}</Term> through the part</>}</li>
             <li>{found.fitsBed ? 'Fits our print bed' : 'Does not fit our print bed'}. Orientation: {found.orientation}</li>
           </ul>
           <p className="text-xs text-gray-500 dark:text-gray-400">{found.limits.join(' ')}</p>

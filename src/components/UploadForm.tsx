@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import QuoteOrder from './QuoteOrder';
+import FlowStrip from './FlowStrip';
 import type { MaterialKey, MeshStats } from '@/lib/quote';
 import { canGoDirect } from '@/lib/directMode';
 import { takePendingFile } from '@/lib/pendingFile';
@@ -25,7 +26,8 @@ async function uploadDirect(f: File) {
   return res;
 }
 
-export default function UploadForm({ initialFile, onQuote }: { initialFile?: File; onQuote?: () => void }) {
+// idle: filler shown beside / under the drop zone until a file is chosen (side = right column at lg, below = full width)
+export default function UploadForm({ initialFile, onQuote, idle }: { initialFile?: File; onQuote?: () => void; idle?: { side: ReactNode; below: ReactNode } }) {
   const [file, setFile] = useState<File | null>(initialFile ?? null); // initialFile: a model built in the playground
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -138,8 +140,14 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const replacing = !!uploadedUrl && !initialFile; // after upload the drop zone shrinks to a "Replace file" bar
+  const showIdle = !!idle && !initialFile && !uploadedUrl && !uploading;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
+      {!initialFile && <FlowStrip current={uploadedUrl ? 'adjust' : 'pick'} />}
+      <div className={showIdle ? 'grid items-start gap-6 lg:grid-cols-2 lg:gap-8' : 'space-y-6 lg:space-y-8'}>
+      <div className="space-y-6 lg:space-y-8">
       {/* Drop Zone (hidden when the file is already chosen) */}
       {!initialFile && (
       <div
@@ -147,7 +155,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
-        className={`relative cursor-pointer border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
+        className={`relative cursor-pointer border-2 border-dashed text-center transition-all duration-300 ${replacing ? 'rounded-xl px-4 py-3' : 'rounded-2xl p-12'} ${
           dragOver
             ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
             : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white dark:bg-gray-900'
@@ -160,6 +168,12 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
           onChange={handleInputChange}
           className="hidden"
         />
+        {replacing ? (
+          <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-200">
+            <span className="truncate font-medium">{uploaded?.name}</span>
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Replace file</span>
+          </p>
+        ) : (
         <div className="space-y-4">
           <div className="flex justify-center">
             <svg className="w-12 h-12 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -175,6 +189,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
             </p>
           </div>
         </div>
+        )}
       </div>
       )}
 
@@ -220,7 +235,7 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                Upload Model
+                Get my price
               </>
             )}
           </button>
@@ -259,7 +274,8 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
 
       {/* Preview */}
       {uploadedUrl && (
-        <div className="pp-fade space-y-4">
+        <div className="pp-fade grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+          <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Your Model Preview</h3>
             <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium">
@@ -267,7 +283,9 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
             </span>
           </div>
           <ModelWithBlueprint url={uploadedUrl} name={uploaded?.name ?? 'Your model'} onPositions={setPositions} material={material} />
+          </div>
           {uploaded && (
+            <div className="lg:sticky lg:top-20">
             <QuoteOrder
               key={uploaded.file}
               file={uploaded.file}
@@ -278,9 +296,14 @@ export default function UploadForm({ initialFile, onQuote }: { initialFile?: Fil
               // the builder owns its own model, so only uploads can be reset from here
               onAnother={initialFile ? undefined : resetUpload}
             />
+            </div>
           )}
         </div>
       )}
+      </div>
+      {showIdle && <div>{idle.side}</div>}
+      </div>
+      {showIdle && idle.below}
     </div>
   );
 }
