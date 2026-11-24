@@ -235,7 +235,7 @@ export function manual(id: string, i: { blueprint?: unknown; longestMm?: unknown
       const revision = push(p, { by: 'mesh', blueprint: bp, longestMm: Math.round(mm * 100) / 100 });
       return { project: p, revision, diff: diffBlueprints(cur, bp) };
     }
-    const r = validateBlueprint(i.blueprint);
+    const r = validateBlueprint(i.blueprint, { pieces: p.source === 'template' }); // templates print as separate pieces (box and lid)
     if (!r.ok) return fail(422, r.reason);
     const revision = push(p, { by: 'manual', blueprint: r.blueprint });
     return { project: p, revision, diff: diffBlueprints(cur, r.blueprint) };

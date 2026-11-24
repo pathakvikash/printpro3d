@@ -29,6 +29,9 @@ test('rejections', () => {
   assert.match(bad(validateBlueprint(bp([sh('a'), sh('b', { position: { x: 200, y: 0, z: 5 } }), sh('c', { position: { x: 100, y: 0, z: 5 } })]))), /bed|overlap/);
   assert.match(bad(validateBlueprint(bp([sh('a', { mode: 'hole' })]))), /solid/);
   assert.match(bad(validateBlueprint(bp([sh('a'), sh('b', { position: { x: 100, y: 0, z: 5 } })]))), /overlap/);
+  // pieces (templates): side by side on the plate is fine, a floating piece is not
+  ok(validateBlueprint(bp([sh('a'), sh('b', { position: { x: 100, y: 0, z: 5 } })]), { pieces: true }));
+  assert.match(bad(validateBlueprint(bp([sh('a'), sh('b', { position: { x: 100, y: 0, z: 30 } })]), { pieces: true })), /overlap/);
   assert.match(bad(validateBlueprint(bp(Array.from({ length: 21 }, (_, i) => sh(`s${i}`))))), /at most 20/);
   assert.match(bad(validateBlueprint(bp([sh('a', { size: { x: NaN, y: 1, z: 1 } })]))), /finite/);
   assert.match(bad(validateBlueprint(bp([sh('a', { position: { x: 1e9, y: 0, z: 0 } })]))), /finite/);

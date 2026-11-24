@@ -83,7 +83,8 @@ const boxOf = (s: Shape): Box => {
 };
 const overlap = (a: Box, b: Box) => [0, 1, 2].every((i) => a.lo[i] < b.hi[i] && b.lo[i] < a.hi[i]);
 
-export function validateBlueprint(input: unknown): BlueprintResult {
+/** pieces: separate pieces are allowed (a template's box beside its lid) as long as each one rests on the plate; nothing may float. */
+export function validateBlueprint(input: unknown, { pieces = false }: { pieces?: boolean } = {}): BlueprintResult {
   let e = checkKeys(input, ['title', 'notes', 'units', 'envelope', 'parts', 'features', 'constraints'], 'blueprint');
   if (e) return fail(e);
   const o = input as Json;
@@ -141,7 +142,7 @@ export function validateBlueprint(input: unknown): BlueprintResult {
   const envelope = solidsSize(shapes);
   if (!envelope || !fitsBed(envelope)) return fail(`The design does not fit the ${BED_MM.x} x ${BED_MM.y} x ${BED_MM.z} mm print bed`);
   const boxes = shapes.filter((s) => s.mode === 'solid').map(boxOf);
-  if (boxes.length > 1 && !boxes.every((b, i) => boxes.some((c, j) => j !== i && overlap(b, c)))) return fail('A solid does not overlap any other solid');
+  if (boxes.length > 1 && !boxes.every((b, i) => (pieces && b.lo[2] < 1e-6) || boxes.some((c, j) => j !== i && overlap(b, c)))) return fail('A solid does not overlap any other solid');
 
   const parts = o.parts.map((p, pi): Part => {
     const part = p as Json;

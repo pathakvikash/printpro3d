@@ -163,7 +163,7 @@ export default function PlanStep({ p, caps, onProject, onNext }: { p: ProjectVie
             <p className={subtle}>Change the shapes, then save. A save is a new revision; you can always go back with Undo.</p>
             <Playground
               key={`${p.id}:${p.current}`}
-              project={{ initialShapes: initial, onSave: async (shapes) => ((await act('scale', () => api.manualBlueprint(p.id, reassign(bp, shapes)))) ? (setEditing(false), null) : 'That edit was not accepted. See the message above the editor.') }}
+              project={{ initialShapes: initial, onSave: async (shapes) => ((await act('scale', () => api.manualBlueprint(p.id, reassign(bp, shapes)))) ? (setEditing(false), null) : 'That edit was not accepted. See the message below the editor.') }}
             />
             <ErrorNote err={err} />
             <button type="button" onClick={() => { setEditing(false); setErr(null); }} className={secondaryBtn}><Icon name="undo" />Close the editor</button>
