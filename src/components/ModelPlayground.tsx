@@ -11,6 +11,7 @@ import { blueprint, bounds } from '@/lib/blueprint';
 import { SHOP_CATEGORIES, shopCat } from '@/lib/catalog';
 import { MATERIALS, meshStats, type MaterialKey } from '@/lib/quote';
 import { setPendingFile } from '@/lib/pendingFile';
+import { buildOffThread } from '@/lib/buildOffThread';
 import { ALLOWED_EXTS, extOf, fileProblem } from '@/lib/uploadRules';
 
 const ModelViewer = dynamic(() => import('./ModelViewer'), { ssr: false, loading: () => <div role="status" aria-label="Loading the 3D viewer" className="h-[340px] animate-pulse rounded-xl bg-gray-200 sm:h-[460px] dark:bg-gray-800" /> });
@@ -49,7 +50,16 @@ export default function ModelPlayground() {
   const current = source?.kind === 'sample' ? source : products[0] ? { kind: 'sample' as const, id: products[0].item.id } : null;
   const active: Source | null = source ?? current;
   const product = active?.kind === 'sample' ? lib?.productById(active.id) : undefined;
-  const mesh = useMemo(() => (product && lib ? lib.meshOf(product) : null), [product, lib]);
+  // sample meshes are built in the worker: the CSG in render was a ~1.4 s main-thread task on a phone
+  const [built, setBuilt] = useState<{ id: string; m: Float32Array | null } | null>(null);
+  const cached = product && lib ? lib.cachedMesh(product) : undefined;
+  useEffect(() => {
+    if (!product || !lib || cached !== undefined) return;
+    let on = true;
+    buildOffThread(product.ex.shapes).then((m) => { lib.keepMesh(product, m); if (on) setBuilt({ id: product.item.id, m }); }, () => on && setBuilt({ id: product.item.id, m: null }));
+    return () => { on = false; };
+  }, [product, lib, cached]);
+  const mesh = cached ?? (built && built.id === product?.item.id ? built.m : null);
   const file = active?.kind === 'file' ? active : null;
   const soup = file ? loaded : mesh;
   const shown = soup && soup.length >= 9 ? soup : null;
@@ -146,7 +156,7 @@ export default function ModelPlayground() {
               ) : shown && !file ? (
                 <ModelViewer key={product?.item.id} positions={shown} material={material} className="h-full" stage={stage} />
               ) : (
-                <div className="flex h-full items-center justify-center rounded-xl bg-gray-100 px-6 text-center text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">{file ? 'No preview for this file type.' : 'Loading the model…'}</div>
+                <div role="status" className={`flex h-full items-center justify-center rounded-xl px-6 text-center text-sm text-gray-600 dark:text-gray-300 ${file ? 'bg-gray-100 dark:bg-gray-800' : 'pp-skeleton'}`}>{file ? 'No preview for this file type.' : 'Loading the model…'}</div>
               )}
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">Drag to rotate. Scroll or pinch to zoom. Right-drag or two fingers to pan. Layer lines assume 0.2 mm layers.</p>
