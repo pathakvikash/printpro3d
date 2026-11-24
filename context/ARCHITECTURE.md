@@ -41,7 +41,7 @@ Materials PLA, PETG, ABS, TPU (placeholder rates), `SETUP_FEE` 50, `MIN_ORDER` 9
 
 ## Storage (`store.ts`)
 
-One small API (put/get/list/delete for JSON and binary) under namespaces `orders`, `requests`, `uploads`, `ai-jobs`, `ai-usage`, `ratelimit`.
+One small API (put/get/list/delete for JSON and binary) under namespaces `orders`, `requests`, `uploads`, `ai-jobs`, `ai-usage`, `ratelimit`, `settings`.
 
 | Backend | When |
 | --- | --- |
@@ -57,6 +57,9 @@ Large uploads: Vercel refuses request bodies over 4.5 MB. In Blob mode, files ov
 
 - `aiDesign.ts`/`aiProviders.ts`: providers `anthropic` (default model `claude-haiku-5-5`, structured JSON output, no sampling params), `openai`-compatible (presets openai, openrouter, opencode, groq, together, ollama, lmstudio), and `claude-cli` (dev only). Selection: `AI_PROVIDER`, else Anthropic key, else preset, else CLI in dev.
 - `meshy.ts`: text-to-3D v2, image-to-3D v1, print/repair v1, STL output, moderation on. Downloads only from https `*.meshy.ai`, no redirects. `stlScale.ts` scales to size. Repairs run once per job.
+- AI settings (`aiSettings.ts`, `/api/admin/ai`, `AdminAiSettings` in `/admin`): the owner picks provider, preset, model and base URL; saved in store namespace `settings` (`ai.json`, non-secret only, strict PUT validation, production base URL must be https on a public host, `claude-cli` refused in production). `aiEnv()` lays the saved choice over `process.env`, so every AI route (`/api/design`, `/api/designs*`, `/api/suggest`, home, `/draw`) resolves stored > env > defaults. Admin can list models and run a one-call Test; keys show as booleans only and are never accepted.
+- **Build with AI chat** (`AiChat.tsx`, `AiChatLauncher.tsx`, `aiChat.ts`): header **AI** link (event opens the panel; plain `/ai` link without JS) and a floating button (bottom-right, `bottom-20` on phones above sticky bars, hidden on `/ai` and `/admin`). Panel on desktop, full-screen sheet on phones, focus trap, Escape closes. Loaded through `next/dynamic` only when opened, so no page's first load grows. Each turn posts to `/api/design`; a follow-up sends the last shapes back as `shapes` and the server re-validates them (`refineText`) before they reach the prompt. Edit/Price hand the design to `/playground?mode=build&from=ai[&price=1]` via sessionStorage `printpro3d.aidesign.v1`. History in sessionStorage `printpro3d.aichat.v1`, email in localStorage. Meshy is a labelled tab that mounts `AiGenerate`.
+- OpenAI-compatible replies: if `content` is empty, `reasoning_content` is used as a last resort (LM Studio reasoning models).
 - `aiGuard.ts`: per-email 3/day and global 40/day, separate ledgers for design vs generate, count taken just before the paid call, deny-list prompt check. `aiJobs.ts` tracks Meshy jobs.
 
 ## Security and abuse rules (keep)

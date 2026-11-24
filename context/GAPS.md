@@ -32,7 +32,8 @@ AI shapes are primitives only; uploaded meshes are scale-only; mass uses a 40% f
 
 ## Unverified
 
-- Real calls to Anthropic, OpenAI-compatible providers, Meshy and Resend (stubs and unit tests only).
+- Real calls to Anthropic, OpenAI-compatible providers, Meshy and Resend (stubs and unit tests only). The AI chat, refine and admin Test/List were checked against a local fake OpenAI-compatible server only; the Meshy tab in the chat was not shown (no `MESHY_API_KEY` locally).
+- AI chat: one chat per tab (sessionStorage); the saved email cannot be changed in the chat yet (clear site data); only the latest design gets a 3D preview.
 - `claude-cli` provider (sandbox blocked the test; dev only anyway).
 - Hero 3D part at full desktop width, Safari, light mode visuals, keyboard focus on material cards.
 - Meshy download host: any `*.meshy.ai` is allowed; narrow it once the real asset host is known.

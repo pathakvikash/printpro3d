@@ -343,9 +343,9 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  // ?price=1 with a valid example (the gallery's "Get a price"): price it once, after the design is in place
+  // ?price=1 with a valid example (the gallery's "Get a price") or an AI chat design (its "Price"): price it once, after the design is in place
   useEffect(() => {
-    if (autoPriced.current || !example || params.get('price') !== '1' || !hasSolid) return;
+    if (autoPriced.current || !(example || aiDraft) || params.get('price') !== '1' || !hasSolid) return;
     autoPriced.current = true;
     void price();
   });

@@ -9,6 +9,7 @@ import Capabilities from '@/components/Capabilities';
 import MaterialCards from '@/components/MaterialCards';
 import FlowStrip from '@/components/FlowStrip';
 import { modelFor, pickProvider } from '@/lib/aiDesign';
+import { aiEnv } from '@/lib/aiSettings';
 import { BED_MM } from '@/lib/quote';
 
 // read per request: the AI choice depends on MESHY_API_KEY at runtime, not at build time
@@ -44,7 +45,7 @@ const STARTS = [
 // smaller, secondary tools; the AI ones appear only when their provider is configured
 const MORE = [
   { href: '/playground?mode=build', label: 'Build from shapes' },
-  { href: '/ai', label: 'Generate with AI', needs: 'ai' },
+  { href: '/ai', label: 'Build with AI' }, // the chat says itself when AI is off
   { href: '/draw', label: 'Draw with AI', needs: 'design' },
 ] as const;
 
@@ -65,10 +66,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
     for (const [k, v] of Object.entries(rest)) for (const x of [v].flat()) if (x !== undefined) q.append(k, x);
     redirect(q.size ? `${target}?${q}` : target);
   }
-  const provider = pickProvider(process.env);
-  const designEnabled = (provider !== null && modelFor(provider, process.env) !== null) || process.env.NODE_ENV !== 'production';
-  const aiEnabled = Boolean(process.env.MESHY_API_KEY);
-  const more = MORE.filter((c) => !('needs' in c) || (c.needs === 'ai' ? aiEnabled : designEnabled));
+  const env = await aiEnv();
+  const provider = pickProvider(env);
+  const designEnabled = (provider !== null && modelFor(provider, env) !== null) || process.env.NODE_ENV !== 'production';
+  const more = MORE.filter((c) => !('needs' in c) || designEnabled);
   return (
     <>
       {/* Hero: plain copy, a file box that hands off to /quote, one text link. The 3D part is a lazy client island. */}

@@ -3,7 +3,8 @@ import path from 'path';
 import { parseEmail, text } from '@/lib/contact';
 import { isImage } from '@/lib/image';
 import { checkPrompt, takeUsage } from '@/lib/aiGuard';
-import { DESIGN_PROMPT_MAX, IMAGE_MAX_BYTES, modelFor, parseModelReply, pickProvider, type DesignInput } from '@/lib/aiDesign';
+import { DESIGN_PROMPT_MAX, IMAGE_MAX_BYTES, modelFor, parseModelReply, pickProvider, refineText, type DesignInput } from '@/lib/aiDesign';
+import { aiEnv } from '@/lib/aiSettings';
 import { runProvider } from '@/lib/aiProviders';
 import { filled, limited } from '@/lib/spam';
 
@@ -50,8 +51,9 @@ export async function POST(request: Request) {
   const len = request.headers.get('content-length');
   if (len === null || !(Number(len) <= IMAGE_MAX_BYTES + 1024 * 1024)) return err('Request too large', 413);
 
-  const provider = pickProvider(process.env);
-  const model = provider ? modelFor(provider, process.env) : null;
+  const env = await aiEnv(); // admin settings first, then env
+  const provider = pickProvider(env);
+  const model = provider ? modelFor(provider, env) : null;
   if (!provider || !model) {
     return err(
       process.env.NODE_ENV !== 'production'
@@ -90,6 +92,13 @@ export async function POST(request: Request) {
       return err(e instanceof Error ? e.message : 'Invalid request', 400);
     }
     input.text = prompt;
+    // Refine (chat follow-up): the previous shapes come back from the browser and are re-validated before they reach the prompt
+    const prev = get('shapes');
+    if (prev !== null) {
+      const t = refineText(prev, prompt);
+      if (!t) return err(prompt ? 'The design to refine is not valid. Start a new one.' : 'Say what to change.', 400);
+      input.text = t;
+    }
 
     // checkPrompt caps at 400 chars but the design prompt allows 600, so screen the normalised prompt (same rule as aiGuard's
     // norm, so a banned phrase cannot hide behind punctuation) in windows of up to 400 chars, one starting every 300, each
@@ -124,7 +133,7 @@ export async function POST(request: Request) {
         );
       }
       try {
-        reply = await runProvider(provider, input, process.env);
+        reply = await runProvider(provider, input, env);
       } catch (e) {
         console.error('Design: provider call failed:', e instanceof Error ? e.message : 'unknown');
         return err(FAILED, 502);

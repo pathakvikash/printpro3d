@@ -24,13 +24,14 @@ Without keys: quoting, the shop, the builder, the cart, checkout and tracking al
 
 ## What the customer sees
 
-Real pages with a nav bar: `/shop`, `/build`, `/quote`, `/request`, `/track`, `/materials`, `/how-it-works`, `/about`, `/contact`, plus `/blueprint/[id]`. `/draw`, `/ai` and `/motor-test` redirect to `/build`; old `/?start=<step>` links redirect too. Per-route detail, the design-project API, caps and flight-physics assumptions are in [context/OPERATIONS.md](context/OPERATIONS.md).
+Real pages with a nav bar: `/shop`, `/build`, `/quote`, `/request`, `/track`, `/materials`, `/how-it-works`, `/about`, `/contact`, plus `/blueprint/[id]`. `/ai` is the "Build with AI" chat (also opened as a panel by the header **AI** button and the floating AI button on every page); `/draw` and `/motor-test` redirect to `/build`; old `/?start=<step>` links redirect too. Per-route detail, the design-project API, caps and flight-physics assumptions are in [context/OPERATIONS.md](context/OPERATIONS.md).
 
 | Step | What it does |
 | --- | --- |
 | File | Upload STL or OBJ, see size, volume and price per material, add to cart |
 | Shop | Parametric templates with live 3D previews and size fields, server-repriced |
 | Build | Blueprint-first: template, AI prompt or uploaded mesh, then Approve, Finalize, order. Place parts, Simulate drone hover, get next-part suggestions |
+| AI chat | Describe or photograph a part, get a shape model with a live preview, refine it turn by turn, then Edit (builder) or Price (cart). Meshy organic 3D is a tab in the same chat when `MESHY_API_KEY` is set |
 | Meshy | Meshy text/image to 3D as a mesh source (needs `MESHY_API_KEY`) |
 | Idea | Describe something we should design, attach pictures |
 | Track | Order and request tracking with a demo order to preview the stages |
@@ -63,7 +64,7 @@ Everything is listed with a comment in [.env.example](.env.example). Summary:
 | `AI_DESIGN_TIER`, `AI_DESIGN_MODEL`, `AI_REVISIONS_PER_PROJECT`, `AI_DAILY_PER_EMAIL`, `AI_DAILY_TOTAL` | Blueprint AI model tier and caps |
 | `MESHY_API_KEY` | Meshy text/image to 3D |
 | `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`, `SITE_URL` | Owner email on new order, customer email on status change |
-| `ADMIN_TOKEN` | `/admin` and the admin API (unset = disabled) |
+| `ADMIN_TOKEN` | `/admin` and the admin API (unset = disabled). `/admin` also picks the AI provider, preset, model and base URL (saved in the store, beats the `AI_*` env vars; keys stay env-only) |
 | `BLOB_READ_WRITE_TOKEN` | Durable storage on Vercel (private Blob store) |
 | `DATA_DIR` | Where local files go (default: project root) |
 
