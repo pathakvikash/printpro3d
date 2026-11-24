@@ -317,6 +317,9 @@ function Drawer() {
             <Link href="/quote" onClick={closeCart} className={secondaryBtn}>
               <Icon name="upload" />Upload a file
             </Link>
+            <Link href="/my-items" onClick={closeCart} className={secondaryBtn}>
+              <Icon name="cube" />My items
+            </Link>
           </div>
         </div>
       ) : (

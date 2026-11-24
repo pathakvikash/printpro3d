@@ -13,6 +13,7 @@ const LINKS = [
   { href: '/build', label: 'Build' },
   { href: '/materials', label: 'Materials' },
   { href: '/how-it-works', label: 'How it works' },
+  { href: '/my-items', label: 'My items' },
   { href: '/track', label: 'Track order' },
 ];
 
