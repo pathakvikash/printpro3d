@@ -67,3 +67,14 @@ test('/cart (page, drawer, thumbnails) first load never reaches three, the CSG o
   assert.deepEqual(bad, []);
   assert.ok(seen.size > 8, 'the walk found the graph');
 });
+
+// the AI panels are lazy: no AI or three code in the first load of /, /shop or /cart, and product pages and the builder load them through next/dynamic only
+test('AI customise panels load only through next/dynamic', () => {
+  for (const [f, mod] of [['Playground', './AiChat'], ['TemplateShop', './AiConfigPanel'], ['KitShop', './AiConfigPanel']] as const) {
+    const src = readFileSync(new URL(`../components/${f}.tsx`, import.meta.url), 'utf8');
+    assert.doesNotMatch(src, new RegExp(`^import[^;]*from\\s+'${mod.replace('.', '\\.')}'`, 'm'), f);
+    assert.match(src, new RegExp(`import\\('${mod.replace('.', '\\.')}'\\)`), f);
+  }
+  const { bad } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'HomeKits'].map((f) => `components/${f}.tsx`));
+  assert.deepEqual(bad, []);
+});

@@ -26,14 +26,17 @@ import { productById } from '@/lib/shopProducts';
 import type { Shape } from '@/lib/playground';
 import { money } from './ContactFields';
 import { useCart } from './CartProvider';
+import { AI_DRAFT_KEY } from '@/lib/aiChat';
+import { customLabel } from '@/lib/aiCustomise';
 import FlowStrip from '@/components/FlowStrip';
 import BoughtList from './BoughtList';
-import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
+import { AiAction, addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
 import { FieldControl } from './TemplateShop';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
 const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
+const AiConfigPanel = dynamic(() => import('./AiConfigPanel'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
 
 export type Part = { kit: boolean; item: KitItem; name: string; material: string; shapes: Shape[]; mesh: Float32Array | null | undefined; unit: number | null; total: number | null };
@@ -173,7 +176,7 @@ export function KitCard({ kit }: { kit: Kit }) {
       blurb={kit.blurb}
       rows={rows}
       preview={kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
-      actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={addAll} title={kit.variants ? `Add the ${kit.variants[0].title} kit to cart (choose the product on the kit page)` : undefined} />}
+      actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={() => addAll()} title={kit.variants ? `Add the ${kit.variants[0].title} kit to cart (choose the product on the kit page)` : undefined} />}
     />
   );
 }
@@ -238,7 +241,10 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
   const [cfg, setCfg] = useState<Cfg>(() => settings?.defaults ?? {});
   const [problem, setProblem] = useState<string | null>(null);
   const applied = useDebounced(cfg, 250);
-  const kit = useMemo(() => settings?.build({ ...settings.defaults, ...applied }) ?? base, [settings, applied, base]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [proposal, setProposal] = useState<Cfg | null>(null); // an AI settings proposal being previewed; nothing is applied until Accept
+  const shown = proposal ?? applied;
+  const kit = useMemo(() => settings?.build({ ...settings.defaults, ...shown }) ?? base, [settings, shown, base]);
   useEffect(() => {
     if (!settings) return;
     try { const q = cfgFromQuery(settings.fields, settings.defaults); settings.build(q); if (settings.fields.some((f) => q[f.key] !== settings.defaults[f.key])) setCfg(q); } catch { /* a bad shared link shows the defaults */ }
@@ -251,18 +257,34 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
     writeQuery({ ...(base.id.includes('/') ? { product: base.id.split('/')[1] } : {}), ...queryText(settings.fields, next, settings.defaults) });
   };
   const changed = !!settings && settings.fields.some((f) => cfg[f.key] !== settings.defaults[f.key]);
-  const pending = applied !== cfg;
+  const pending = !proposal && applied !== cfg;
   const parts = useParts(kit);
   const ready = !pending && parts.every((p) => p.unit != null);
   const total = ready ? parts.reduce((n, p) => n + (p.total ?? 0), 0) : null;
-  const addAll = () => {
-    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0, { name: top.title, note: settings ? settingsSummary(settings.fields, cfg) : undefined });
+  const addAll = (use: Cfg = cfg) => {
+    const mk = kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0, { name: top.title, note: settings ? settingsSummary(settings.fields, use) : undefined });
     const why = kitBlocked(lines, mk);
     if (why) { toast(why); return; }
     mk.forEach(add);
     toast('Kit added to cart', true);
     setAdded(true);
   };
+  const lastTotal = useRef<number | null>(null); // the price before a proposal, for the before -> after line
+  if (!proposal && total != null) lastTotal.current = total;
+  const accept = (next: Cfg) => {
+    if (!settings) return;
+    const why = kitBlocked(lines, kitLines(kit, (i) => parts.find((p) => p.item === i)?.unit ?? 0, { name: top.title }));
+    if (why) { toast(why); return; }
+    addAll(next);
+    change(next);
+    setProposal(null);
+    toast(`Added to cart: ${customLabel(top.title)}`, true);
+  };
+  const shapeSource = parts.find((p) => p.shapes.length > 0)?.shapes; // template-based kit parts only; STL and kit-file parts have no editable shapes
+  const toBuilder = shapeSource ? () => {
+    try { sessionStorage.setItem(AI_DRAFT_KEY, JSON.stringify({ title: customLabel(top.title), notes: '', shapes: shapeSource, source: 'copy' })); } catch { return null; }
+    return '/playground?mode=build&from=ai&ai=1';
+  } : null;
   return (
     <div className="space-y-6">
       <BackToShop />
@@ -293,8 +315,14 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
                 className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><Icon name="reset" />Reset</button>
             </fieldset>
           )}
+          {settings && <div className="flex gap-3"><AiAction onClick={() => setAiOpen((o) => !o)} pressed={aiOpen} /></div>}
+          {settings && aiOpen && (
+            <AiConfigPanel kind="kit" id={base.id} name={top.title} fields={settings.fields} current={{ ...settings.defaults, ...cfg }}
+              priceNow={lastTotal.current != null ? money.format(lastTotal.current) : '…'} priceNew={proposal && total != null ? money.format(total) : null}
+              ready={ready} onProposal={setProposal} onAccept={accept} onBuilder={toBuilder} onClose={() => { setAiOpen(false); setProposal(null); }} />
+          )}
           <SpecRows rows={[['Printed parts', `${kitPartCount(kit)} pieces (${kit.items.length} different parts)`], ['Bought separately', `${kit.boughtParts.length} items`], ['Total', total != null ? `${money.format(total)}` : '…']]} />
-          <div className="flex gap-3"><CardActions kind="kit" id={top.id} added={added} disabled={!ready} onPrimary={addAll} secondaryHref="#kit-parts" title={top.variants ? `Add the ${kit.title} kit to cart` : undefined} /></div>
+          <div className="flex gap-3"><CardActions kind="kit" id={top.id} added={added} disabled={!ready} onPrimary={() => addAll()} secondaryHref="#kit-parts" title={top.variants ? `Add the ${kit.title} kit to cart` : undefined} /></div>
           <p className="text-xs text-gray-500 dark:text-gray-400">We review your order and send a payment link; printing starts once it is paid.</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">The total adds each line as priced on its own page (each line includes {money.format(SETUP_FEE)} setup). Price is an estimate from the meshes; we confirm before payment. {settings ? 'Change the settings above before you add it.' : 'Open a part to change its settings before you add it.'}</p>
           <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
@@ -327,7 +355,7 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
       <div aria-hidden className="h-16 lg:hidden" />
       <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
         <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">{total != null ? money.format(total) : '…'}</span>
-        <button type="button" disabled={!ready} onClick={addAll} aria-label="Add whole kit to cart" title="Add whole kit to cart" className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add</>}</button>
+        <button type="button" disabled={!ready} onClick={() => addAll()} aria-label="Add whole kit to cart" title="Add whole kit to cart" className={`${addBtn} ml-auto`}>{added ? <AddLabel added /> : <><Icon name="cart" />Add</>}</button>
       </div>
     </div>
   );

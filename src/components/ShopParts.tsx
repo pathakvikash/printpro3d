@@ -141,3 +141,11 @@ export function CardActions({ kind, id, exampleId, onPrimary, disabled, added, t
     </>
   );
 }
+
+/** "Customise with AI" on a product page: icon + one word. A link (fixed items open a sandbox copy in the builder) or, with onClick, a toggle for the settings panel. */
+export function AiAction({ href, onClick, pressed }: { href?: string; onClick?: () => void; pressed?: boolean }) {
+  const inner = <><Icon name="spark" />AI</>;
+  return href
+    ? <Link href={href} aria-label="Customise with AI" title="Customise with AI" className={secondaryCardBtn}>{inner}</Link>
+    : <button type="button" onClick={onClick} aria-pressed={pressed} aria-label="Customise with AI" title="Customise with AI" className={secondaryCardBtn}>{inner}</button>;
+}

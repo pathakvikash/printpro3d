@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
 import Icon from './Icon';
 import PlaygroundScene, { type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
@@ -23,6 +23,9 @@ import {
 import { BED_MM, fitsBed, meshStats } from '@/lib/quote';
 import { exampleById } from '@/lib/examples';
 import { buildOffThread } from '@/lib/buildOffThread';
+import { applyAiShapes, customLabel } from '@/lib/aiCustomise';
+import { DESIGNS_KEY, parseDesigns, upsertDesign } from '@/lib/designList';
+import { PROJECT_KEY } from '@/lib/buildFlow';
 import FlowStrip from '@/components/FlowStrip';
 import {
   DEFAULT_SIZE, KINDS, LABEL, MAX_SHAPES, MIN_SIZE, clampCoord, minZ, parseDesign, solidsSize, toStl,
@@ -33,6 +36,7 @@ const KEY = 'printpro3d.playground.v1';
 const AI_KEY = 'printpro3d.aidesign.v1'; // written by the Draw it with AI form
 const PROP_MOTOR = MOTORS.find((m): m is PropMotor => m.kind === 'prop')!;
 const GEAR_MOTORS = MOTORS.filter((m) => m.kind === 'gear');
+const AiChat = dynamic(() => import('./AiChat').then((m) => m.AiChat), { ssr: false, loading: () => <p className="p-4 text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
 const FlightHud = dynamic(() => import('./playground/FlightHud'), { ssr: false });
 const clampPos = (v: number) => Math.max(-MAX_POS_MM, Math.min(MAX_POS_MM, v));
 const asV3 = (p: Vec3): V3 => ({ x: p[0], y: p[1], z: p[2] });
@@ -108,7 +112,7 @@ function load(): Shape[] {
 
 const fmt = (n: number) => n.toFixed(1);
 
-type AiDraft = { title: string; notes: string; source: 'photo' | 'description'; shapes: Shape[] };
+type AiDraft = { title: string; notes: string; source: 'photo' | 'description' | 'copy'; shapes: Shape[] };
 
 /** A drawn design handed over by the AI form. sessionStorage is untrusted: validate everything, strip control characters. */
 function loadAiDraft(): AiDraft | null {
@@ -120,7 +124,7 @@ function loadAiDraft(): AiDraft | null {
     const shapes = parseDesign(JSON.stringify(o.shapes));
     if (!shapes.length) return null;
     const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '');
-    return { title: clean(o.title, 60), notes: clean(o.notes, 300), source: o.source === 'photo' ? 'photo' : 'description', shapes };
+    return { title: clean(o.title, 60), notes: clean(o.notes, 300), source: o.source === 'photo' ? 'photo' : o.source === 'copy' ? 'copy' : 'description', shapes };
   } catch {
     return null;
   }
@@ -132,10 +136,14 @@ export type PlaygroundProject = { initialShapes: Shape[]; readOnly?: boolean; on
 
 export default function Playground({ project }: { project?: PlaygroundProject } = {}) {
   const params = useSearchParams();
+  const router = useRouter();
   const example = project ? null : exampleById(params.get('example'));
   // captured once; the key is removed after mount (StrictMode runs initializers twice)
   const [aiDraft] = useState<AiDraft | null>(() => (!project && typeof window !== 'undefined' && params.get('from') === 'ai' ? loadAiDraft() : null));
   const wantSim = params.get('sim') === '1';
+  const [aiOpen, setAiOpen] = useState(() => !project && params.get('ai') === '1'); // the AI panel, from 'Customise with AI' on a product
+  const [aiApplied, setAiApplied] = useState(false);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
   const [h, setH] = useState<History>(() => ({
     past: [], future: [],
     now: {
@@ -300,6 +308,28 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, remove, removeP, selectedId, partSel, locked]);
 
+  const applyAi = (raw: Shape[]) => {
+    const next = applyAiShapes(h, raw);
+    if (!next) { setNote('The AI change could not be applied.'); return; }
+    touched.current = true;
+    setH(next); setSelectedId(null); setAiApplied(true); setSavedNote(null);
+  };
+  // the sandbox copy becomes a design project (My designs); approving, building and ordering then use the existing safe path
+  const copyName = customLabel(from?.title ?? aiDraft?.title ?? 'My design');
+  const saveCopy = async () => {
+    setSaving(true); setSavedNote(null);
+    try {
+      const res = await fetch('/api/designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'shapes', title: copyName, shapes: shapesRef.current }) });
+      const d = (await res.json().catch(() => ({}))) as { project?: { id?: string }; error?: string };
+      if (!res.ok || !d.project?.id) { setSavedNote(d.error || 'The design could not be saved. Try again.'); return; }
+      try {
+        localStorage.setItem(PROJECT_KEY, d.project.id);
+        localStorage.setItem(DESIGNS_KEY, JSON.stringify(upsertDesign(parseDesigns(localStorage.getItem(DESIGNS_KEY), null), d.project.id, copyName)));
+      } catch {}
+      router.push('/playground?mode=build');
+    } catch { setSavedNote('The design could not be saved. Try again.'); } finally { setSaving(false); }
+  };
+
   const build = async () => {
     setBusy(true);
     setNote(null);
@@ -444,7 +474,13 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         </p>
       )}
 
-      {aiDraft && (
+      {!project && aiOpen && (from || aiDraft?.source === 'copy') && (
+        <p role="status" className="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-sm text-indigo-900 dark:text-indigo-200">
+          Your sandbox copy &lsquo;{copyName}&rsquo;. The original is untouched; apply AI changes here, then save it as a design or price it.
+        </p>
+      )}
+
+      {aiDraft && aiDraft.source !== 'copy' && (
         <p role="status" className="rounded-xl bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-sm text-indigo-900 dark:text-indigo-200">
           Drawn by AI from your {aiDraft.source}{aiDraft.title ? `: "${aiDraft.title}"` : ''}.{aiDraft.notes ? ` ${aiDraft.notes}` : ''} AI can get sizes wrong. Check them before you order.
         </p>
@@ -514,6 +550,31 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         </div>
 
         <aside className="space-y-4 min-w-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          {!project && (
+            <div role="group" aria-label="Sidebar" className="flex gap-2">
+              <button type="button" aria-pressed={!aiOpen} onClick={() => setAiOpen(false)} className={`${btnOn(!aiOpen)} flex-1`}>Edit</button>
+              <button type="button" aria-pressed={aiOpen} onClick={() => setAiOpen(true)} aria-label="Customise with AI" title="Customise with AI" className={`${btnOn(aiOpen)} flex-1`}><Icon name="spark" className="h-4 w-4" />AI</button>
+            </div>
+          )}
+          {!project && aiOpen && (
+            <section aria-label="Customise with AI" className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:rounded-t-2xl max-lg:shadow-2xl space-y-2 rounded-xl border border-gray-200 bg-white p-0 dark:border-gray-700 dark:bg-gray-900">
+              <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-gray-800">
+                <h3 className={`${heading} mr-auto`}>Customise with AI</h3>
+                <button type="button" onClick={() => setAiOpen(false)} aria-label="Close the AI panel" title="Close the AI panel" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"><Icon name="x" className="h-4 w-4" /></button>
+              </div>
+              <div className="min-h-0">
+                <AiChat compact={{ base: shapes, onApply: applyAi }} />
+              </div>
+              {aiApplied && (
+                <div className="space-y-1 border-t border-gray-200 p-3 dark:border-gray-800">
+                  <button type="button" onClick={saveCopy} disabled={saving || !hasSolid} aria-label={`Save as ${copyName}`} title={`Save as ${copyName}`} className={`${primary} inline-flex w-full items-center justify-center gap-2`}><Icon name="check" />{saving ? 'Saving' : 'Accept: save as design'}</button>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Saves &lsquo;{copyName}&rsquo; to My designs. You approve and order it there. Or use Price to quote it now. Undo reverts an applied change.</p>
+                  {savedNote && <p role="alert" className="text-xs text-red-700 dark:text-red-300">{savedNote}</p>}
+                </div>
+              )}
+            </section>
+          )}
+          <div className={`space-y-4 ${aiOpen && !project ? 'lg:hidden' : ''}`}>
           <div className={panel} aria-live="polite">
             <h3 className={heading}>{project ? 'Your model' : 'Your model / Get a price'}</h3>
             {size ? (
@@ -642,6 +703,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             </div>
           )}
 
+          </div>
         </aside>
       </div>
 
@@ -652,7 +714,8 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
           <div aria-hidden className="h-16 lg:hidden" />
           <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
             <span className="min-w-0 truncate text-sm text-gray-700 dark:text-gray-200">{size ? `${fmt(size.x)} × ${fmt(size.y)} × ${fmt(size.z)} mm` : 'Add a solid shape'}</span>
-            <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} ml-auto inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
+            <button type="button" onClick={() => setAiOpen(true)} aria-label="Customise with AI" title="Customise with AI" className={`${btn} ml-auto`}><Icon name="spark" className="h-4 w-4" />AI</button>
+            <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
           </div>
         </>
       )}

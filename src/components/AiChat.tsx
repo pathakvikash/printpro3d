@@ -15,6 +15,7 @@ const AiGenerate = dynamic(() => import('./AiGenerate'), { ssr: false, loading: 
 const GENERIC = 'The AI service did not answer. Try again.';
 const TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_IMG = 5 * 1024 * 1024;
+const COMPACT_IDEAS = ['Make it 10 mm taller', 'Add two M3 holes', 'Make it 20% wider'];
 const IDEAS = ['A wall hook for a backpack', 'A stand for my phone at 60 degrees', 'A box 80 x 50 x 30 mm with a lid'];
 const btn = 'inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-indigo-500';
 const primary = 'inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500';
@@ -30,11 +31,15 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 
 type Caps = { ai: boolean; meshy: boolean };
 
+/** Builder sidebar mode: the chat edits `base` (the builder's current design); a proposal is previewed Before / After and only `onApply` changes the design. */
+type Shape = NonNullable<ChatMsg['shapes']>[number];
+export type Compact = { base: Shape[]; onApply: (shapes: Shape[]) => void };
+
 /** The chat itself. `onLeave` runs before navigating away (the dialog closes). */
-export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: string }) {
+export function AiChat({ onLeave, titleId, compact }: { onLeave?: () => void; titleId?: string; compact?: Compact }) {
   const router = useRouter();
   const id = useId();
-  const [msgs, setMsgs] = useState<ChatMsg[]>(() => parseHistory(store.get(ss(), CHAT_KEY)));
+  const [msgs, setMsgs] = useState<ChatMsg[]>(() => (compact ? [] : parseHistory(store.get(ss(), CHAT_KEY))));
   const [text, setText] = useState('');
   const [email, setEmail] = useState(() => store.get(ls(), EMAIL_KEY) ?? '');
   const [photo, setPhoto] = useState<File | null>(null);
@@ -48,9 +53,12 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
   const fileInput = useRef<HTMLInputElement>(null);
   const trap = useRef<HTMLInputElement>(null);
   const end = useRef<HTMLDivElement>(null);
-  const target = lastDesign(msgs);
+  const [view, setView] = useState<'after' | 'before'>('after');
+  const last = lastDesign(msgs);
+  const refineShapes = compact ? (last?.shapes ?? compact.base) : last?.shapes;
+  const target = compact ? (refineShapes?.length ? (last ?? ({ id: 'base', role: 'assistant', text: '' } as ChatMsg)) : null) : last;
 
-  useEffect(() => { store.set(ss(), CHAT_KEY, JSON.stringify(msgs)); end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
+  useEffect(() => { if (!compact) store.set(ss(), CHAT_KEY, JSON.stringify(msgs)); end.current?.scrollIntoView({ block: 'end' }); }, [msgs, compact]);
   useEffect(() => {
     fetch('/api/designs').then((r) => r.json()).then((d) => setCaps({ ai: !!d.ai, meshy: !!d.meshy })).catch(() => setCaps({ ai: true, meshy: false }));
     return () => ctl.current?.abort();
@@ -67,13 +75,15 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
     e?.preventDefault();
     if (busy) return;
     const prompt = text.trim();
+    if (compact && !refineShapes?.length) return setNote('Add a shape in the builder first.');
     if (!prompt && !photo) return setNote(target ? 'Say what to change.' : 'Describe what you want, or add a photo.');
     if (!validEmail(email)) return setNote('Enter your email first: we use it for your quote and the daily AI limit.');
     setNote(null);
     store.set(ls(), EMAIL_KEY, email.trim());
     const fd = new FormData();
-    for (const [k, v] of designFields({ email, prompt, refine: target?.shapes, trap: trap.current?.value })) fd.append(k, v);
+    for (const [k, v] of designFields({ email, prompt, refine: refineShapes, trap: trap.current?.value })) fd.append(k, v);
     if (photo) fd.append('image', photo);
+    setView('after');
     setMsgs((m) => addMsg(m, { id: newId(), role: 'user', text: prompt || '(photo)', ...(photo ? { photo: true } : {}) }));
     setText('');
     setPhoto(null);
@@ -101,17 +111,21 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
   const refine = () => { setNote(null); input.current?.focus(); };
   const reset = () => { ctl.current?.abort(); setMsgs((m) => (m.length ? addMsg(m, { id: newId(), role: 'assistant', text: NEW_MARK }) : m)); setText(''); };
   const clearAll = () => { ctl.current?.abort(); setMsgs([]); };
+  const apply = (m: ChatMsg) => { if (m.shapes) compact?.onApply(m.shapes); setMsgs([]); };
+  const discard = () => { setMsgs([]); setView('after'); };
   const latestId = [...msgs].reverse().find((m) => m.shapes)?.id;
 
+  if (compact && caps && !caps.ai) return <p role="status" className="p-4 text-sm text-gray-700 dark:text-gray-200">AI is not set up yet. The rest of the builder still works.</p>;
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+    <div className={compact ? 'flex max-h-[min(60vh,520px)] min-h-0 flex-col' : 'flex h-full min-h-0 flex-col'}>
+      {!compact && <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <h2 id={titleId} className="mr-auto text-base font-semibold text-gray-900 dark:text-white">Build with AI</h2>
         <button type="button" onClick={reset} disabled={busy} aria-label="Start a new design" title="Start a new design" className={btn}><Icon name="plus" />New</button>
         <button type="button" onClick={clearAll} disabled={busy || !msgs.length} aria-label="Clear the chat" title="Clear the chat" className={btn}><Icon name="trash" />Clear</button>
-      </div>
+      </div>}
 
-      {caps?.meshy && (
+      {!compact && caps?.meshy && (
         <div role="tablist" aria-label="How to build" className="flex gap-1 border-b border-gray-200 px-4 py-2 text-sm dark:border-gray-800">
           {(['shapes', 'meshy'] as const).map((k) => (
             <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
@@ -122,7 +136,7 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
         </div>
       )}
 
-      {mode === 'meshy' ? (
+      {!compact && mode === 'meshy' ? (
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <p className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
             For organic shapes (figures, animals, sculpted things). It makes a mesh you cannot edit as shapes; each try counts toward the daily AI limit.
@@ -133,11 +147,11 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
         <>
           <div role="log" aria-live="polite" aria-relevant="additions" aria-busy={busy} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
             <div className="rounded-2xl bg-gray-100 px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100">
-              Tell me the part you need, with sizes if you know them, or add a photo. I draw it from simple shapes; you can refine it here, edit it in the builder, then price it.
+              {compact ? 'Say what to change on this design, with sizes if you know them. You see a before and after first; nothing changes until you press Apply.' : 'Tell me the part you need, with sizes if you know them, or add a photo. I draw it from simple shapes; you can refine it here, edit it in the builder, then price it.'}
               {caps && !caps.ai && <span className="mt-1 block font-medium">AI drawing is not available right now. <a href="/request" className="underline">Describe your idea</a> and we quote it.</span>}
               {!msgs.length && (
                 <span className="mt-2 flex flex-wrap gap-2">
-                  {IDEAS.map((t) => <button key={t} type="button" onClick={() => { setText(t); input.current?.focus(); }} className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{t}</button>)}
+                  {(compact ? COMPACT_IDEAS : IDEAS).map((t) => <button key={t} type="button" onClick={() => { setText(t); input.current?.focus(); }} className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{t}</button>)}
                 </span>
               )}
             </div>
@@ -148,11 +162,22 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
                 {m.title && <p className="font-semibold">{m.title}</p>}
                 <p className="whitespace-pre-wrap">{m.text}</p>
                 {m.shapes && m.id === latestId && (
-                  <div className="h-56 overflow-hidden rounded-xl bg-white dark:bg-gray-950">
-                    <ExamplePreview shapes={m.shapes} reduceMotion={reduce} />
+                  <div className={`${compact ? 'h-44' : 'h-56'} overflow-hidden rounded-xl bg-white dark:bg-gray-950`}>
+                    <ExamplePreview shapes={compact && view === 'before' ? compact.base : m.shapes} reduceMotion={reduce} />
                   </div>
                 )}
-                {m.shapes && (
+                {compact && m.shapes && m.id === latestId && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div role="group" aria-label="Preview" className="inline-flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
+                      {(['before', 'after'] as const).map((v) => (
+                        <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-medium ${view === v ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-white text-gray-800 dark:bg-gray-900 dark:text-gray-100'}`}>{v === 'before' ? 'Before' : 'After'}</button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => apply(m)} aria-label="Apply this change" title="Apply this change" className={primary}><Icon name="check" />Apply</button>
+                    <button type="button" onClick={discard} aria-label="Discard this change" title="Discard this change" className={btn}><Icon name="x" />Discard</button>
+                  </div>
+                )}
+                {!compact && m.shapes && (
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={() => openBuilder(m, false)} aria-label="Open in the builder" title="Open in the builder" className={btn}><Icon name="edit" />Edit</button>
                     {m.id === latestId && <button type="button" onClick={refine} aria-label="Refine this design" title="Refine this design" className={btn}><Icon name="redo" />Refine</button>}
@@ -194,12 +219,12 @@ export function AiChat({ onLeave, titleId }: { onLeave?: () => void; titleId?: s
               ref={input} id={`${id}-text`} rows={2} value={text} maxLength={MAX_TEXT}
               onChange={(e) => setText(e.target.value.slice(0, MAX_TEXT))}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
-              placeholder={target ? 'What should change? e.g. make it 20 mm taller' : 'Describe the part you need'}
+              placeholder={target ? 'What should change? e.g. make it 20 mm taller' : compact ? 'Add a shape first' : 'Describe the part you need'}
               className={field}
             />
             <div className="flex items-center gap-2">
               <input ref={fileInput} id={`${id}-img`} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
-              <label htmlFor={`${id}-img`} aria-label="Attach a photo" title="Attach a photo" className={`${btn} cursor-pointer`}><Icon name="upload" />Photo</label>
+              {!compact && <label htmlFor={`${id}-img`} aria-label="Attach a photo" title="Attach a photo" className={`${btn} cursor-pointer`}><Icon name="upload" />Photo</label>}
               <span className="mr-auto text-xs text-gray-500 dark:text-gray-400">{text.length}/{MAX_TEXT}</span>
               <button type="submit" disabled={busy || (!text.trim() && !photo)} aria-label={target ? 'Send the change' : 'Send'} title={target ? 'Send the change' : 'Send'} className={primary}><Icon name="arrow" />{target ? 'Refine' : 'Send'}</button>
             </div>

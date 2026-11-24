@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { shapesToBlueprint, type Blueprint } from './designBlueprint.ts';
-import { MAX_REVISIONS, approve, createFromMesh, createFromPrompt, createFromTemplate, finalize, getProject, manual, markOrdered, orderInfo, pruneProjects, revise, undo, type Ai } from './designProjects.ts';
+import { MAX_REVISIONS, approve, createFromMesh, createFromPrompt, createFromShapes, createFromTemplate, currentBlueprint, finalize, getProject, manual, markOrdered, orderInfo, pruneProjects, revise, undo, type Ai } from './designProjects.ts';
 import type { Shape } from './playground.ts';
 import { meshStats } from './quote.ts';
 import { getBytes, getJson, putBytes, putJson } from './store.ts';
@@ -178,4 +178,15 @@ test('prune deletes unordered projects older than 30 days (and their STL), keeps
   assert.equal(await getBytes('uploads', fin.finalFile!), null);
   assert.ok(await getProject(ord.id));
   assert.ok(await getProject(fresh.id));
+});
+
+test('createFromShapes saves a validated copy as a draft design, refuses junk', async () => {
+  env();
+  const p = await createFromShapes({ title: 'Phone stand (custom)', shapes: [box('a', 30)] });
+  assert.equal(p.status, 'draft');
+  assert.equal(p.source, 'copy');
+  assert.equal(currentBlueprint(p).title, 'Phone stand (custom)');
+  await assert.rejects(createFromShapes({ title: 'x', shapes: [{ kind: 'box' }] }));
+  await assert.rejects(createFromShapes({ title: 'x', shapes: [] }));
+  await assert.rejects(createFromShapes({ title: 'x', shapes: 'no' }));
 });

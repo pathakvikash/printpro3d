@@ -16,3 +16,6 @@ export function cardActions(kind: CardKind, id: string, exampleId?: string | nul
     case 'part': return { primary: { label: 'Enquire', hint: 'Enquire about this part', icon: 'cart', href: `/request?part=${encodeURIComponent(id)}` }, secondary: { label: 'Details', hint: 'Part details', icon: 'wrench', href: `/shop/part/${id}` } };
   }
 }
+
+/** "Customise with AI" for a fixed item: the builder opens a sandbox copy of the example (the catalog is never touched) with the AI panel open. */
+export const aiHref = (exampleId: string) => `/playground?mode=build&example=${encodeURIComponent(exampleId)}&ai=1`;

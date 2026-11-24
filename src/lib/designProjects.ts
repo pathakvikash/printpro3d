@@ -9,6 +9,7 @@ import { PLAN_NO_QUESTIONS, PLAN_REPLY_SCHEMA, PLAN_SYSTEM, REVISE_SYSTEM, compa
 import { UUID, findJobByFile, serialJob } from './aiJobs.ts';
 import { BLUEPRINT_SCHEMA, blueprintToShapes, diffBlueprints, shapesToBlueprint, validateBlueprint, type Blueprint, type BlueprintDiff } from './designBlueprint.ts';
 import { buildMesh, toStl, type Shape } from './playground.ts';
+import { toDesign } from './aiDesign.ts';
 import { BED_MM, fitsBed, meshStats, type MeshStats } from './quote.ts';
 import { del, getBytes, getJson, list, putBytes, putJson } from './store.ts';
 import { scaleStl } from './stlScale.ts';
@@ -24,7 +25,7 @@ export const aiRevisionCap = (env: Record<string, string | undefined> = process.
   return Number.isFinite(n) && n >= 0 ? n : 5;
 };
 
-export type Source = 'prompt' | 'mesh' | 'template';
+export type Source = 'prompt' | 'mesh' | 'template' | 'copy';
 export type By = 'ai' | 'manual' | 'template' | 'mesh';
 export type Status = 'draft' | 'approved' | 'finalized' | 'ordered';
 export type Revision = {
@@ -153,6 +154,16 @@ export async function createFromTemplate(i: { email?: string; template: unknown;
   const built = buildTemplate(t, cfg);
   const p = base('template', i.email);
   push(p, { by: 'template', request: t.name, blueprint: shapesToBlueprint(built.shapes, t.name, built.description.slice(0, 300)) });
+  return save(p);
+}
+
+/** A saved design from the builder's shapes (an AI-customised sandbox copy). The shapes are untrusted: same validator as an AI reply, all or nothing. */
+export async function createFromShapes(i: { email?: string; title: unknown; shapes: unknown }): Promise<Project> {
+  const d = toDesign({ shapes: i.shapes });
+  if (!d.ok || !Array.isArray(i.shapes) || d.shapes.length !== i.shapes.length) return fail(400, 'Those shapes cannot be saved. Add a solid shape and try again.');
+  const title = (typeof i.title === 'string' ? i.title.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '').slice(0, 60) || 'My design (custom)';
+  const p = base('copy', i.email);
+  push(p, { by: 'manual', request: title, blueprint: shapesToBlueprint(d.shapes, title, 'Customised from a copy. Check every size before you approve.') });
   return save(p);
 }
 

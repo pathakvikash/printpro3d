@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { parseEmail } from '@/lib/contact';
 import { checkPrompt, DESIGN_PROMPT_MAX } from '@/lib/aiGuard';
-import { createFromMesh, createFromPrompt, createFromTemplate, DesignError } from '@/lib/designProjects';
+import { createFromMesh, createFromPrompt, createFromShapes, createFromTemplate, DesignError } from '@/lib/designProjects';
 import { capabilities } from '@/lib/designAi';
 import { aiEnv } from '@/lib/aiSettings';
 import { filled, limited } from '@/lib/spam';
@@ -38,8 +38,9 @@ export async function POST(request: Request) {
     const slow = await limited(request, 'design');
     if (slow) throw new DesignError(429, 'Too many requests. Please try again in an hour.');
     if (body.source === 'template') return { kind: 'plan', project: view(await createFromTemplate({ email, template: body.template, cfg: body.cfg })) };
+    if (body.source === 'shapes') return { kind: 'plan', project: view(await createFromShapes({ email, title: body.title, shapes: body.shapes })) };
     if (body.source === 'mesh') return { kind: 'plan', project: view(await createFromMesh({ email, file: body.file, origin: body.origin })) };
-    throw new DesignError(400, 'source must be "prompt", "template" or "mesh"');
+    throw new DesignError(400, 'source must be "prompt", "template", "shapes" or "mesh"');
   });
 }
 

@@ -15,14 +15,17 @@ import type { Shape } from '@/lib/playground';
 import BlueprintSheet from './BlueprintSheet';
 import { money } from './ContactFields';
 import { QtyStepper } from './CartDrawer';
-import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
+import { AiAction, addBtn, AddLabel, BackToShop, CardActions, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
 import { useCart } from './CartProvider';
 import { kitBlocked } from '@/lib/kits';
 import type { CartLine } from '@/lib/cart';
+import { AI_DRAFT_KEY } from '@/lib/aiChat';
+import { customLabel } from '@/lib/aiCustomise';
 import FlowStrip from '@/components/FlowStrip';
 import Term from '@/components/Term';
 
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
+const AiConfigPanel = dynamic(() => import('./AiConfigPanel'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
 const fmt = (n: number) => n.toFixed(1);
 const catLabel = (id: string) => shopCatLabel(shopCat(id) ?? id);
 
@@ -151,8 +154,11 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useAdded();
   const applied = useDebounced(cfg, 250); // CSG runs on the settled values only
-  const pending = applied !== cfg;
-  const r = useMemo(() => compute(t, applied), [t, applied]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [proposal, setProposal] = useState<Cfg | null>(null); // an AI settings proposal being previewed; nothing is applied until Accept
+  const pending = !proposal && applied !== cfg;
+  const r = useMemo(() => compute(t, proposal ?? applied), [t, proposal, applied]);
+  const cur = useMemo(() => (proposal ? compute(t, applied) : r), [t, proposal, applied, r]);
   const svg = useMemo(() => (r.mesh ? blueprint(r.mesh, { name: t.name, id: t.id, material: t.material }) : null), [r, t]);
   const total = r.stats ? quote(r.stats, t.material, qty).total : null;
 
@@ -170,7 +176,17 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
     toast('Added to cart', true);
     setAdded(true);
   };
-  const canAdd = !pending && !r.error && !!r.q;
+  const canAdd = !pending && !proposal && !r.error && !!r.q;
+  const accept = (next: Cfg) => {
+    if (!r.q || r.error) return;
+    add({ kind: 'tpl', id: t.id, cfg: r.cfg, qty, unitPrice: r.q.unitPrice });
+    setCfg(next); setProposal(null);
+    toast(`Added to cart: ${customLabel(t.name)}`, true);
+  };
+  const toBuilder = () => { // a sandbox copy for the builder: the template itself is not touched
+    try { sessionStorage.setItem(AI_DRAFT_KEY, JSON.stringify({ title: customLabel(t.name), notes: '', shapes: r.built.shapes, source: 'copy' })); } catch { return null; }
+    return '/playground?mode=build&from=ai&ai=1';
+  };
 
   return (
     <div className="space-y-6">
@@ -197,6 +213,12 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
               <FieldControl key={f.key} f={f} value={cfg[f.key]} onChange={(v) => setCfg((c) => ({ ...c, [f.key]: v }))} />
             ))}
           </fieldset>
+          <div className="flex gap-3"><AiAction onClick={() => setAiOpen((o) => !o)} pressed={aiOpen} /></div>
+          {aiOpen && (
+            <AiConfigPanel kind="template" id={t.id} name={t.name} fields={t.fields} current={normalizeCfg(t, cfg)}
+              priceNow={cur.q ? money.format(quote(cur.stats!, t.material, qty).total) : 'n/a'} priceNew={proposal && r.stats ? money.format(quote(r.stats, t.material, qty).total) : null}
+              ready={!r.error && !!r.q} onProposal={setProposal} onAccept={accept} onBuilder={toBuilder} onClose={() => { setAiOpen(false); setProposal(null); }} />
+          )}
           {r.error ? <p role="alert" className="text-sm text-red-600 dark:text-red-400">{r.error}</p> : <p className="text-sm text-gray-700 dark:text-gray-300">{r.built.description}</p>}
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {total != null ? money.format(total) : 'n/a'} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">for {qty} · made to order · includes {money.format(SETUP_FEE)} setup</span>
