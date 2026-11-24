@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // seconds: the print file is rebuilt with CSG here
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
-  const slow = await limited(request, 'submit');
+  const slow = await limited(request, 'design');
   if (slow) return slow;
   return respond(async () => {
     const p = await finalize((await ctx.params).id);

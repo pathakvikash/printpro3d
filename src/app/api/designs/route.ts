@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       const out = await createFromPrompt(a.ai, { email, prompt, answers, skip: body.skip === true });
       return out.kind === 'plan' ? { kind: 'plan', project: view(out.project) } : out;
     }
-    const slow = await limited(request, 'submit');
+    const slow = await limited(request, 'design');
     if (slow) throw new DesignError(429, 'Too many requests. Please try again in an hour.');
     if (body.source === 'template') return { kind: 'plan', project: view(await createFromTemplate({ email, template: body.template, cfg: body.cfg })) };
     if (body.source === 'mesh') return { kind: 'plan', project: view(await createFromMesh({ email, file: body.file, origin: body.origin })) };

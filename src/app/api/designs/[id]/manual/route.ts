@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /** Manual revision: { blueprint } (full document), or { longestMm } for an uploaded mesh. */
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
-  const slow = await limited(request, 'submit');
+  const slow = await limited(request, 'design');
   if (slow) return slow;
   return respond(async () => {
     const body = await readBody(request);

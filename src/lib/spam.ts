@@ -41,7 +41,9 @@ export function hit(bucket: string, ip: string, max: number, now = new Date()): 
   });
 }
 
-export const LIMITS = { submit: 10, upload: 30, ai: 20 } as const; // per IP per hour; orders and requests share `submit`
+// per IP per hour; orders and requests share `submit`. Design-project edits (`design`) and the suggest bar (`suggest`) have their own,
+// so editing a design never uses up the order limit and the debounced bar never uses up the AI design limit.
+export const LIMITS = { submit: 10, upload: 30, ai: 20, design: 60, suggest: 60 } as const;
 
 /** Counts the request against its bucket; a 429 Response when over the limit, otherwise null. A store failure lets the request through. */
 export async function limited(request: Request, bucket: keyof typeof LIMITS): Promise<Response | null> {

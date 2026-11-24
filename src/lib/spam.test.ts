@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { clientIp, filled, hit, limited, seen } from './spam.ts';
+import { clientIp, filled, hit, limited, LIMITS, seen } from './spam.ts';
 import { list } from './store.ts';
 
 process.env.DATA_DIR = mkdtempSync(path.join(tmpdir(), 'spam-'));
@@ -45,4 +45,15 @@ test('limited() returns a 429 JSON response once over the limit', async () => {
   const over = await r();
   assert.equal(over?.status, 429);
   assert.match((await over!.json()).error, /Too many requests/);
+});
+
+test('design edits and suggestions have their own buckets, so they never use up the order (submit) or AI-design limits', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const ip = '7.7.7.7';
+  for (let i = 0; i < LIMITS.submit + 1; i++) assert.equal(await limited(req(ip), 'design'), null);
+  assert.equal(await limited(req(ip), 'submit'), null);
+  const api = path.join(import.meta.dirname, '../app/api');
+  const designRoutes = readdirSync(path.join(api, 'designs'), { recursive: true }).map(String).filter((f) => f.endsWith('route.ts'));
+  for (const f of designRoutes) assert.doesNotMatch(readFileSync(path.join(api, 'designs', f), 'utf8'), /limited\(request, 'submit'\)/, f);
+  assert.doesNotMatch(readFileSync(path.join(api, 'suggest/route.ts'), 'utf8'), /limited\(request, 'ai'\)/);
 });
