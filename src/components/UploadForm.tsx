@@ -74,6 +74,8 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
   const runUpload = useCallback(async (f: File) => {
     setUploading(true);
     setError(null);
+    const startMaterial = handoffMaterial.current; // read once: a failed upload must not leave it for a later one
+    handoffMaterial.current = 'PLA';
 
     try {
       let res: Response;
@@ -89,8 +91,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
       if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'This file is too large to upload here. Try a smaller file.' : 'Upload failed'));
       setUploadedUrl(data.url);
       setUploaded({ file: data.file, name: f.name, stats: data.stats });
-      setMaterial(handoffMaterial.current); // a new QuoteOrder starts on the handed-off material (PLA by default)
-      handoffMaterial.current = 'PLA';
+      setMaterial(startMaterial); // a new QuoteOrder starts on the handed-off material (PLA by default)
       setFile(null);
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Upload failed');
@@ -127,7 +128,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
     const f = p.file;
     handoffMaterial.current = p.material ?? 'PLA';
     const err = validateFile(f);
-    if (err) setError(err);
+    if (err) { setError(err); handoffMaterial.current = 'PLA'; }
     else void runUpload(f);
   }, [runUpload, initialFile]);
 

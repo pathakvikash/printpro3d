@@ -20,7 +20,7 @@ import { buildTemplate, templateMesh } from '../src/lib/templates.ts';
 
 const pub = path.resolve(import.meta.dirname, '../public');
 const out = path.join(pub, 'models/built');
-const read = (file: string) => Promise.resolve(readFileSync(path.join(pub, file)).buffer as ArrayBuffer);
+const read = (file: string) => { const b = readFileSync(path.join(pub, file)); return Promise.resolve(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer); };
 
 type Task = { key: string; label: string; make: () => Float32Array | null | Promise<Float32Array | null> };
 const tasks: Task[] = [];

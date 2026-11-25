@@ -39,7 +39,7 @@ export default function BlueprintSheet({ svg, filename }: { svg: string; filenam
 
   return (
     <div>
-      <style>{`@page{size:landscape;margin:10mm}@media print{body *{visibility:hidden}body *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *){display:none!important}.bp-print,.bp-print *{visibility:visible}.bp-print{position:absolute;left:0;top:0;width:100%;border:0!important}}`}</style>
+      <style>{`@page{size:landscape;margin:10mm}@media print{body *{visibility:hidden}body *:not(:has(.bp-print)):not(.bp-print):not(.bp-print *){display:none!important}.bp-print,.bp-print *{visibility:visible}.bp-print svg{max-height:none!important;width:100%}.bp-print{position:absolute;left:0;top:0;width:100%;border:0!important}}`}</style>
       <div ref={box} aria-label="Blueprint sheet" className="bp-print overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700 [&_svg]:mx-auto [&_svg]:block [&_svg]:h-auto [&_svg]:max-h-[75vh] [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" aria-label="Open full size" title="Open full size in a new tab" className={btn} onClick={full}><Icon name="arrow" />Full size</button>

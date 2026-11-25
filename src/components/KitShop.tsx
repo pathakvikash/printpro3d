@@ -100,8 +100,14 @@ const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps
 export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean; partSheet?: { title: string; svg: string; filename: string } | null }) {
   const [page, setPage] = useState(0);
   // jump to the part's drawing only when the user picks a different part (not on the initial null -> first part, nor a Strict Mode re-run)
-  const prevFocus = useRef(focusId);
-  useEffect(() => { if (prevFocus.current != null && focusId !== prevFocus.current) setPage(1); prevFocus.current = focusId; }, [focusId]);
+  // (a kit switch changes focusId to the new kit's first item: reset to the assembly page instead)
+  const prevFocus = useRef({ kit: kit.id, focus: focusId });
+  useEffect(() => {
+    const p = prevFocus.current;
+    if (p.kit !== kit.id) setPage(0);
+    else if (p.focus != null && focusId !== p.focus) setPage(Number.MAX_SAFE_INTEGER); // clamped to the last page (the part's) below
+    prevFocus.current = { kit: kit.id, focus: focusId };
+  }, [kit.id, focusId]);
   const built = useMemo(() => {
     if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
@@ -131,6 +137,8 @@ export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { ki
   }, [built, parts, kit]);
   useEffect(() => () => { if (built) Object.values(built.geometries).forEach((g) => g.dispose()); }, [built]);
   if (!kit.assembly) return null;
+  const plates0 = kit.assemblyData === false;
+  const sheets = [...(sheet ? [{ title: plates0 ? 'Print plate drawing' : 'Assembly drawing', svg: sheet, filename: `${plates0 ? 'print-plates' : 'assembly'}-${kit.id}` }] : []), ...(partSheet ? [partSheet] : [])];
   const plates = kit.assemblyData === false; // no real assembly data: show what gets printed, never a guessed assembly
   return (
     <section aria-labelledby="kit-finished" className="space-y-2">
@@ -142,9 +150,9 @@ export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { ki
         <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
       )}
       {kit.credit && <CreditLine credit={kit.credit} />}
-      {sheet && (
+      {sheets.length > 0 && (
         <div className="pt-2">
-          <BlueprintPager index={page} onIndex={setPage} sheets={[{ title: plates ? 'Print plate drawing' : 'Assembly drawing', svg: sheet, filename: `${plates ? 'print-plates' : 'assembly'}-${kit.id}` }, ...(partSheet ? [partSheet] : [])]} />
+          <BlueprintPager index={Math.min(page, sheets.length - 1)} onIndex={setPage} sheets={sheets} />
         </div>
       )}
     </section>
