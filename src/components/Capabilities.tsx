@@ -1,6 +1,7 @@
 import Icon, { type IconName } from '@/components/Icon';
 import { Spool } from '@/components/Art';
 import { COLOUR } from '@/components/MaterialCards';
+import MaterialTip from './MaterialTip';
 import { BED_MM, MATERIALS, MAX_QTY, type MaterialKey } from '@/lib/quote';
 import { ALLOWED_EXTS, MAX_UPLOAD } from '@/lib/uploadRules';
 import { LAYER_MM } from '@/lib/printSpec';
@@ -10,7 +11,7 @@ const chip = 'inline-flex items-center gap-1 rounded-md border border-gray-200 b
 // Values come only from code. Tolerance and lead time are owner-pending: not in code, so not shown.
 const FACTS: { k: string; icon: IconName; v: React.ReactNode }[] = [
   { k: 'Build volume', icon: 'cube', v: `${BED_MM.x} × ${BED_MM.y} × ${BED_MM.z} mm` },
-  { k: 'Materials', icon: 'spark', v: <span className="flex flex-wrap gap-1">{(Object.keys(MATERIALS) as MaterialKey[]).map((m) => <span key={m} className={chip}><Spool color={COLOUR[m]} />{m}</span>)}</span> },
+  { k: 'Materials', icon: 'spark', v: <span className="flex flex-wrap gap-1">{(Object.keys(MATERIALS) as MaterialKey[]).map((m) => <MaterialTip key={m} k={m} focusable className={`${chip} cursor-help`}><Spool color={COLOUR[m]} />{m}</MaterialTip>)}</span> },
   { k: 'File types', icon: 'file', v: <span className="flex flex-wrap gap-1">{ALLOWED_EXTS.map((e) => <span key={e} className={`${chip} font-mono`}>{e.slice(1).toUpperCase()}</span>)}</span> },
   { k: 'Max file size', icon: 'drive', v: `${MAX_UPLOAD / 1024 / 1024} MB` },
   { k: 'Typical layer height', icon: 'layers', v: `${LAYER_MM} mm (assumed)` }, // printSpec: owner to confirm

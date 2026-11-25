@@ -5,6 +5,7 @@ import { analyzeMesh } from '@/lib/meshAnalysis';
 import Link from 'next/link';
 import Icon from './Icon';
 import { BED_MM, MATERIALS, MAX_QTY, fitsBed, quote, type MaterialKey, type MeshStats } from '@/lib/quote';
+import MaterialTip from './MaterialTip';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart } from './CartProvider';
@@ -119,8 +120,8 @@ export default function QuoteOrder({
             const selected = material === key;
             const total = priceFor(key);
             return (
+              <MaterialTip key={key} k={key} className="block">
               <label
-                key={key}
                 className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
                   selected
                     ? 'border-indigo-600 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950/40'
@@ -132,6 +133,7 @@ export default function QuoteOrder({
                 <span className="font-semibold text-gray-900 dark:text-gray-100">{MATERIAL_INFO[key].label}</span>
                 <span className="ml-auto font-semibold text-indigo-600 dark:text-indigo-400">{total !== null ? money.format(total) : 'Quote'}</span>
               </label>
+              </MaterialTip>
             );
           })}
         </div>

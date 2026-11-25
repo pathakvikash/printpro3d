@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { quote, MATERIALS, type MaterialKey } from '@/lib/quote';
+import MaterialTip from './MaterialTip';
 import { MATERIAL_INFO } from '@/lib/materialInfo';
 
 const KEYS = Object.keys(MATERIALS) as MaterialKey[];
@@ -43,15 +44,15 @@ export default function MaterialCards({ partVolumeCm3, selected, onSelect }: Pro
             selected === k ? 'border-indigo-600 ring-1 ring-indigo-600 dark:border-indigo-400 dark:ring-indigo-400' : 'border-gray-200 dark:border-gray-700'
           }`;
           return (
-            <li key={k}>
+            <li key={k}><MaterialTip k={k} className="block h-full">
               {onSelect ? (
                 <button type="button" aria-pressed={selected === k} onClick={() => onSelect(k)} className={`${cls} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500`}>
                   {body}
                 </button>
               ) : (
-                <div className={cls}>{body}</div>
+                <div className={cls} tabIndex={0}>{body}</div>
               )}
-            </li>
+            </MaterialTip></li>
           );
         })}
       </ul>
