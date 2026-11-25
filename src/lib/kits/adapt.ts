@@ -14,6 +14,8 @@ import { KIT_TRANSFORMER_KIT as TRANSFORMER } from './transformer-kit.ts';
 import { KIT_LED_DECOR_KIT as LED } from './led-decor-kit.ts';
 import { rcCarKit as RC } from './rc-car-kit.ts';
 import { deskPetKit as PET } from './desk-pet-kit.ts';
+import { so101ArmKit as SO101 } from './so101-arm-kit.ts';
+import { stackChanKit as STACK } from './stack-chan-kit.ts';
 
 type PartDef = { id: string; label: string; material: PartMaterial; qty: (c: Cfg) => number; file?: string; build?: (c: Cfg) => BufferGeometry; product?: string };
 type Credit = { author: string; url: string; licence: string };
@@ -60,6 +62,15 @@ const SOURCES: Source[] = [
   {
     id: 'desk-pet', title: PET.title, blurb: PET.blurb, category: 'robotics', credit: PET.credit, approximate: true, assemblyData: PET.assemblyData,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(PET.printedParts), assembly: () => PET.assembly(), bought: PET.boughtParts,
+    refs: { servo: 'servo-sg90' },
+  },
+  {
+    id: 'so101-arm', title: SO101.title, blurb: SO101.blurb, category: 'robotics', credit: SO101.credit, approximate: true, assemblyData: SO101.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(SO101.printedParts), assembly: () => SO101.assembly(), bought: SO101.boughtParts,
+  },
+  {
+    id: 'stack-chan', title: STACK.title, blurb: STACK.blurb, category: 'robotics', credit: STACK.credit, approximate: true, assemblyData: STACK.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(STACK.printedParts), assembly: () => STACK.assembly(), bought: STACK.boughtParts,
     refs: { servo: 'servo-sg90' },
   },
 ];
