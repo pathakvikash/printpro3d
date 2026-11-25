@@ -15,7 +15,7 @@ import type { Shape } from '@/lib/playground';
 import BlueprintSheet from './BlueprintSheet';
 import { money } from './ContactFields';
 import { QtyStepper } from './CartDrawer';
-import { AiAction, addBtn, AddLabel, BackToShop, CardActions, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
+import { addBtn, AddLabel, BackToShop, CardActions, CardFrame, previewBox, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
 import { useCart } from './CartProvider';
 import { kitBlocked } from '@/lib/kits';
 import type { CartLine } from '@/lib/cart';
@@ -23,6 +23,7 @@ import { AI_DRAFT_KEY } from '@/lib/aiChat';
 import { customLabel } from '@/lib/aiCustomise';
 import FlowStrip from '@/components/FlowStrip';
 import Term from '@/components/Term';
+import { SettingsPanel } from './FieldControl';
 
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AiConfigPanel = dynamic(() => import('./AiConfigPanel'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
@@ -103,45 +104,6 @@ export function TemplateCard({ t, live, reduceMotion, setVisible }: {
       preview={live && r?.mesh && <ExamplePreview shapes={r.built.shapes} mesh={r.mesh} reduceMotion={reduceMotion} material={t.material} />}
       actions={<CardActions kind="template" id={t.id} added={added} disabled={!r?.q || !!r.error} onPrimary={addDefault} />}
     />
-  );
-}
-
-const ctl = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
-
-export function FieldControl({ f, value, onChange }: { f: Field; value: number | string | boolean; onChange: (v: number | string | boolean) => void }) {
-  const id = useId();
-  if (f.type === 'bool') {
-    return (
-      <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
-        <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4" />
-        {f.label}
-      </label>
-    );
-  }
-  if (f.type === 'select') {
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="text-sm text-gray-800 dark:text-gray-200">{f.label}</label>
-        <select id={id} value={String(value)} onChange={(e) => onChange(e.target.value)} className={`${ctl} min-w-0 max-w-[60%]`}>
-          {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-    );
-  }
-  const v = value as number;
-  const step = (d: number) => onChange(Math.min(f.max, Math.max(f.min, Math.round((v + d * f.step) * 1000) / 1000)));
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="text-sm text-gray-800 dark:text-gray-200">{f.label}</label>
-        <div className="flex items-center gap-1">
-          <button type="button" aria-label={`Decrease ${f.label}`} title={`Decrease ${f.label}`} disabled={v <= f.min} onClick={() => step(-1)} className={`${ctl} h-10 w-10 px-0 disabled:opacity-40`}>−</button>
-          <span className="w-16 text-center font-mono text-sm text-gray-900 dark:text-gray-100" aria-live="off">{v}{f.unit ? ` ${f.unit}` : ''}</span>
-          <button type="button" aria-label={`Increase ${f.label}`} title={`Increase ${f.label}`} disabled={v >= f.max} onClick={() => step(1)} className={`${ctl} h-10 w-10 px-0 disabled:opacity-40`}>+</button>
-        </div>
-      </div>
-      <input id={id} type="range" min={f.min} max={f.max} step={f.step} value={v} aria-valuetext={`${v}${f.unit ? ` ${f.unit}` : ''}`} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full accent-indigo-600" />
-    </div>
   );
 }
 
@@ -226,13 +188,8 @@ export function TemplateDetail({ t }: { t: TemplateDef }) {
         </div>
 
         <div className="space-y-3">
-          <fieldset id="settings" className="scroll-mt-24 space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-            <legend className="px-1 text-sm font-semibold text-gray-900 dark:text-white">Your settings</legend>
-            {t.fields.map((f) => (
-              <FieldControl key={f.key} f={f} value={cfg[f.key]} onChange={(v) => setCfg((c) => ({ ...c, [f.key]: v }))} />
-            ))}
-          </fieldset>
-          <div className="flex gap-3"><AiAction onClick={() => setAiOpen((o) => !o)} pressed={aiOpen} /></div>
+          <SettingsPanel id="settings" title="Your settings" fields={t.fields} cfg={cfg} onField={(k, v) => setCfg((c) => ({ ...c, [k]: v }))}
+            changed={key(cfg) !== key(defaultCfg(t))} onReset={() => setCfg(defaultCfg(t))} aiOpen={aiOpen} onAi={() => setAiOpen((o) => !o)} />
           {aiOpen && (
             <AiConfigPanel kind="template" id={t.id} name={t.name} fields={t.fields} current={normalizeCfg(t, cfg)}
               priceNow={cur.q ? money.format(quote(cur.stats!, t.material, qty).total) : 'n/a'} priceNew={proposal && r.stats ? money.format(quote(r.stats, t.material, qty).total) : null}
