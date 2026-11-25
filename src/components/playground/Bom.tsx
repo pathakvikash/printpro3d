@@ -7,7 +7,8 @@ import BoughtList from '../BoughtList';
 import { useCart } from '../CartProvider';
 import { money } from '../ContactFields';
 import { templateById, defaultCfg } from '@/lib/templateDefs';
-import { MAX_QTY, quote, type MeshStats } from '@/lib/quote';
+import { MAX_QTY, fitsBed, meshStats, quote, type MeshStats } from '@/lib/quote';
+import { buildOffThread } from '@/lib/buildOffThread';
 import { MOTORS } from '@/lib/motors';
 import type { BoughtItem } from '@/lib/kits';
 import type { Parts } from '@/lib/flight/layout';
@@ -15,7 +16,7 @@ import type { Shape } from '@/lib/playground';
 
 const btn = 'inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800';
 
-// priceTemplate runs the CSG once per template id; the result is the same for every drop (default config), so keep it
+// the mesh of a template at its default config is built once per id, off the main thread, and is the same for every drop
 const stats = new Map<string, MeshStats | 'error'>();
 
 export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving, note }: {
@@ -34,12 +35,14 @@ export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving,
   useEffect(() => {
     let live = true;
     void (async () => {
-      const { priceTemplate } = await import('@/lib/templates');
+      const { buildTemplate } = await import('@/lib/templates'); // the shape list only: cheap, no CSG
       for (const { id } of tpls) {
         if (stats.has(id)) continue;
-        await new Promise((r) => setTimeout(r, 0)); // let the page paint between two builds
-        if (!live) return;
-        try { stats.set(id, priceTemplate(id, defaultCfg(templateById(id)!), 1).stats); } catch { stats.set(id, 'error'); }
+        try {
+          const mesh = await buildOffThread(buildTemplate(templateById(id)!, defaultCfg(templateById(id)!)).shapes, true);
+          const st = mesh ? meshStats(mesh) : null;
+          stats.set(id, st && fitsBed(st.sizeMm) ? st : 'error');
+        } catch { stats.set(id, 'error'); }
         tick((x) => x + 1);
       }
     })();
@@ -62,11 +65,11 @@ export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving,
   const addAll = async () => {
     setAdding(true);
     try {
-      const { templateOrderLine } = await import('@/lib/templates');
+      // the displayed price is the cart line's unit price; the server reprices from id + cfg at checkout
       for (const { t, qty } of rows) {
-        await new Promise((r) => setTimeout(r, 0));
-        const cfg = defaultCfg(t), line = templateOrderLine(t, cfg, qty);
-        add({ kind: 'tpl', id: t.id, cfg, qty, unitPrice: line.quote.unitPrice });
+        const st = stats.get(t.id);
+        if (!st || st === 'error') continue;
+        add({ kind: 'tpl', id: t.id, cfg: defaultCfg(t), qty, unitPrice: quote(st, t.material, qty).unitPrice });
       }
       toast('Added to cart', true);
     } catch {
@@ -90,7 +93,7 @@ export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving,
               </li>
             ))}
           </ul>
-          <button type="button" onClick={addAll} disabled={adding || rows.some((r) => r.total === null)} aria-label="Add to cart" title="Add to cart" className={`${btn} w-full`}>
+          <button type="button" onClick={addAll} disabled={adding || rows.some((r) => r.total === null && !r.failed) || rows.every((r) => r.failed)} aria-label="Add to cart" title="Add to cart" className={`${btn} w-full`}>
             <Icon name="cart" className="h-4 w-4" />{adding ? 'Adding' : 'Add to cart'}
           </button>
         </div>

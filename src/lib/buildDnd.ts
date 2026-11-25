@@ -33,7 +33,7 @@ export function placeTemplate(built: Shape[], tpl: string, group: string, at: { 
   const dx = snapGrid(at.x) - c.x, dy = snapGrid(at.y) - c.y;
   const dz = -Math.min(...(solids.length ? solids : built).map(minZ));
   return built.map((s) => ({
-    ...s, id: `${s.id}~${group}`, group, tpl,
+    ...s, id: `${s.id}-${group}`, group, tpl,
     position: { x: r3(s.position.x + dx), y: r3(s.position.y + dy), z: r3(s.position.z + dz) },
     rotation: { ...s.rotation }, size: { ...s.size },
   }));

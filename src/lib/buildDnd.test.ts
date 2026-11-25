@@ -19,7 +19,7 @@ test('a built template drops as one group, centred on the grid, resting on the p
   const built = buildTemplate(t, defaultCfg(t)).shapes;
   const placed = placeTemplate(built, t.id, 'g1', { x: 33, y: -41 });
   assert.equal(placed.length, built.length);
-  assert.ok(placed.every((s) => s.group === 'g1' && s.tpl === t.id && s.id.endsWith('~g1')));
+  assert.ok(placed.every((s) => s.group === 'g1' && s.tpl === t.id && s.id.endsWith('-g1')));
   const sz = solidsSize(placed)!, sz0 = solidsSize(built)!;
   assert.ok(Math.abs(sz.x - sz0.x) < 0.01 && Math.abs(sz.z - sz0.z) < 0.01);
   assert.equal(membersOf(placed, placed[0].id).length, placed.length);
