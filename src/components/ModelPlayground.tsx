@@ -123,9 +123,9 @@ export default function ModelPlayground() {
     if (!f) return setNote('Pick a model first.');
     const err = fileProblem(f.name, f.size);
     if (err) return setNote(err);
-    setPendingFile(f); // the same hand-off the home page uses: /quote uploads it and shows the price
+    setPendingFile(f, material); // the same hand-off the home page uses: /quote uploads it and shows the price
     router.push('/quote');
-  }, [file, soup, itemId, router]);
+  }, [file, soup, itemId, material, router]);
 
   const group = (cat: string): { kind: ItemKind; id: string; name: string }[] => [
     ...products.filter((p) => shopCat(p.item.id) === cat).map((p) => ({ kind: 'sample' as const, id: p.item.id, name: p.item.name })),

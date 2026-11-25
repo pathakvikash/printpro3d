@@ -36,6 +36,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [material, setMaterial] = useState<MaterialKey>('PLA'); // QuoteOrder's pick, shown on the preview
+  const handoffMaterial = useRef<MaterialKey>('PLA'); // picked in the playground, applied when the upload finishes
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -88,7 +89,8 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
       if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'This file is too large to upload here. Try a smaller file.' : 'Upload failed'));
       setUploadedUrl(data.url);
       setUploaded({ file: data.file, name: f.name, stats: data.stats });
-      setMaterial('PLA'); // a new QuoteOrder starts on PLA
+      setMaterial(handoffMaterial.current); // a new QuoteOrder starts on the handed-off material (PLA by default)
+      handoffMaterial.current = 'PLA';
       setFile(null);
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'Upload failed');
@@ -120,8 +122,10 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
   // a file picked on the home page: validate and upload it like a dropped one
   useEffect(() => {
     if (initialFile) return;
-    const f = takePendingFile();
-    if (!f) return;
+    const p = takePendingFile();
+    if (!p) return;
+    const f = p.file;
+    handoffMaterial.current = p.material ?? 'PLA';
     const err = validateFile(f);
     if (err) setError(err);
     else void runUpload(f);
@@ -294,6 +298,7 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
             <div className="lg:sticky lg:top-20">
             <QuoteOrder
               key={uploaded.file}
+              initialMaterial={material}
               file={uploaded.file}
               stats={uploaded.stats}
               positions={positions}

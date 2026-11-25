@@ -1,5 +1,6 @@
-// Hands a file picked on the home page to the quote page (client navigation keeps module state).
-let pending: File | null = null;
-export const setPendingFile = (f: File) => { pending = f; };
-/** Returns the waiting file once, then forgets it. */
-export const takePendingFile = (): File | null => { const f = pending; pending = null; return f; };
+// Hands a file picked on the home page / playground to the quote page (client navigation keeps module state).
+import type { MaterialKey } from '@/lib/quote';
+let pending: { file: File; material?: MaterialKey } | null = null;
+export const setPendingFile = (file: File, material?: MaterialKey) => { pending = { file, material }; };
+/** Returns the waiting file (and the material picked with it) once, then forgets it. */
+export const takePendingFile = () => { const p = pending; pending = null; return p; };

@@ -25,6 +25,7 @@ export default function QuoteOrder({
   onAnother,
   project,
   onMaterial,
+  initialMaterial = 'PLA',
 }: {
   file: string;
   stats: MeshStats | null;
@@ -32,10 +33,11 @@ export default function QuoteOrder({
   label?: string;
   onAnother?: () => void;
   onMaterial?: (k: MaterialKey) => void; // the preview above shows the picked finish
+  initialMaterial?: MaterialKey; // e.g. picked in the playground
   project?: string; // a finalized design project: the cart line is a 'design' line and the server prices the STL it built
 }) {
   const { add, openCart } = useCart();
-  const [material, setMaterial] = useState<MaterialKey>('PLA');
+  const [material, setMaterial] = useState<MaterialKey>(initialMaterial);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
 
