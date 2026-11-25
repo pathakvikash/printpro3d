@@ -99,8 +99,9 @@ const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps
 // partSheet: the selected part's own drawing (Inspect); it becomes a second page of the one blueprint pager, and picking a part jumps to it.
 export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean; partSheet?: { title: string; svg: string; filename: string } | null }) {
   const [page, setPage] = useState(0);
-  const first = useRef(true);
-  useEffect(() => { if (first.current) { first.current = false; return; } setPage(1); }, [focusId]);
+  // jump to the part's drawing only when the user picks a different part (not on the initial null -> first part, nor a Strict Mode re-run)
+  const prevFocus = useRef(focusId);
+  useEffect(() => { if (prevFocus.current != null && focusId !== prevFocus.current) setPage(1); prevFocus.current = focusId; }, [focusId]);
   const built = useMemo(() => {
     if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};

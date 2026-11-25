@@ -171,7 +171,7 @@ export default function ModelPlayground() {
         </select>
         {kit && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">Kit</span>}
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          {modifyHref && <Link href={modifyHref} className={`${btn} flex-1 border-indigo-600 bg-indigo-600 text-white hover:border-indigo-700 hover:bg-indigo-700 dark:border-indigo-600 dark:bg-indigo-600 dark:text-white sm:flex-none`}><Icon name="wrench" className="h-4 w-4" />Modify</Link>}
+          {modifyHref && <Link href={modifyHref} className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:border-indigo-700 hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:flex-none"><Icon name="wrench" className="h-4 w-4" />Modify</Link>}
           <input ref={input} type="file" accept={ALLOWED_EXTS.join(',')} className="sr-only" aria-label="Choose a 3D file" onChange={(e) => { take(e.target.files?.[0]); e.target.value = ''; }} />
           <button type="button" title="Drop an STL or OBJ anywhere here" className={`${btn} flex-1 sm:flex-none`} onClick={() => input.current?.click()}><Icon name="upload" className="h-4 w-4" />Upload</button>
           <Link href="/playground?mode=build" title="Start from scratch" className={`${btn} flex-1 sm:flex-none`}><Icon name="plus" className="h-4 w-4" />New</Link>
