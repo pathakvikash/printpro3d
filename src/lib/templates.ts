@@ -399,12 +399,12 @@ function fpvFrame(c: Cfg): Built {
     sh.push(rotZ([R - a0, ARM, T], [sx * mid, sy * mid, T / 2], sx * sy > 0 ? 45 : -45), cyl(PAD, sx * m, sy * m, 0, T));
   }
   let holes = 0;
-  for (const x of [-10, 10]) for (const y of [-10, 10]) { sh.push(cyl(BOLT, x, y, -1, T + 1, 'hole')); holes++; } // 20 x 20 stack, M2
-  for (const x of [-21, 21]) { sh.push(box([3, 16, T + 2], [x, 0, T / 2], 'hole')); holes++; } // strap slots
   for (const [sx, sy] of quad) {
     sh.push(cyl(SHAFT, sx * m, sy * m, -1, T + 1, 'hole')); holes++;
     for (const dx of [-sp / 2, sp / 2]) for (const dy of [-sp / 2, sp / 2]) { sh.push(cyl(BOLT, sx * m + dx, sy * m + dy, -1, T + 1, 'hole')); holes++; }
   }
+  for (const x of [-10, 10]) for (const y of [-10, 10]) { sh.push(cyl(BOLT, x, y, -1, T + 1, 'hole')); holes++; } // 20 x 20 stack, M2
+  for (const x of [-21, 21]) { sh.push(box([3, 16, T + 2], [x, 0, T / 2], 'hole')); holes++; } // strap slots
   const gap = diag / Math.SQRT2, maxProp = gap - FRAME_GAP;
   return {
     shapes: sh, holes, parts: 1,

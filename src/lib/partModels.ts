@@ -3,6 +3,7 @@
 import { LATE, buildMesh, type Kind, type Shape } from './playground.ts';
 import { blueprint, bounds, type BlueprintReference } from './blueprint.ts';
 import { REFERENCE_BADGE, type Part } from './parts.ts';
+import { buildOffThread } from './buildOffThread.ts';
 
 type N3 = [number, number, number];
 let n = 0;
@@ -90,6 +91,8 @@ export function partBlueprint(part: Part): string | null {
 
 /** A small 2D silhouette of the model (oblique view) as an SVG path in a 0..100 box, for thumbnails. No WebGL. */
 export const partThumb = (part: Part) => meshThumb(partMesh(part));
+/** Same, built off the main thread (build-time cache or worker pool). Browser only. */
+export const partThumbOffThread = (part: Part) => buildOffThread(partShapes(part)).then(meshThumb, () => null);
 
 /** The same silhouette for any triangle mesh (cart thumbnails of templates, shop items and kit parts). */
 export function meshThumb(m: Float32Array | null): { d: string; vb: string } | null {

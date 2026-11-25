@@ -8,7 +8,7 @@ export default function PartThumb({ id, size = 28 }: { id: string; size?: number
   useEffect(() => {
     let on = true;
     const p = partById(id);
-    if (p) void import('@/lib/partModels').then((m) => on && setT(m.partThumb(p)));
+    if (p) void import('@/lib/partModels').then((m) => m.partThumbOffThread(p)).then((d) => on && setT(d));
     return () => { on = false; };
   }, [id]);
   return (

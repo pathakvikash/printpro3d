@@ -65,3 +65,6 @@ printpro3d_static/
 .claude/
 /settings
 /price-cache
+
+# build-time mesh cache (scripts/precompute-meshes.ts)
+/public/models/built
