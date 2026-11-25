@@ -31,7 +31,7 @@ import { customLabel } from '@/lib/aiCustomise';
 import FlowStrip from '@/components/FlowStrip';
 import BoughtList from './BoughtList';
 import { AiAction, addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRows, useAdded, useDebounced, useReduceMotion } from './ShopParts';
-import { FieldControl } from './TemplateShop';
+import { SettingsPanel } from './FieldControl';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
 const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
@@ -302,20 +302,11 @@ function KitDetailBody({ kit: base, top, picker }: { kit: Kit; top: Kit; picker?
         </div>
         <aside aria-label="Kit total" className="space-y-3 self-start rounded-xl border border-gray-200 p-4 lg:sticky lg:top-20 dark:border-gray-700">
           {settings && (
-            <fieldset id="kit-settings" className="scroll-mt-24 space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-              <legend className="px-1 text-sm font-semibold text-gray-900 dark:text-white">Settings</legend>
-              {settings.fields.map((f) => (
-                <div key={f.key}>
-                  <FieldControl f={f} value={cfg[f.key]} onChange={(v) => change({ ...cfg, [f.key]: v })} />
-                  {f.help && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{f.help}</p>}
-                </div>
-              ))}
+            <SettingsPanel bare id="kit-settings" title="Settings" fields={settings.fields} cfg={cfg} onField={(k, v) => change({ ...cfg, [k]: v })}
+              changed={changed} onReset={() => change(settings.defaults)} aiOpen={aiOpen} onAi={() => setAiOpen((o) => !o)}>
               {problem && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{problem}</p>}
-              <button type="button" disabled={!changed} onClick={() => change(settings.defaults)} aria-label="Reset settings to defaults" title="Reset settings to defaults"
-                className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"><Icon name="reset" />Reset</button>
-            </fieldset>
+            </SettingsPanel>
           )}
-          {settings && <div className="flex gap-3"><AiAction onClick={() => setAiOpen((o) => !o)} pressed={aiOpen} /></div>}
           {settings && aiOpen && (
             <AiConfigPanel kind="kit" id={base.id} name={top.title} fields={settings.fields} current={{ ...settings.defaults, ...cfg }}
               priceNow={lastTotal.current != null ? money.format(lastTotal.current) : '…'} priceNew={proposal && total != null ? money.format(total) : null}
