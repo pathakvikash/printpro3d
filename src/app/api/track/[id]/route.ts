@@ -21,7 +21,9 @@ function itemsOf(type: 'order' | 'request', r: Record<string, unknown>): TrackIt
   if (Array.isArray(r.lines)) {
     return r.lines.map((l) => {
       const o = (l && typeof l === 'object' ? l : {}) as Record<string, unknown>;
-      return { name: o.kind === 'shop' ? nameOf(o.itemName, 'Ready-made item') : MODEL_NAME, qty: qtyOf(o.qty) };
+      // shop, kit and template lines carry a catalogue name; only uploaded files stay "Your 3D model" (their file names are private)
+      const named = o.kind === 'shop' || o.kind === 'kit' || o.kind === 'tpl';
+      return { name: named ? nameOf(o.itemName, o.kind === 'shop' ? 'Ready-made item' : MODEL_NAME) : MODEL_NAME, qty: qtyOf(o.qty) };
     });
   }
   // old single-item orders were saved without `lines`
