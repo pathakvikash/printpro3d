@@ -3,6 +3,7 @@
 // The stored choice is applied by overlaying those env names, so pickProvider/modelFor/endpointFor/designModel need no change.
 import { PRESETS, type Env, type ProviderId } from './aiDesign.ts';
 import { getJson } from './store.ts';
+import { CLI_MODELS } from './cliModels.ts';
 
 export type AiSettings = { provider: ProviderId; preset?: string; model?: string; baseUrl?: string };
 export const SETTINGS_NS = 'settings';
@@ -42,6 +43,7 @@ export function validateSettings(body: unknown, env: Env): Checked {
 
   const model = str('model');
   if (model !== undefined) {
+    if (provider === 'claude-cli' && !CLI_MODELS.includes(model as string)) return { ok: false, error: 'Claude CLI model must be haiku, sonnet or opus' };
     if (typeof model !== 'string' || !MODEL_RE.test(model)) return { ok: false, error: 'model: 1-120 letters, digits and . _ : / @ + -' };
     out.model = model;
   }
@@ -77,7 +79,10 @@ export function applySettings(env: Env, s: AiSettings | null): Env {
 /** The stored settings, re-validated on read (a hand-edited or stale file is ignored), or null. */
 export async function storedSettings(env: Env = process.env): Promise<AiSettings | null> {
   try {
-    const r = validateSettings(await getJson(SETTINGS_NS, SETTINGS_KEY), env);
+    let raw = await getJson(SETTINGS_NS, SETTINGS_KEY) as Record<string, unknown> | null;
+    // a stored claude-cli model the CLI would reject (e.g. a free-text "haiku5.5") is ignored: the default 'haiku' applies
+    if (raw && raw.provider === 'claude-cli' && raw.model !== undefined && !CLI_MODELS.includes(raw.model as string)) { raw = { ...raw }; delete raw.model; }
+    const r = validateSettings(raw, env);
     return r.ok ? r.settings : null;
   } catch {
     return null;

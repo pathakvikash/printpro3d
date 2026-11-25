@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useState } from 'react';
 import Icon from './Icon';
+import { CLAUDE_IDS } from '@/lib/cliModels';
 import { card, input, label, secondaryBtn, submitBtn } from './ContactFields';
 
 // Owner AI settings: provider, preset, model, base URL. Keys are server env vars; this form never sends or shows one.
@@ -11,6 +12,7 @@ type Settings = { provider: string; preset?: string; model?: string; baseUrl?: s
 type Info = { stored: Settings | null; effective: Effective; keys: Record<string, boolean>; presets: Record<string, Preset>; cliAllowed: boolean; auto: { provider: string | null; model: string | null; label: string } };
 type Model = { id: string; name?: string; vision: string };
 
+// token '' = no Authorization header (the API allows that outside production only).
 export default function AdminAiSettings({ token }: { token: string }) {
   const id = useId();
   const [info, setInfo] = useState<Info | null>(null);
@@ -25,7 +27,7 @@ export default function AdminAiSettings({ token }: { token: string }) {
   const call = useCallback(async (method: string, body?: unknown) => {
     const res = await fetch('/api/admin/ai', {
       method, cache: 'no-store',
-      headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const d = await res.json().catch(() => ({}));
@@ -44,7 +46,8 @@ export default function AdminAiSettings({ token }: { token: string }) {
     call('GET').then((d: Info) => { setInfo(d); fill(d.stored); }).catch((e) => setMsg({ ok: false, text: e.message }));
   }, [call]);
 
-  const draft = (): Settings => provider === 'openai'
+  const cliModel = model === 'sonnet' || model === 'opus' || (CLAUDE_IDS as readonly string[]).includes(model) ? model : 'haiku';
+  const draft = (): Settings => provider === 'claude-cli' ? { provider, model: cliModel } : provider === 'openai'
     ? { provider, ...(preset ? { preset } : {}), ...(model.trim() ? { model: model.trim() } : {}), ...(baseUrl.trim() ? { baseUrl: baseUrl.trim() } : {}) }
     : { provider, ...(provider !== 'auto' && model.trim() ? { model: model.trim() } : {}) };
 
@@ -120,13 +123,23 @@ export default function AdminAiSettings({ token }: { token: string }) {
           <div className="sm:col-span-2">
             <label htmlFor={`${id}-model`} className={label}>Model</label>
             <div className="flex flex-wrap gap-2">
-              {models && models.length > 0 && (
+              {provider !== 'claude-cli' && models && models.length > 0 && (
                 <select aria-label="Pick a listed model" value={models.some((m) => m.id === model) ? model : ''} onChange={(ev) => ev.target.value && setModel(ev.target.value)} className={`${input} sm:max-w-xs`}>
                   <option value="">Pick from the list</option>
                   {models.map((m) => <option key={m.id} value={m.id}>{m.id}{m.vision === 'yes' ? ' (vision)' : ''}</option>)}
                 </select>
               )}
-              <input id={`${id}-model`} value={model} onChange={(ev) => setModel(ev.target.value)} maxLength={120} placeholder="Type a model id, or leave empty for the default" className={`${input} min-w-0 flex-1`} />
+              {provider === 'claude-cli' ? (
+                <select id={`${id}-model`} value={cliModel} onChange={(ev) => setModel(ev.target.value)} className={`${input} sm:max-w-xs`}>
+                  <option value="haiku">Haiku (fast, cheapest)</option>
+                  <option value="sonnet">Sonnet</option>
+                  <option value="opus">Opus (best, slowest)</option>
+                  {(CLAUDE_IDS as readonly string[]).includes(cliModel) && <option value={cliModel}>{cliModel}</option>}
+                </select>
+              ) : (
+                <input id={`${id}-model`} value={model} onChange={(ev) => setModel(ev.target.value)} maxLength={120} list={provider === 'anthropic' ? `${id}-ids` : undefined} placeholder="Type a model id, or leave empty for the default" className={`${input} min-w-0 flex-1`} />
+              )}
+              {provider === 'anthropic' && <datalist id={`${id}-ids`}>{CLAUDE_IDS.map((m) => <option key={m} value={m} />)}</datalist>}
               {provider !== 'claude-cli' && (
                 <button type="button" onClick={() => void listModels()} disabled={!!busy} aria-label="List models" title="List models" className={secondaryBtn}><Icon name="search" />{busy === 'models' ? 'Listing' : 'List'}</button>
               )}

@@ -23,3 +23,9 @@ export async function adminGate(request: Request, delayMs = 1000): Promise<Respo
   await new Promise((r) => setTimeout(r, delayMs));
   return Response.json({ error: 'Unauthorized' }, { status: 401 });
 }
+
+/** Gate for the AI settings routes only: open outside production (NODE_ENV not production and VERCEL unset), the admin token in production. */
+export async function aiSettingsGate(request: Request, env: Record<string, string | undefined> = process.env, delayMs = 1000): Promise<Response | null> {
+  if (env.NODE_ENV !== 'production' && !env.VERCEL) return null;
+  return adminGate(request, delayMs);
+}

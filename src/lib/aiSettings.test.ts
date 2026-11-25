@@ -107,3 +107,9 @@ test('extractReplyText: reasoning_content only when content is empty', () => {
   assert.equal(extractReplyText('openai', r({ content: '', reasoning_content: 'x {"a":1}' })), 'x {"a":1}');
   assert.throws(() => extractReplyText('openai', r({ content: '' })), /empty/);
 });
+
+test('validateSettings: claude-cli model must be an alias or full id', () => {
+  for (const m of ['haiku', 'sonnet', 'opus', 'claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5']) assert.equal(ok({ provider: 'claude-cli', model: m })?.model, m);
+  assert.equal(ok({ provider: 'claude-cli' })?.model, undefined);
+  for (const m of ['haiku5.5', 'gpt-5.5', 'Haiku']) assert.match(err({ provider: 'claude-cli', model: m }), /haiku, sonnet or opus/);
+});

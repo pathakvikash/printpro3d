@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Icon from './Icon';
 import { AI_DRAFT_KEY, CHAT_KEY, EMAIL_KEY, MAX_TEXT, NEW_MARK, addMsg, designFields, draftFor, lastDesign, parseHistory, replyMsg, validEmail, type ChatMsg } from '@/lib/aiChat';
 
@@ -121,6 +122,7 @@ export function AiChat({ onLeave, titleId, compact }: { onLeave?: () => void; ti
     <div className={compact ? 'flex max-h-[min(60vh,520px)] min-h-0 flex-col' : 'flex h-full min-h-0 flex-col'}>
       {!compact && <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <h2 id={titleId} className="mr-auto text-base font-semibold text-gray-900 dark:text-white">Build with AI</h2>
+        <Link href="/settings/ai" aria-label="AI settings" title="AI settings" className={btn}><Icon name="gear" />AI</Link>
         <button type="button" onClick={reset} disabled={busy} aria-label="Start a new design" title="Start a new design" className={btn}><Icon name="plus" />New</button>
         <button type="button" onClick={clearAll} disabled={busy || !msgs.length} aria-label="Clear the chat" title="Clear the chat" className={btn}><Icon name="trash" />Clear</button>
       </div>}

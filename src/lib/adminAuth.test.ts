@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { MAX_FAILS, adminGate, tokenOk } from './adminAuth.ts';
+import { MAX_FAILS, adminGate, aiSettingsGate, tokenOk } from './adminAuth.ts';
 
 process.env.DATA_DIR = mkdtempSync(path.join(tmpdir(), 'admin-'));
 const req = (auth?: string, ip = '5.5.5.5') =>
@@ -37,6 +37,24 @@ test('after MAX_FAILS wrong tries the IP is locked out, even with the right toke
     for (let i = 0; i < MAX_FAILS; i++) assert.equal((await adminGate(req('Bearer bad', '6.6.6.6'), 0))?.status, 401);
     assert.equal((await adminGate(req('Bearer tok-123', '6.6.6.6'), 0))?.status, 429);
     assert.equal(await adminGate(req('Bearer tok-123', '7.7.7.7'), 0), null); // another IP is unaffected
+  } finally {
+    delete process.env.ADMIN_TOKEN;
+  }
+});
+
+test('aiSettingsGate: open without a token outside production, admin token in production', async () => {
+  delete process.env.ADMIN_TOKEN;
+  assert.equal(await aiSettingsGate(req(undefined, '6.6.6.6'), { NODE_ENV: 'development' }, 0), null);
+  assert.equal(await aiSettingsGate(req(undefined, '6.6.6.6'), {}, 0), null);
+  for (const env of [{ NODE_ENV: 'production' }, { VERCEL: '1' }]) {
+    assert.equal((await aiSettingsGate(req(undefined, '6.6.6.6'), env, 0))?.status, 503); // no ADMIN_TOKEN: closed
+  }
+  process.env.ADMIN_TOKEN = 'tok-123';
+  try {
+    const prod = { NODE_ENV: 'production' };
+    assert.equal((await aiSettingsGate(req(undefined, '6.6.6.7'), prod, 0))?.status, 401);
+    assert.equal((await aiSettingsGate(req('Bearer nope', '6.6.6.7'), { VERCEL: '1' }, 0))?.status, 401);
+    assert.equal(await aiSettingsGate(req('Bearer tok-123', '6.6.6.7'), prod, 0), null);
   } finally {
     delete process.env.ADMIN_TOKEN;
   }

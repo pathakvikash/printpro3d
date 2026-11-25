@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminGate } from '@/lib/adminAuth';
+import { aiSettingsGate } from '@/lib/adminAuth';
 import { PRESETS, cliAllowed, modelFor, pickProvider, endpointFor } from '@/lib/aiDesign';
 import { listModels, runChat } from '@/lib/aiProviders';
 import { designModel } from '@/lib/aiBlueprint';
@@ -40,7 +40,7 @@ function autoPick(env: Record<string, string | undefined>) {
 }
 
 export async function GET(request: Request) {
-  const denied = await adminGate(request);
+  const denied = await aiSettingsGate(request);
   if (denied) return denied;
   const stored = await storedSettings();
   return NextResponse.json({
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const denied = await adminGate(request);
+  const denied = await aiSettingsGate(request);
   if (denied) return denied;
   let b: unknown;
   try { b = await body(request); } catch { return bad('Send a small JSON object'); }
@@ -72,7 +72,7 @@ const PING = {
 };
 
 export async function POST(request: Request) {
-  const denied = await adminGate(request);
+  const denied = await aiSettingsGate(request);
   if (denied) return denied;
   let b: Record<string, unknown>;
   try {

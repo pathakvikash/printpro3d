@@ -55,7 +55,8 @@ export function parseCliOutput(out: string): string {
     } catch { /* not a JSON line */ }
   }
   if (!j) throw new Error('The claude CLI reply was not JSON');
-  if (j.is_error) throw new Error('The claude CLI reported an error');
+  // the CLI's own message (e.g. "Not logged in · Please run /login") says what to fix; local development only, so safe to show
+  if (j.is_error) throw new Error(`The claude CLI reported an error${typeof j.result === 'string' && j.result.trim() ? `: ${j.result.trim().slice(0, 200)}` : ''}`);
   if (typeof j.result !== 'string' || !j.result.trim()) throw new Error('The AI reply was empty');
   return j.result;
 }
