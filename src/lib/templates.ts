@@ -396,7 +396,7 @@ function fpvFrame(c: Cfg): Built {
   for (const [sx, sy] of quad) {
     // each arm starts inside the plate (not at the middle: four arms crossing there leave the CSG kernel an open edge)
     const a0 = 12, mid = (a0 + R) / 2 / Math.SQRT2;
-    sh.push(rotZ([R - a0, ARM, T], [sx * mid, sy * mid, T / 2], sx * sy > 0 ? 45 : -45), cyl(PAD, sx * m, sy * m, 0, T));
+    sh.push(rotZ([R - a0, ARM, T - 0.04], [sx * mid, sy * mid, T / 2], sx * sy > 0 ? 45 : -45), cyl(PAD, sx * m, sy * m, 0, T));
   }
   let holes = 0;
   for (const [sx, sy] of quad) {
