@@ -5,7 +5,8 @@ import { addLine, lineTotal, lineKey, parseCart, type CartLine } from './cart.ts
 import { mergeChecked } from './orderChecks.ts';
 import { MAX_QTY } from './quote.ts';
 import { buildTemplate, priceTemplate, templateOrderLine } from './templates.ts';
-import { fitsBed, quote } from './quote.ts';
+import { fitsBed, meshStats, quote } from './quote.ts';
+import { buildMesh } from './playground.ts';
 import { claim, topology } from './templates.testkit.ts';
 
 test('every template default builds a closed mesh inside the bed, and its description matches the mesh', () => {
@@ -21,6 +22,12 @@ test('every template default builds a closed mesh inside the bed, and its descri
     assert.ok(!/NaN|undefined/.test(b.description), t.id);
     assert.equal(t.marketLinks.length, 0); // owner fills these in
   }
+});
+
+test('fpv-frame-3in default builds closed on the first CSG attempt (no retry nudges)', () => {
+  const t = templateById('fpv-frame-3in')!;
+  const m = buildMesh(buildTemplate(t, normalizeCfg(t, defaultCfg(t))).shapes);
+  assert.ok(m && meshStats(m));
 });
 
 test('description numbers follow the config', () => {

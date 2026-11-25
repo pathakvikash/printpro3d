@@ -7,6 +7,7 @@
 // costs only that item, which is skipped and built at runtime. This script never exits non-zero for a failed item.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { EXAMPLES } from '../src/lib/examples.ts';
 import { adaptedKits, kitPartMesh } from '../src/lib/kits/adapt.ts';
@@ -44,7 +45,7 @@ mkdirSync(out, { recursive: true });
 const t0 = Date.now();
 const runOne = (i: number) => new Promise<void>((resolve) => {
   const t = Date.now();
-  const p = spawn(process.execPath, [...process.execArgv, import.meta.filename, String(i)], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60_000, killSignal: 'SIGKILL' });
+  const p = spawn(process.execPath, [...process.execArgv, import.meta.filename, String(i)], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 180_000, killSignal: 'SIGKILL' });
   p.on('error', () => resolve());
   p.on('close', (code, sig) => {
     if (code !== 0 && code !== 2) console.warn(`precompute: ${tasks[i].label} crashed or timed out (${sig ?? code}), the browser will build it`);
@@ -53,7 +54,7 @@ const runOne = (i: number) => new Promise<void>((resolve) => {
   });
 });
 let next = 0;
-await Promise.all(Array.from({ length: 4 }, async () => { while (next < tasks.length) await runOne(next++); }));
+await Promise.all(Array.from({ length: Math.max(1, Math.min(4, os.availableParallelism() - 1)) }, async () => { while (next < tasks.length) await runOne(next++); }));
 
 const files = tasks.filter((t) => existsSync(path.join(out, `${t.key}.bin`)));
 writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(files.map((t) => t.key).sort()));
