@@ -3,12 +3,12 @@
 //
 // Environment variables (placeholders only, never commit real keys):
 //   ANTHROPIC_API_KEY  Anthropic API key. In auto mode it wins over every other provider.
-//   AI_PROVIDER        anthropic | openai | claude-cli. When set it is honoured strictly: no fallback to another provider.
+//   AI_PROVIDER        auto | anthropic | openai | claude-cli. A named provider is honoured strictly (no fallback). Unset or auto: first available of anthropic, openai-compatible, claude-cli.
 //   AI_MODEL           model id. Defaults: anthropic claude-haiku-5-5, claude-cli haiku. openai-compatible has NO default.
 //   AI_PRESET          openai | openrouter | opencode | groq | together | ollama | lmstudio (see PRESETS).
 //   AI_BASE_URL        any OpenAI-compatible base URL, e.g. https://host/v1 (key optional). Wins over the preset's base URL.
 //   AI_API_KEY         key for the openai-compatible endpoint (sent as a Bearer token).
-//   AI_ALLOW_CLI       "1" enables the claude-cli provider, and only when NODE_ENV is not "production" and VERCEL is unset.
+//   AI_ALLOW_CLI       claude-cli is on automatically when NODE_ENV is not "production", VERCEL is unset and `claude` is on PATH. "0" turns it off, "1" forces it on. Never in production/Vercel.
 //   AI_DAILY_PER_EMAIL, AI_DAILY_TOTAL  daily limits, read by aiGuard.ts (defaults 3 and 40).
 //   AI_MODEL is the model for the provider that is chosen; set one provider at a time.
 //
@@ -21,6 +21,7 @@
 //   AI_PRESET=ollama
 //   AI_MODEL=<a vision model you have pulled>
 //   AI_PROVIDER=openai
+import { claudeOnPath } from './claudeCli.ts';
 import { EXAMPLES } from './examples.ts';
 import { KINDS, MAX_GROUPED, MAX_SHAPES, MAX_TOTAL_SHAPES, MIN_SIZE, clampCoord, type Shape, type V3 } from './playground.ts';
 import { BED_MM } from './quote.ts';
@@ -125,7 +126,9 @@ export const SYSTEM_PROMPT: string = [
 
 // ---------- provider selection ----------
 
-const cliAllowed = (env: Env) => env.NODE_ENV !== 'production' && !env.VERCEL && env.AI_ALLOW_CLI === '1';
+/** claude-cli gate: never in production/Vercel; AI_ALLOW_CLI=0 off, =1 forced on, otherwise on when `claude` is on PATH. */
+export const cliAllowed = (env: Env, hasCli: () => boolean = () => claudeOnPath(env.PATH ?? '')) =>
+  env.NODE_ENV !== 'production' && !env.VERCEL && env.AI_ALLOW_CLI !== '0' && (env.AI_ALLOW_CLI === '1' || hasCli());
 const preset = (env: Env) => (env.AI_PRESET && Object.hasOwn(PRESETS, env.AI_PRESET) ? PRESETS[env.AI_PRESET] : null);
 const trimSlash = (u: string) => u.replace(/\/+$/, '');
 
@@ -142,16 +145,28 @@ export function endpointFor(env: Env): { baseUrl: string; modelsUrl: string; api
   return { baseUrl: p.baseUrl, modelsUrl: p.modelsUrl, apiKey, keyless: p.keyless };
 }
 
-export function pickProvider(env: Env): ProviderId | null {
+const isAuto = (env: Env) => !env.AI_PROVIDER || env.AI_PROVIDER === 'auto';
+
+/** openai-compatible usable for Auto: keyless local presets (ollama, lmstudio) only outside production. */
+const openaiAuto = (env: Env) => {
+  const ep = endpointFor(env);
+  return !!ep && (!isProd(env) || !!ep.apiKey || !!env.AI_BASE_URL || !LOCAL_PRESETS.has(env.AI_PRESET ?? ''));
+};
+const isProd = (env: Env) => env.NODE_ENV === 'production' || !!env.VERCEL;
+const LOCAL_PRESETS = new Set(['ollama', 'lmstudio']);
+
+/** `hasCli` is injectable so tests do not depend on this machine's PATH. */
+export function pickProvider(env: Env, hasCli?: () => boolean): ProviderId | null {
   const ok: Record<ProviderId, boolean> = {
     anthropic: !!env.ANTHROPIC_API_KEY,
     openai: endpointFor(env) !== null,
-    'claude-cli': cliAllowed(env), // the claude-cli gate: owner's local development only (see aiProviders.ts)
+    'claude-cli': cliAllowed(env, hasCli), // the claude-cli gate: owner's local development only (see aiProviders.ts)
   };
-  if (env.AI_PROVIDER) {
+  if (!isAuto(env)) {
     const id = env.AI_PROVIDER as ProviderId;
     return Object.hasOwn(ok, id) && ok[id] ? id : null;
   }
+  ok.openai = openaiAuto(env);
   return (['anthropic', 'openai', 'claude-cli'] as const).find((id) => ok[id]) ?? null;
 }
 

@@ -46,7 +46,7 @@ export default function AdminPanel() {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 401) write('');
-        throw new Error(res.status === 503 ? 'Admin is turned off on this server (ADMIN_TOKEN is not set).' : d.error || 'Could not load');
+        throw new Error(res.status === 503 ? 'Admin is off: ADMIN_TOKEN is not set on this server.' : d.error || 'Could not load');
       }
       write(t);
       setToken(t);
@@ -78,6 +78,7 @@ export default function AdminPanel() {
           <label htmlFor="admin-token" className={label}>Admin token</label>
           <input id="admin-token" type="password" autoComplete="off" required value={typed} onChange={(e) => setTyped(e.target.value)} className={input} />
         </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300">The admin token is a password you choose. Set it as ADMIN_TOKEN in Vercel → Project → Settings → Environment Variables (and in .env.local for local runs), then redeploy. Enter the same value here.</p>
         {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
         <button type="submit" disabled={busy || !typed} className={submitBtn}>{busy ? 'Checking' : 'Open'}</button>
       </form>

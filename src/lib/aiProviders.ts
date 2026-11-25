@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildChatRequest, designModel, type ChatInput } from './aiBlueprint.ts';
-import { SYSTEM_PROMPT, anthropicHeaders, buildRequest, endpointFor, extractReplyText, modelFor, pickProvider, type DesignInput, type Env, type ProviderId } from './aiDesign.ts';
+import { SYSTEM_PROMPT, anthropicHeaders, buildRequest, endpointFor, cliAllowed, extractReplyText, modelFor, pickProvider, type DesignInput, type Env, type ProviderId } from './aiDesign.ts';
 
 const TIMEOUT_MS = 60_000;
 const STDOUT_MAX = 1024 * 1024;
@@ -27,12 +27,12 @@ async function post(req: { url: string; headers: Record<string, string>; body: u
 }
 
 // The claude-cli provider is OWNER'S LOCAL DEVELOPMENT ONLY. Anthropic's terms forbid routing end customers' requests through a
-// subscription login (terms: code.claude.com/docs/en/legal-and-compliance), so it needs NODE_ENV !== 'production', VERCEL unset AND AI_ALLOW_CLI=1.
+// subscription login (terms: code.claude.com/docs/en/legal-and-compliance), so it needs NODE_ENV !== 'production', VERCEL unset and (AI_ALLOW_CLI=1 or `claude` on PATH, unless AI_ALLOW_CLI=0).
 // The CLI's Read tool can read any absolute path, so this provider is for the owner's own local tests with the owner's own prompts only.
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as const;
 
 async function runCli(input: DesignInput, env: Env, system: string = SYSTEM_PROMPT): Promise<string> {
-  if (env.NODE_ENV === 'production' || env.VERCEL || env.AI_ALLOW_CLI !== '1') throw new Error(NOT_CONFIGURED);
+  if (!cliAllowed(env)) throw new Error(NOT_CONFIGURED);
   const dir = await mkdtemp(path.join(tmpdir(), 'ai-design-'));
   try {
     let prompt = 'Answer with the JSON object only.';

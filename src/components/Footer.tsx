@@ -42,7 +42,7 @@ export default function Footer() {
             {business.gstin && <p>GSTIN: {business.gstin}</p>}
           </div>
         )}
-        <p className={`pt-6 text-sm text-gray-400 ${business.name || business.city || business.gstin ? 'mt-6' : 'border-t border-gray-800'}`}>© {currentYear} PrintPro3D</p>
+        <p className={`pt-6 text-sm text-gray-400 ${business.name || business.city || business.gstin ? 'mt-6' : 'border-t border-gray-800'}`}>© {currentYear} PrintPro3D · <Link href="/admin" className="hover:text-white transition-colors">Owner admin</Link></p>
       </div>
     </footer>
   );

@@ -8,7 +8,7 @@ import { card, input, label, secondaryBtn, submitBtn } from './ContactFields';
 type Preset = { label: string; baseUrl: string; keyless: boolean; note: string };
 type Effective = { provider: string | null; model: string | null; preset: string | null; baseUrl: string | null };
 type Settings = { provider: string; preset?: string; model?: string; baseUrl?: string };
-type Info = { stored: Settings | null; effective: Effective; keys: Record<string, boolean>; presets: Record<string, Preset>; cliAllowed: boolean };
+type Info = { stored: Settings | null; effective: Effective; keys: Record<string, boolean>; presets: Record<string, Preset>; cliAllowed: boolean; auto: { provider: string | null; model: string | null; label: string } };
 type Model = { id: string; name?: string; vision: string };
 
 export default function AdminAiSettings({ token }: { token: string }) {
@@ -80,6 +80,7 @@ export default function AdminAiSettings({ token }: { token: string }) {
       <p className="text-sm text-gray-600 dark:text-gray-300">
         In effect: <strong>{e.provider ?? 'none (AI off)'}</strong>{e.model ? ` / ${e.model}` : ''}{e.baseUrl ? ` at ${e.baseUrl}` : ''}. {info.stored ? 'From these saved settings.' : 'From env vars.'}
       </p>
+      <p className="text-sm text-gray-600 dark:text-gray-300">Auto → <strong>{info.auto.label}</strong>. Auto tries Anthropic, then an OpenAI-compatible endpoint, then the Claude Code CLI (local only).</p>
       <ul className="flex flex-wrap gap-2 text-xs" aria-label="Server keys">
         {Object.entries(info.keys).map(([k, v]) => (
           <li key={k} className={`rounded-full px-2 py-1 font-mono ${v ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
@@ -92,10 +93,10 @@ export default function AdminAiSettings({ token }: { token: string }) {
         <div>
           <label htmlFor={`${id}-prov`} className={label}>Provider</label>
           <select id={`${id}-prov`} value={provider} onChange={(ev) => { setProvider(ev.target.value); setModels(null); }} className={input}>
-            <option value="auto">Auto (env vars decide)</option>
+            <option value="auto">Auto (pick the first available)</option>
             <option value="anthropic">Anthropic</option>
             <option value="openai">OpenAI-compatible</option>
-            {info.cliAllowed && <option value="claude-cli">claude CLI (dev only)</option>}
+            {info.cliAllowed && <option value="claude-cli">Claude Code CLI (local only)</option>}
           </select>
         </div>
         {provider === 'openai' && (

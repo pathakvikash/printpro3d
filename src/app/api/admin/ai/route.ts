@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminGate } from '@/lib/adminAuth';
-import { PRESETS, modelFor, pickProvider, endpointFor } from '@/lib/aiDesign';
+import { PRESETS, cliAllowed, modelFor, pickProvider, endpointFor } from '@/lib/aiDesign';
 import { listModels, runChat } from '@/lib/aiProviders';
 import { designModel } from '@/lib/aiBlueprint';
 import { SETTINGS_KEY, SETTINGS_NS, applySettings, isProd, storedSettings, validateSettings } from '@/lib/aiSettings';
@@ -28,6 +28,17 @@ function effective(env: Record<string, string | undefined>) {
   return { provider, model: provider ? modelFor(provider, env) : null, preset: provider === 'openai' ? env.AI_PRESET ?? null : null, baseUrl: ep?.baseUrl ?? null };
 }
 
+/** What Auto picks right now (ignores AI_PROVIDER): ids and a label only, never key values. */
+function autoPick(env: Record<string, string | undefined>) {
+  const provider = pickProvider({ ...env, AI_PROVIDER: undefined });
+  const model = provider ? modelFor(provider, env) : null;
+  const label = provider === 'anthropic' ? `Anthropic (${model})`
+    : provider === 'openai' ? `OpenAI-compatible${env.AI_PRESET ? ` (${env.AI_PRESET})` : ''}`
+    : provider === 'claude-cli' ? 'Claude Code CLI (local only)'
+    : `none: add ANTHROPIC_API_KEY in ${isProd(env) ? 'Vercel' : '.env.local'}`;
+  return { provider, model, label };
+}
+
 export async function GET(request: Request) {
   const denied = await adminGate(request);
   if (denied) return denied;
@@ -37,7 +48,8 @@ export async function GET(request: Request) {
     effective: effective(applySettings(process.env, stored)),
     keys: { ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY, AI_API_KEY: !!process.env.AI_API_KEY, MESHY_API_KEY: !!process.env.MESHY_API_KEY },
     presets: Object.fromEntries(Object.entries(PRESETS).map(([k, p]) => [k, { label: p.label, baseUrl: p.baseUrl, keyless: p.keyless, note: p.note }])),
-    cliAllowed: !isProd(process.env),
+    cliAllowed: cliAllowed(process.env),
+    auto: autoPick(applySettings(process.env, null)),
   });
 }
 

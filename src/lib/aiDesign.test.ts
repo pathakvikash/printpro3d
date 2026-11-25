@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DESIGN_SCHEMA, FEW_SHOT, SYSTEM_PROMPT, buildRequest, extractReplyText, modelFor, parseModelReply, pickProvider, toDesign, type DesignResult } from './aiDesign.ts';
+import { DESIGN_SCHEMA, FEW_SHOT, SYSTEM_PROMPT, buildRequest, extractReplyText, modelFor, parseModelReply, pickProvider, toDesign, type DesignResult, type Env } from './aiDesign.ts';
+import { claudeOnPath } from './claudeCli.ts';
 import { runProvider } from './aiProviders.ts';
 import { MAX_SHAPES, buildMesh } from './playground.ts';
 import { meshStats } from './quote.ts';
@@ -114,7 +115,7 @@ test('extractReplyText', () => {
 });
 
 test('pickProvider', () => {
-  const p = pickProvider;
+  const p = (e: Env, cli = false) => pickProvider(e, () => cli);
   assert.equal(p({}), null);
   assert.equal(p({ ANTHROPIC_API_KEY: 'k' }), 'anthropic');
   assert.equal(p({ ANTHROPIC_API_KEY: 'k', AI_BASE_URL: 'http://x/v1' }), 'anthropic');
@@ -134,6 +135,34 @@ test('pickProvider', () => {
   assert.equal(p({ AI_PROVIDER: 'openai', ANTHROPIC_API_KEY: 'k' }), null); // strict: no fallback
   assert.equal(p({ AI_PROVIDER: 'bogus', ANTHROPIC_API_KEY: 'k' }), null);
   assert.equal(p({ AI_PROVIDER: 'toString', ANTHROPIC_API_KEY: 'k' }), null);
+});
+
+test('pickProvider auto order and claude-cli detection', () => {
+  const p = (e: Env, cli = false) => pickProvider(e, () => cli);
+  assert.equal(p({ AI_PROVIDER: 'auto', ANTHROPIC_API_KEY: 'k', AI_BASE_URL: 'http://x/v1' }, true), 'anthropic');
+  assert.equal(p({ AI_BASE_URL: 'http://x/v1' }, true), 'openai');
+  assert.equal(p({ AI_PRESET: 'openai', AI_API_KEY: 'k' }, true), 'openai');
+  assert.equal(p({ AI_PRESET: 'openai' }, true), 'claude-cli'); // preset without a key is not usable, falls through
+  assert.equal(p({ AI_PRESET: 'lmstudio' }), 'openai');
+  assert.equal(p({ AI_PRESET: 'lmstudio', NODE_ENV: 'production' }, true), null); // keyless local preset skipped in production
+  assert.equal(p({}, true), 'claude-cli'); // detected on PATH, dev
+  assert.equal(p({}, false), null);
+  assert.equal(p({ AI_ALLOW_CLI: '0' }, true), null);
+  assert.equal(p({ AI_ALLOW_CLI: '1' }, false), 'claude-cli');
+  assert.equal(p({ NODE_ENV: 'production' }, true), null);
+  assert.equal(p({ VERCEL: '1', AI_ALLOW_CLI: '1' }, true), null);
+  assert.equal(p({ AI_PROVIDER: 'claude-cli' }, true), 'claude-cli');
+  assert.equal(p({ AI_PROVIDER: 'claude-cli', VERCEL: '1' }, true), null);
+  assert.equal(p({ AI_PROVIDER: 'anthropic' }, true), null); // named provider is strict
+});
+
+test('claudeOnPath scans PATH with an injected exists', () => {
+  const seen: string[] = [];
+  const ex = (f: string) => { seen.push(f); return f === '/b/claude'; };
+  assert.equal(claudeOnPath('/a:/b:/c', ex), true);
+  assert.deepEqual(seen, ['/a/claude', '/b/claude']);
+  assert.equal(claudeOnPath('/a::/c', () => false), false);
+  assert.equal(claudeOnPath('', () => true), false);
 });
 
 test('modelFor', () => {

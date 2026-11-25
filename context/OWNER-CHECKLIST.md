@@ -6,6 +6,7 @@ Only the owner can supply or do these. Nothing here is invented in code; the sit
 
 - [ ] Vercel: private Blob store connected (`BLOB_READ_WRITE_TOKEN`), `ADMIN_TOKEN` (long random), `SITE_URL` (live URL). Done on the live site; re-check after any change. Env changes need a redeploy.
 - [ ] Resend: `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM` (real sending untested).
+- [ ] `ADMIN_TOKEN` is a password you choose (Vercel env var, same value typed on `/admin`, linked from the account menu and footer). AI provider is Auto; the Claude Code CLI works only when running locally.
 - [ ] AI for the blueprint flow: `ANTHROPIC_API_KEY`, or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL`. Optionally `AI_DESIGN_TIER` / `AI_DESIGN_MODEL`.
 - [ ] Meshy: `MESHY_API_KEY` (paid plan) to offer the Meshy source.
 
