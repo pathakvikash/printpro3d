@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Edges, Html, OrbitControls, TransformControls } from '@react-three/drei';
-import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import SafeCanvas from '../WebGLCanvas';
 import { BED_MM } from '@/lib/quote';
@@ -21,6 +21,14 @@ const DEG = Math.PI / 180;
 export type Placing = { kind: 'motor'; spin: 'cw' | 'ccw'; motorId: string } | { kind: 'mass'; name: string };
 /** A suggested spot drawn as a ghost: strong = the armed suggestion, faint = the hint shown for a part picked with the chips. */
 export type Hint = { pos: Vec3; yawDeg: number; tiltDeg: number; glyph: Placing; strong: boolean };
+/** What the page asks the canvas while a palette item is dragged over it (HTML5 drag sends no pointer events to three). */
+export type DndApi = {
+  /** The point under the screen position: the first model surface hit when `surface`, else the bed plane (z = 0); null off the bed. */
+  pick: (clientX: number, clientY: number, surface: boolean) => Vec3 | null;
+  /** Show the placing ghost under the screen position (a motor snaps to a mount point). */
+  hover: (clientX: number, clientY: number) => void;
+  clear: () => void;
+};
 export type SimView = { cg: Vec3; arrows: { pos: Vec3; thrustN: number; maxN: number }[] };
 const BELL_R = 14, BELL_H = 12, PROP_Z = 14; // mm: a 2306-class bell, prop disc just above it
 const isGear = (motorId: string) => MOTORS.some((x) => x.id === motorId && x.kind === 'gear');
@@ -54,8 +62,8 @@ function Plate() {
   );
 }
 
-function ShapeMesh({ shape, selected, onSelect, setObj, inert }: {
-  shape: Shape; selected: boolean; onSelect: (id: string) => void; setObj: (o: THREE.Object3D | null) => void; inert: boolean;
+function ShapeMesh({ shape, selected, lit, onSelect, setObj, inert }: {
+  shape: Shape; selected: boolean; lit: boolean; onSelect: (id: string) => void; setObj: (o: THREE.Object3D | null) => void; inert: boolean;
 }) {
   const g = unitGeometry(shape.kind);
   const hole = shape.mode === 'hole';
@@ -78,9 +86,40 @@ function ShapeMesh({ shape, selected, onSelect, setObj, inert }: {
           <meshBasicMaterial color="#b91c1c" wireframe transparent opacity={0.55} />
         </mesh>
       )}
-      {selected && <Edges color="#ffffff" />}
+      {(selected || lit) && <Edges color={selected ? '#ffffff' : '#a5b4fc'} />}
     </mesh>
   );
+}
+
+/** Registers the drag-over raycaster for the page. Lives inside the Canvas for the camera. */
+function Dnd({ apiRef, models, placing, mounts, setGhost }: {
+  apiRef: MutableRefObject<DndApi | null>; models: MutableRefObject<THREE.Group | null>; placing: Placing | null; mounts: Vec3[];
+  setGhost: (g: { pos: Vec3; snapped: boolean } | null) => void;
+}) {
+  const { camera, gl } = useThree();
+  const live = useRef({ placing, mounts });
+  useEffect(() => { live.current = { placing, mounts }; });
+  useEffect(() => {
+    const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const pick = (cx: number, cy: number, surface: boolean): Vec3 | null => {
+      const b = gl.domElement.getBoundingClientRect();
+      ray.setFromCamera(new THREE.Vector2(((cx - b.left) / b.width) * 2 - 1, -(((cy - b.top) / b.height) * 2 - 1)), camera);
+      const hit = surface && models.current ? ray.intersectObjects(models.current.children, true).find((h) => h.object.type === 'Mesh') : null;
+      if (hit) return [hit.point.x, hit.point.y, hit.point.z];
+      const v = ray.ray.intersectPlane(plane, new THREE.Vector3());
+      return v && Math.abs(v.x) <= BED_MM.x / 2 && Math.abs(v.y) <= BED_MM.y / 2 ? [v.x, v.y, 0] : null;
+    };
+    apiRef.current = {
+      pick,
+      hover: (cx, cy) => {
+        const p = pick(cx, cy, true), { placing: pl, mounts: m } = live.current;
+        setGhost(p && pl ? (pl.kind === 'motor' ? snapToMount(p, m) : { pos: p, snapped: false }) : null);
+      },
+      clear: () => setGhost(null),
+    };
+    return () => { apiRef.current = null; };
+  }, [apiRef, models, camera, gl, setGhost]);
+  return null;
 }
 
 /** Grey bell, translucent prop disc of the dataset's prop diameter, and an arc arrow showing the spin seen from above. */
@@ -189,12 +228,15 @@ function SimOverlay({ view }: { view: SimView }) {
   );
 }
 
-export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose, parts, partSel, onSelectPart, onMovePart, placing, mounts, onPlace, locked, sim, estimated, hints = [], wheelMm = 65, wheelSpin = 0 }: {
+export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, onPose, parts, partSel, onSelectPart, onMovePart, placing, mounts, onPlace, locked, sim, estimated, hints = [], wheelMm = 65, wheelSpin = 0, highlight = [], dndRef }: {
   shapes: Shape[]; selectedId: string | null; tool: Tool;
   onSelect: (id: string | null) => void; onPose: (id: string, pose: Pose) => void;
   parts: Parts; partSel: string | null; onSelectPart: (id: string) => void; onMovePart: (id: string, pos: Vec3) => void;
   placing: Placing | null; mounts: Vec3[]; onPlace: (pos: Vec3) => void; locked: boolean; sim: SimView | null; estimated: string[]; hints?: Hint[]; wheelMm?: number; wheelSpin?: number;
+  highlight?: string[]; dndRef?: MutableRefObject<DndApi | null>;
 }) {
+  const models = useRef<THREE.Group | null>(null);
+  const noApi = useRef<DndApi | null>(null);
   const [obj, setObj] = useState<THREE.Object3D | null>(null);
   const [ghost, setGhost] = useState<{ pos: Vec3; snapped: boolean } | null>(null);
   const grab = () => {
@@ -230,14 +272,16 @@ export default function PlaygroundScene({ shapes, selectedId, tool, onSelect, on
       <ambientLight intensity={0.6} />
       <directionalLight position={[120, -160, 300]} intensity={1.1} />
       <directionalLight position={[-200, 100, 100]} intensity={0.35} color="#818cf8" />
+      <Dnd apiRef={dndRef ?? noApi} models={models} placing={placing} mounts={mounts} setGhost={setGhost} />
       <group
+        ref={models}
         onPointerMove={placing ? (e) => setGhost(hit(e)) : undefined}
         onPointerLeave={() => setGhost(null)}
         onClick={placing ? (e) => { e.stopPropagation(); onPlace(roundPos(hit(e).pos)); } : undefined}
       >
         <Plate />
         {shapes.map((s) => (
-          <ShapeMesh key={s.id} shape={s} selected={!partSel && s.id === selectedId} onSelect={onSelect} setObj={setObj} inert={!!placing || locked} />
+          <ShapeMesh key={s.id} shape={s} selected={!partSel && s.id === selectedId} lit={highlight.includes(s.id)} onSelect={onSelect} setObj={setObj} inert={!!placing || locked} />
         ))}
       </group>
       {parts.motors.map((m) => (
