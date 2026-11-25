@@ -1,7 +1,7 @@
 // Server only: calls the configured AI provider. Errors carry a short status line only, never keys, customer text or upstream bodies.
 // Nothing is logged here.
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildChatRequest, designModel, type ChatInput } from './aiBlueprint.ts';
@@ -28,34 +28,55 @@ async function post(req: { url: string; headers: Record<string, string>; body: u
 
 // The claude-cli provider is OWNER'S LOCAL DEVELOPMENT ONLY. Anthropic's terms forbid routing end customers' requests through a
 // subscription login (terms: code.claude.com/docs/en/legal-and-compliance), so it needs NODE_ENV !== 'production', VERCEL unset and (AI_ALLOW_CLI=1 or `claude` on PATH, unless AI_ALLOW_CLI=0).
-// The CLI's Read tool can read any absolute path, so this provider is for the owner's own local tests with the owner's own prompts only.
-const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } as const;
+// The CLI gets NO tools (`--tools ""`), so a prompt cannot make it read files; photos go in inline as base64 via stream-json stdin, never via disk.
+const CLI_FLAGS = ['--tools', '', '--max-turns', '1', '--no-session-persistence', '--disable-slash-commands', '--strict-mcp-config'];
+
+/** Pure: the CLI arguments, plus the stdin line for photo requests (no stdin for text-only). */
+export function cliArgs(input: DesignInput, env: Env, system: string = SYSTEM_PROMPT): { args: string[]; stdin?: string } {
+  const text = input.text.trim() || 'The customer sent only a photo: draw the part in it.';
+  const prompt = `${text}\n\nAnswer with the JSON object only.`;
+  const tail = ['--model', modelFor('claude-cli', env)!, '--system-prompt', system];
+  if (!input.image) return { args: ['-p', '--output-format', 'json', ...CLI_FLAGS, ...tail, '--', prompt] };
+  const content = [{ type: 'image', source: { type: 'base64', media_type: input.image.mime, data: input.image.base64 } }, { type: 'text', text: prompt }];
+  return {
+    args: ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', ...CLI_FLAGS, ...tail],
+    stdin: JSON.stringify({ type: 'user', message: { role: 'user', content } }) + '\n',
+  };
+}
+
+/** Pure: the final result event's text from the CLI's stdout (one JSON object, or stream-json lines). */
+export function parseCliOutput(out: string): string {
+  let j: { is_error?: boolean; result?: unknown } | undefined;
+  for (const line of out.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e && e.type === 'result') j = e;
+    } catch { /* not a JSON line */ }
+  }
+  if (!j) throw new Error('The claude CLI reply was not JSON');
+  if (j.is_error) throw new Error('The claude CLI reported an error');
+  if (typeof j.result !== 'string' || !j.result.trim()) throw new Error('The AI reply was empty');
+  return j.result;
+}
 
 async function runCli(input: DesignInput, env: Env, system: string = SYSTEM_PROMPT): Promise<string> {
   if (!cliAllowed(env)) throw new Error(NOT_CONFIGURED);
   const dir = await mkdtemp(path.join(tmpdir(), 'ai-design-'));
   try {
-    let prompt = 'Answer with the JSON object only.';
-    const text = input.text.trim() || 'The customer sent only a photo: draw the part in it.';
-    if (input.image) {
-      const file = path.join(dir, `photo.${EXT[input.image.mime]}`);
-      await writeFile(file, Buffer.from(input.image.base64, 'base64'));
-      prompt = `First use the Read tool on the image file ${file}. Then answer with the JSON object only.`;
-    }
-    const args = ['-p', '--output-format', 'json', '--tools', 'Read', '--max-turns', '4', '--no-session-persistence', '--disable-slash-commands',
-      '--strict-mcp-config', '--model', modelFor('claude-cli', env)!, '--system-prompt', system, '--', `${text}\n\n${prompt}`];
-    // only what the CLI needs to find its login; never ANTHROPIC_API_KEY
+    const { args, stdin } = cliArgs(input, env, system);
+    // only what the CLI needs to find its login (USER: macOS keychain lookup); never ANTHROPIC_API_KEY
     const cliEnv = {} as NodeJS.ProcessEnv; // Next's types make NODE_ENV required; we deliberately omit it
-    for (const k of ['PATH', 'HOME', 'CLAUDE_CONFIG_DIR']) if (env[k]) cliEnv[k] = env[k]!;
+    for (const k of ['PATH', 'HOME', 'USER', 'CLAUDE_CONFIG_DIR']) if (env[k]) cliEnv[k] = env[k]!;
     const out = await new Promise<string>((resolve, reject) => {
-      const child = spawn('claude', args, { shell: false, cwd: dir, env: cliEnv, timeout: TIMEOUT_MS, stdio: ['ignore', 'pipe', 'ignore'] });
+      const child = spawn('claude', args, { shell: false, cwd: dir, env: cliEnv, timeout: TIMEOUT_MS, stdio: [stdin ? 'pipe' : 'ignore', 'pipe', 'ignore'] as ['pipe' | 'ignore', 'pipe', 'ignore'] });
       let buf = '';
       let bytes = 0;
       let done = false;
       const end = (f: () => void) => { if (!done) { done = true; clearTimeout(timer); f(); } };
       const timer = setTimeout(() => { child.kill('SIGKILL'); end(() => reject(new Error('The AI took too long'))); }, TIMEOUT_MS);
-      child.stdout.setEncoding('utf8');
-      child.stdout.on('data', (d: string) => {
+      child.stdout!.setEncoding('utf8');
+      child.stdout!.on('data', (d: string) => {
         buf += d;
         bytes += Buffer.byteLength(d);
         if (bytes > STDOUT_MAX) { child.kill('SIGKILL'); end(() => reject(new Error('The AI reply was too large'))); }
@@ -63,16 +84,9 @@ async function runCli(input: DesignInput, env: Env, system: string = SYSTEM_PROM
       child.on('error', () => end(() => reject(new Error('The claude CLI could not be started'))));
       // the CLI exits 1 with a JSON body when is_error is true, so let the parse below decide
       child.on('close', (code) => end(() => (code === 0 || buf ? resolve(buf) : reject(new Error(`The claude CLI exited with status ${code}`)))));
+      if (stdin) { child.stdin!.on('error', () => {}); child.stdin!.end(stdin); }
     });
-    let j: { is_error?: boolean; result?: unknown };
-    try {
-      j = JSON.parse(out);
-    } catch {
-      throw new Error('The claude CLI reply was not JSON');
-    }
-    if (j.is_error) throw new Error('The claude CLI reported an error');
-    if (typeof j.result !== 'string' || !j.result.trim()) throw new Error('The AI reply was empty');
-    return j.result;
+    return parseCliOutput(out);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
