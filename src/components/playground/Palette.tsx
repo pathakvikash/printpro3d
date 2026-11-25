@@ -1,7 +1,7 @@
 'use client';
 // Parts to build with: printable templates, bought parts (enquiry only) and basic shapes. Every item can be dragged onto the canvas
 // (native HTML5 drag) or tapped: shapes and templates then land at once, a bought part waits for a tap on the bed.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../Icon';
 import { TEMPLATES } from '@/lib/templateDefs';
 import { MOTORS } from '@/lib/motors';
@@ -23,6 +23,14 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
   onDragStart: (d: DragItem) => void; onDragEnd: () => void;
 }) {
   const [open, setOpen] = useState(false); // the mobile bottom sheet
+  const [added, setAdded] = useState<string | null>(null); // brief phone feedback once the sheet closes
+  useEffect(() => {
+    if (!added) return;
+    const t = setTimeout(() => setAdded(null), 2500);
+    return () => clearTimeout(t);
+  }, [added]);
+  // on phones the sheet covers the bed, so close it and say what landed; on desktop (lg+) the sheet is not shown
+  const tapped = (name: string) => { if (open) { setOpen(false); setAdded(name); } };
   const drag = (d: DragItem) => ({
     draggable: !disabled,
     onDragStart: (e: React.DragEvent) => { e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(d)); e.dataTransfer.effectAllowed = 'copy'; onDragStart(d); },
@@ -41,7 +49,7 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
       <ul className="space-y-1.5">
         {TPLS.map((t) => (
           <li key={t.id}>
-            <button type="button" disabled={disabled} onClick={() => onTemplate(t.id)} aria-label={`Add ${t.name}`} title={`Add ${t.name}`} className={item} {...drag({ t: 'tpl', id: t.id })}>
+            <button type="button" disabled={disabled} onClick={() => { onTemplate(t.id); tapped(t.name); }} aria-label={`Add ${t.name}`} title={`Add ${t.name}`} className={item} {...drag({ t: 'tpl', id: t.id })}>
               <Icon name="cube" className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" /><span className="line-clamp-2 min-w-0 text-left leading-snug" title={t.name}>{t.name}</span>
             </button>
           </li>
@@ -64,7 +72,7 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
       <ul className="grid grid-cols-2 gap-1.5">
         {KINDS.map((k) => (
           <li key={k}>
-            <button type="button" disabled={disabled} onClick={() => onShape(k)} aria-label={`Add ${LABEL[k]}`} title={`Add ${LABEL[k]}`} className={item} {...drag({ t: 'shape', id: k })}>
+            <button type="button" disabled={disabled} onClick={() => { onShape(k); tapped(LABEL[k]); }} aria-label={`Add ${LABEL[k]}`} title={`Add ${LABEL[k]}`} className={item} {...drag({ t: 'shape', id: k })}>
               <Icon name="plus" className="h-4 w-4 shrink-0" />{LABEL[k]}
             </button>
           </li>
@@ -79,6 +87,7 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
         {body}
       </section>
       <div className="lg:hidden">
+        {added && <p role="status" aria-live="polite" className="fixed inset-x-0 bottom-16 z-40 mx-auto w-max max-w-[calc(100vw-2rem)] rounded-full bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">Added {added}</p>}
         <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} aria-label={open ? 'Close parts' : 'Open parts'} title={open ? 'Close parts' : 'Open parts'}
           className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
           <Icon name={open ? 'x' : 'plus'} className="h-4 w-4" />Parts

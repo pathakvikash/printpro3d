@@ -15,6 +15,7 @@ export default function AiChatLauncher() {
   const [openOn, setOpenOn] = useState<string | null>(null); // the path it was opened on: navigating closes it
   const open = openOn === pathname;
   const setOpen = (o: boolean) => setOpenOn(o ? pathname : null);
+  const onPlayground = pathname.startsWith('/playground'); // phones: the playground header has its own AI button and the bottom bar needs the room
   const onChatPage = pathname === '/ai' || pathname.startsWith('/admin');
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function AiChatLauncher() {
           onClick={() => setOpen(true)}
           aria-label="Build with AI"
           title="Build with AI"
-          className="fixed bottom-20 right-4 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-indigo-600 px-4 text-sm font-semibold text-white shadow-lg ring-1 ring-black/10 hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:bottom-4 dark:ring-white/20"
+          className={`fixed bottom-20 right-4 z-40 ${onPlayground ? 'hidden sm:inline-flex' : 'inline-flex'} h-12 items-center gap-2 rounded-full bg-indigo-600 px-4 text-sm font-semibold text-white shadow-lg ring-1 ring-black/10 hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:bottom-4 dark:ring-white/20`}
         >
           <Icon name="spark" className="h-5 w-5" />AI
         </button>
