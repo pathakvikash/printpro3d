@@ -32,7 +32,7 @@ test('the shop lists 9 new parts and 10 kits per their categories (counts)', () 
   assert.equal(count('drone-rc'), 8);
   assert.equal(count('robotics'), 8);
   assert.equal(count('accessories'), 1);
-  assert.deepEqual(KITS.map((k) => shopCat(k.id)), ['drone-rc', 'robotics', 'drone-rc', 'drone-rc', 'toys-hobby', 'smart-home', 'drone-rc', 'robotics', 'robotics', 'robotics']);
+  assert.deepEqual(KITS.map((k) => shopCat(k.id)), ['drone-rc', 'robotics', 'drone-rc', 'drone-rc', 'toys-hobby', 'robotics', 'smart-home', 'drone-rc', 'robotics', 'robotics', 'robotics']);
   for (const id of ['gps-antenna-mount', 'landing-gear', 'prop-guard', 'rc-bumper', 'battery-tray', 'servo-bracket', 'robot-chassis', 'robot-gripper', 'wheel-hub']) assert.ok(shopCat(id), id);
 });
 

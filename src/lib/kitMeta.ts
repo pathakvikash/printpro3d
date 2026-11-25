@@ -177,6 +177,36 @@ export const KIT_METAS: KitMeta[] = [
     "bought": 2
   },
   {
+    "id": "rolling-companion-kit",
+    "title": "Rolling companion robot kit",
+    "blurb": "An original rolling ball robot, our own design (not a copy of any commercial robot). What prints: two hemispherical shell halves, 96 to 110 mm across (100 mm default, wall 2.4 to 4 mm), that press together on a 4 mm lip; the front half has a flat face pad with a 18 x 12 mm recess and a 10 x 4.5 mm window for a ToF sensor or small camera, on the roll axis so a chassis-mounted sensor keeps looking out while the shell turns. Inside, a chassis disc with a cradle for 2 N20 gear motors lying side by side, 2 wheel slots, 2 posts, and a separate deck with a 1S LiPo pocket, 2 zip-tie slots and 4 standoffs for a small ESP32 board. 2 lens-shaped TPU wheels press onto the motor shafts and grip the shell from inside: both turn the same way and the ball rolls, one faster than the other and it steers. What you buy: the electronics listed below. Nothing is test printed yet: tune the lip fit and wheel grip on your printer.",
+    "category": "robotics",
+    "hasAssembly": true,
+    "parts": [
+      {
+        "name": "Front shell half (window)",
+        "qty": 1
+      },
+      {
+        "name": "Rear shell half",
+        "qty": 1
+      },
+      {
+        "name": "Chassis with motor cradle",
+        "qty": 1
+      },
+      {
+        "name": "Deck: battery and ESP32",
+        "qty": 1
+      },
+      {
+        "name": "Wheel (TPU)",
+        "qty": 2
+      }
+    ],
+    "bought": 6
+  },
+  {
     "id": "led-decor-kit",
     "title": "LED decor kit: matrix frame, desk clock and moon lamp",
     "blurb": "Three printable digital decor products from one kit. An LED matrix frame for a WS2812 8x8 or 16x16 grid (typical 10 mm pixel pitch on 16x16 panels) with light-grid baffles, a diffuser slot and a back cover with an ESP32 cradle and USB-C cutout. A smart desk clock case for a 4-digit 7-segment module or a 0.96 in OLED, with a stand. A low-poly moon lamp shell with a 1.2 mm wall on a base that holds the LED strip and an ESP32. Module and board sizes are typical values; check yours before printing.",
