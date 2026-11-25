@@ -26,5 +26,7 @@ test('template settings read as labels', () => {
 test('lineHref opens the product page; kit parts carry their settings; own uploads have none', () => {
   assert.equal(lineHref({ kind: 'tpl', id: 'prop-guard', cfg: {}, qty: 1, unitPrice: 1 }), '/shop/prop-guard');
   assert.equal(lineHref({ kind: 'kit', id: 'whoop-kit:frame', label: 'x', cfg: { duct: 65, aio: true }, qty: 1, unitPrice: 1 }), '/shop/whoop-kit?duct=65&aio=true');
+  assert.equal(lineHref({ kind: 'tpl', id: 'phone-stand-pro', cfg: {}, qty: 1, unitPrice: 1 }), null); // no shop page: would 404
+  assert.equal(lineHref({ kind: 'kit', id: 'led-decor-kit/clock:frame', label: 'x', cfg: { display: 'oled' }, qty: 1, unitPrice: 1 }), '/shop/led-decor-kit?product=clock&display=oled');
   assert.equal(lineHref({ kind: 'model', file: 'a.stl', label: 'a', material: 'PLA', qty: 1, estimate: null }), null);
 });

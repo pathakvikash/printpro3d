@@ -44,10 +44,10 @@ mkdirSync(out, { recursive: true });
 const t0 = Date.now();
 const runOne = (i: number) => new Promise<void>((resolve) => {
   const t = Date.now();
-  const p = spawn(process.execPath, [...process.execArgv, import.meta.filename, String(i)], { stdio: ['ignore', 'ignore', 'inherit'] });
+  const p = spawn(process.execPath, [...process.execArgv, import.meta.filename, String(i)], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60_000, killSignal: 'SIGKILL' });
   p.on('error', () => resolve());
   p.on('close', (code, sig) => {
-    if (code !== 0 && code !== 2) console.warn(`precompute: ${tasks[i].label} crashed (${sig ?? code}), the browser will build it`);
+    if (code !== 0 && code !== 2) console.warn(`precompute: ${tasks[i].label} crashed or timed out (${sig ?? code}), the browser will build it`);
     if (Date.now() - t > 3000) console.log(`precompute: ${tasks[i].label} ${Date.now() - t} ms`);
     resolve();
   });

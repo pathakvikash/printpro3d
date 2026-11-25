@@ -43,7 +43,7 @@ export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving,
           const st = mesh ? meshStats(mesh) : null;
           stats.set(id, st && fitsBed(st.sizeMm) ? st : 'error');
         } catch { stats.set(id, 'error'); }
-        tick((x) => x + 1);
+        if (live) tick((x) => x + 1);
       }
     })();
     return () => { live = false; };
@@ -101,7 +101,7 @@ export default function Bom({ shapes, parts, onPrice, priceBusy, onSave, saving,
       {loose > 0 && (
         <div className="flex items-center justify-between gap-2 text-sm text-gray-800 dark:text-gray-200">
           <span>{loose} loose {loose === 1 ? 'shape' : 'shapes'}</span>
-          <button type="button" onClick={onPrice} disabled={priceBusy} aria-label="Get a price" title="Get a price" className={btn}><Icon name="tag" className="h-4 w-4" />{priceBusy ? 'Building' : 'Price'}</button>
+          <button type="button" onClick={onPrice} disabled={priceBusy} aria-label="Price: get a price for the loose shapes" title="Get a price" className={btn}><Icon name="tag" className="h-4 w-4" />{priceBusy ? 'Building' : 'Price'}</button>
         </div>
       )}
       {bought.length > 0 && <div><BoughtList items={bought} title="Bought parts" /></div>}

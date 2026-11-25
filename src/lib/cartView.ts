@@ -1,5 +1,5 @@
 // What the cart page shows for a line: name, chosen settings, kit grouping. Pure (no React, no geometry): safe for /cart's first load.
-import { CATALOG } from './catalog.ts';
+import { CATALOG, shopCat } from './catalog.ts';
 import { KIT_METAS } from './kitMeta.ts';
 import type { CartLine } from './cart.ts';
 import { templateById } from './templateDefs.ts';
@@ -59,10 +59,13 @@ export function lineMaterial(l: CartLine): string {
   return l.kind === 'kit' ? '' : l.material;
 }
 
-/** The shop page a line came from (kit parts reopen the kit with their settings); null for the customer's own uploads and designs. */
+/** The shop page a line came from (kit parts reopen the kit with their settings, a kit variant `kit/variant` its ?product=); null for the customer's own
+ * uploads and designs and for products with no shop page (/shop/[id] is static and only builds the listed ones). */
 export function lineHref(l: CartLine): string | null {
-  if (l.kind === 'shop' || l.kind === 'tpl') return `/shop/${encodeURIComponent(l.id)}`;
+  if (l.kind === 'shop' || l.kind === 'tpl') return shopCat(l.id) ? `/shop/${encodeURIComponent(l.id)}` : null;
   if (l.kind !== 'kit') return null;
-  const q = new URLSearchParams(Object.entries(l.cfg).map(([k, v]) => [k, String(v)])).toString();
-  return `/shop/${encodeURIComponent(kitIdOf(l))}${q ? `?${q}` : ''}`;
+  const [kit, variant] = kitIdOf(l).split('/');
+  if (!shopCat(kit)) return null;
+  const q = new URLSearchParams([...(variant ? [['product', variant]] : []), ...Object.entries(l.cfg).map(([k, v]) => [k, String(v)])]).toString();
+  return `/shop/${encodeURIComponent(kit)}${q ? `?${q}` : ''}`;
 }

@@ -8,7 +8,7 @@ import { takeUsage } from './aiGuard.ts';
 import { PLAN_NO_QUESTIONS, PLAN_REPLY_SCHEMA, PLAN_SYSTEM, REVISE_SYSTEM, compactBlueprint, parseBlueprintReply, parsePlanReply, planUser, reviseUser, REVISE_REQUEST_MAX } from './aiBlueprint.ts';
 import { UUID, findJobByFile, serialJob } from './aiJobs.ts';
 import { BLUEPRINT_SCHEMA, blueprintToShapes, diffBlueprints, shapesToBlueprint, validateBlueprint, type Blueprint, type BlueprintDiff } from './designBlueprint.ts';
-import { buildMesh, toStl, type Shape } from './playground.ts';
+import { MAX_TOTAL_SHAPES, buildMesh, toStl, type Shape } from './playground.ts';
 import { toDesign } from './aiDesign.ts';
 import { BED_MM, fitsBed, meshStats, type MeshStats } from './quote.ts';
 import { del, getBytes, getJson, list, putBytes, putJson } from './store.ts';
@@ -304,7 +304,9 @@ export const finalize = (id: string): Promise<Project> =>
       if (!fitsBed(stats!.sizeMm)) fail(422, 'The scaled model does not fit the print bed.');
       await putBytes('uploads', name, out);
     } else {
-      const m = meshOf(blueprintToShapes(r.blueprint));
+      const shapes = blueprintToShapes(r.blueprint);
+      if (shapes.length > MAX_TOTAL_SHAPES) fail(422, `A design can have at most ${MAX_TOTAL_SHAPES} shapes.`);
+      const m = meshOf(shapes);
       if (!fitsBed(m.stats.sizeMm)) fail(422, 'The design does not fit the print bed.');
       stats = m.stats;
       await putBytes('uploads', name, toStl(m.tris));

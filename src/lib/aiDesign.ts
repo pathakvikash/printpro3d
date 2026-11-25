@@ -22,8 +22,10 @@
 //   AI_MODEL=<a vision model you have pulled>
 //   AI_PROVIDER=openai
 import { EXAMPLES } from './examples.ts';
-import { KINDS, MAX_GROUPED, MAX_SHAPES, MIN_SIZE, clampCoord, type Shape, type V3 } from './playground.ts';
+import { KINDS, MAX_GROUPED, MAX_SHAPES, MAX_TOTAL_SHAPES, MIN_SIZE, clampCoord, type Shape, type V3 } from './playground.ts';
 import { BED_MM } from './quote.ts';
+import { buildTemplate } from './templates.ts';
+import { defaultCfg, templateById } from './templateDefs.ts';
 
 export type ProviderId = 'anthropic' | 'openai' | 'claude-cli';
 export type Env = Record<string, string | undefined>;
@@ -233,7 +235,15 @@ function vec(v: unknown, f: (n: number) => number): V3 | null {
   return { x, y, z };
 }
 
-/** `groups`: keep the group/tpl tags of dropped templates (the builder's own save path); loose shapes stay capped at MAX_SHAPES, grouped ones at MAX_GROUPED. */
+const tplCount = new Map<string, number>();
+/** Shapes in a template at its default config (what the builder drops). Counting is a cheap build without CSG. */
+function defaultShapeCount(id: string): number {
+  let n = tplCount.get(id);
+  if (n === undefined) { const t = templateById(id)!; n = buildTemplate(t, defaultCfg(t)).shapes.length; tplCount.set(id, n); }
+  return n;
+}
+
+/** `groups`: keep the group/tpl tags of dropped templates (the builder's own save path): a shape is grouped only with a real `tpl` and a group no larger than that template's default; loose shapes cap at MAX_SHAPES, grouped at MAX_GROUPED, all at MAX_TOTAL_SHAPES. */
 export function toDesign(input: unknown, groups = false): DesignResult {
   const o = obj(input);
   const title = clean(o.title, 60);
@@ -246,7 +256,8 @@ export function toDesign(input: unknown, groups = false): DesignResult {
     if (!groups && shapes.length >= MAX_SHAPES) break;
     const s = obj(raw);
     const tag = (v: unknown) => (typeof v === 'string' && /^[\w-]{1,32}$/.test(v) ? v : undefined);
-    const group = groups ? tag(s.group) : undefined, tpl = group ? tag(s.tpl) : undefined;
+    const tpl = groups && templateById(s.tpl) ? tag(s.tpl) : undefined, group = tpl ? tag(s.group) : undefined;
+    if (groups && shapes.length >= MAX_TOTAL_SHAPES) continue;
     if (groups && (group ? grouped >= MAX_GROUPED : loose >= MAX_SHAPES)) continue;
     if (!KINDS.includes(s.kind as never) || (s.mode !== 'solid' && s.mode !== 'hole')) continue;
     const position = vec(s.position, clampCoord), rotation = vec(s.rotation, clampCoord);
@@ -258,6 +269,13 @@ export function toDesign(input: unknown, groups = false): DesignResult {
     seen.add(id);
     if (group) grouped++; else loose++;
     shapes.push({ id, kind: s.kind as Shape['kind'], mode: s.mode, position, rotation, size, ...(group ? { group, ...(tpl ? { tpl } : {}) } : {}) });
+  }
+  if (groups) {
+    // a group is a real template at no more than its default shape count (<=, not ==: counting the default config is exact, a configured one may have fewer)
+    const per = new Map<string, number>();
+    for (const s of shapes) if (s.group) per.set(s.group, (per.get(s.group) ?? 0) + 1);
+    const bad = new Set([...per].filter(([g, n]) => n > defaultShapeCount(shapes.find((s) => s.group === g)!.tpl!)).map(([g]) => g));
+    if (bad.size) return { ok: false, reason: 'A template group has more shapes than the template itself' };
   }
   if (!shapes.some((s) => s.mode === 'solid')) return { ok: false, reason: notes || NO_DESIGN };
   return { ok: true, title, notes, shapes };

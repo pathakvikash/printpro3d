@@ -34,8 +34,12 @@ let manifest: Promise<Set<string>> | null = null;
 /** The mesh from the build-time cache, or null when it is not there (not built, fetch failed, no browser): the caller builds it. */
 export async function builtMesh(key: string): Promise<Float32Array | null> {
   try {
-    manifest ??= fetch(MANIFEST_URL).then((x) => (x.ok ? x.json() : [])).then((a: string[]) => new Set(a), () => new Set<string>());
-    if (!(await manifest).has(key)) return null;
+    // a failed manifest fetch is not cached: the next call retries
+    manifest ??= fetch(MANIFEST_URL).then((x) => (x.ok ? x.json() : Promise.reject(new Error('no manifest')))).then((a: string[]) => new Set(a));
+    const m = manifest;
+    let set: Set<string>;
+    try { set = await m; } catch { if (manifest === m) manifest = null; return null; }
+    if (!set.has(key)) return null;
     const x = await fetch(`${BUILT_DIR}/${key}.bin`);
     return x.ok ? decodeMesh(await x.arrayBuffer()) : null;
   } catch { return null; }

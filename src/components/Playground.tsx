@@ -198,7 +198,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const redo = useCallback(() => { if (!locked) setH(redoHistory); }, [locked]);
 
   const patch = (id: string, f: (s: Shape) => Shape, key?: string) => commit((all) => all.map((s) => (s.id === id ? f(s) : s)), key);
-  const remove = useCallback((id: string) => { commit((all) => all.filter((s) => s.id !== id)); setSelectedId(null); }, [commit]);
+  const remove = useCallback((id: string) => { commit((all) => { const gone = membersOf(all, id); return all.filter((s) => !gone.includes(s.id)); }); setSelectedId(null); }, [commit]);
   const removeP = useCallback((id: string) => { commitParts((p) => removePart(p, id)); setPartSel(null); }, [commitParts]);
   const selectShape = useCallback((id: string | null) => { setSelectedId(id); setPartSel(null); }, []);
   const selectPart = useCallback((id: string) => { setPartSel(id); setSelectedId(null); }, []);

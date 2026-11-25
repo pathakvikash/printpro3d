@@ -6,7 +6,8 @@ import type { Cfg } from './templateDefs.ts';
 import { builtMesh, kitKey, shapesKey } from './meshCache.ts';
 
 type Job = { msg: { shapes?: Shape[]; template?: boolean; kit?: { key: string; cfg: Cfg } }; direct: () => Promise<Float32Array | null>; resolve: (m: Float32Array | null) => void; reject: (e: Error) => void };
-type Slot = { w: Worker; job: Job | null };
+type Slot = { w: Worker; job: Job | null; timer?: ReturnType<typeof setTimeout> };
+const JOB_TIMEOUT_MS = 60_000; // a worker killed by out-of-memory may fire no error event: without this its slot stays busy forever
 
 const MAX = () => Math.max(1, Math.min((typeof navigator === 'undefined' ? 2 : navigator.hardwareConcurrency || 2) - 1, 4));
 const slots: Slot[] = [];
@@ -23,12 +24,12 @@ function pump() {
         s = { w, job: null };
         const slot = s;
         w.onmessage = (e: MessageEvent<{ tris?: Float32Array | null; error?: string }>) => {
-          const j = slot.job; slot.job = null;
+          const j = slot.job; slot.job = null; clearTimeout(slot.timer);
           if (j) { if (e.data.error) j.reject(new Error(e.data.error)); else j.resolve(e.data.tris ?? null); }
           pump();
         };
         w.onerror = () => { // the worker is gone: its job runs on the main thread, the slot is dropped
-          const j = slot.job; slot.job = null;
+          const j = slot.job; slot.job = null; clearTimeout(slot.timer);
           w.terminate(); slots.splice(slots.indexOf(slot), 1);
           if (j) j.direct().then(j.resolve, j.reject);
           pump();
@@ -38,12 +39,28 @@ function pump() {
     }
     if (!s) return; // all busy: the next reply pumps again
     s.job = queue.shift()!;
-    s.w.postMessage(s.job.msg);
+    const slot = s, job = s.job;
+    slot.timer = setTimeout(() => { // wedged or dead worker: drop it, fail this job (the main thread would hang the same way), the next job gets a fresh worker
+      slot.job = null; slot.w.terminate(); slots.splice(slots.indexOf(slot), 1);
+      job.reject(new Error('The model took too long to build'));
+      pump();
+    }, JOB_TIMEOUT_MS);
+    s.w.postMessage(job.msg);
   }
 }
 
-const run = (key: string, msg: Job['msg'], direct: Job['direct']): Promise<Float32Array | null> =>
-  builtMesh(key).then((hit) => hit ?? new Promise<Float32Array | null>((resolve, reject) => { queue.push({ msg, direct, resolve, reject }); pump(); }));
+const inflight = new Map<string, Promise<Float32Array | null>>();
+/** One build per key at a time; every caller gets its own copy (workers transfer buffers, callers may too). */
+const run = (key: string, msg: Job['msg'], direct: Job['direct']): Promise<Float32Array | null> => {
+  let p = inflight.get(key);
+  if (!p) {
+    p = builtMesh(key).then((hit) => hit ?? new Promise<Float32Array | null>((resolve, reject) => { queue.push({ msg, direct, resolve, reject }); pump(); }));
+    inflight.set(key, p);
+    const done = () => { inflight.delete(key); };
+    p.then(done, done);
+  }
+  return p.then((m) => (m ? m.slice() : m));
+};
 
 export function buildOffThread(shapes: Shape[], template = false): Promise<Float32Array | null> {
   // template: run templateMesh (buildMesh with its retry nudges) instead, for shop templates

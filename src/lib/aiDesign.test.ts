@@ -173,3 +173,14 @@ test('DESIGN_SCHEMA: closed objects and no unsupported keywords', () => {
   };
   walk(DESIGN_SCHEMA, 'schema');
 });
+
+test('toDesign groups: only a real template, no bigger than its default, and a total cap', () => {
+  const g = (n: number, tpl: unknown) => Array.from({ length: n }, () => shape({ group: 'g1', tpl }));
+  const loose = (r: DesignResult) => okOf(r).ok && (r as { shapes: { group?: string }[] }).shapes.filter((s) => !s.group).length;
+  assert.equal(okOf(toDesign(design(g(13, 'drone-camera-mount')), true)).shapes.every((s) => s.group === 'g1'), true); // its default count
+  assert.equal(toDesign(design(g(14, 'drone-camera-mount')), true).ok, false); // more than the template has
+  assert.equal(loose(toDesign(design(g(30, 'no-such-template')), true)), MAX_SHAPES); // not a template: loose, capped
+  assert.equal(loose(toDesign(design(g(30, undefined)), true)), MAX_SHAPES);
+  const many = [...g(35, 'fpv-frame-3in'), ...Array.from({ length: 40 }, () => shape())];
+  assert.equal(okOf(toDesign(design(many), true)).shapes.length, 55); // 35 grouped + 20 loose, under MAX_TOTAL_SHAPES
+});

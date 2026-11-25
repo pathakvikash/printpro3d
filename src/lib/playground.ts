@@ -33,7 +33,8 @@ export const DEFAULT_SIZE: Record<Kind, V3> = {
 export const LABEL: Record<Kind, string> = { box: 'Box', cylinder: 'Cylinder', sphere: 'Sphere', cone: 'Cone', torus: 'Ring', wedge: 'Wedge' };
 export const MIN_SIZE = 0.1;
 export const MAX_SHAPES = 20; // loose shapes; the parts of dropped templates (group set) are capped apart
-export const MAX_GROUPED = 100;
+export const MAX_GROUPED = 40; // the largest template (fpv-frame-3in) is 35 shapes
+export const MAX_TOTAL_SHAPES = MAX_SHAPES + MAX_GROUPED; // hard cap on a saved design: server CSG time grows with shapes
 export const MAX_COORD = 10000; // mm, applied to every position, rotation-free size and typed value
 
 // ---------- unit geometry: each fits a 1x1x1 box centred on the origin, axis along Z ----------
