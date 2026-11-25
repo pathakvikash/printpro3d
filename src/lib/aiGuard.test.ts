@@ -100,3 +100,22 @@ test('design and generate ledgers are separate files and count separately', asyn
   assert.deepEqual(readdirSync(dir).sort(), ['2026-11-20.json', 'design-2026-11-20.json']);
   delete process.env.AI_DAILY_PER_EMAIL;
 });
+
+test('next dev on the owner machine has no daily cap unless a limit is set; production keeps it', async () => {
+  tmpData();
+  const now = new Date('2026-11-22T10:00:00Z');
+  const env = process.env as Record<string, string | undefined>;
+  const prev = env.NODE_ENV;
+  try {
+    env.NODE_ENV = 'development';
+    for (let i = 0; i < 5; i++) assert.deepEqual(await takeUsage('dev@b.co', now), { ok: true });
+    env.AI_DAILY_PER_EMAIL = '2';
+    assert.deepEqual(await checkLimit('dev@b.co', now), { ok: false, scope: 'email', limit: 2 });
+    delete env.AI_DAILY_PER_EMAIL;
+    env.NODE_ENV = 'production';
+    assert.deepEqual(await checkLimit('dev@b.co', now), { ok: false, scope: 'email', limit: 3 });
+  } finally {
+    env.NODE_ENV = prev;
+    delete env.AI_DAILY_PER_EMAIL;
+  }
+});

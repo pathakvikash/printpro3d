@@ -78,6 +78,10 @@ async function load(now: Date, kind: LedgerKind): Promise<Ledger> {
 }
 
 function verdict(l: Ledger, email: string, kind: LedgerKind): Limit {
+  // `next dev` on the owner's machine: no daily cap (local AI is Claude CLI / LM Studio, nothing billed), unless a limit is set
+  // explicitly to test it. Production, Vercel and the test runner (NODE_ENV unset) keep the limits.
+  const env = process.env;
+  if (env.NODE_ENV === 'development' && !env.VERCEL && !env.AI_DAILY_PER_EMAIL && !env.AI_DAILY_TOTAL) return { ok: true };
   const perEmail = intEnv('AI_DAILY_PER_EMAIL', DEFAULTS[kind].email);
   const total = intEnv('AI_DAILY_TOTAL', DEFAULTS[kind].total);
   if (l.total >= total) return { ok: false, scope: 'total', limit: total };
