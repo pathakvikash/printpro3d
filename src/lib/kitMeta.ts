@@ -296,6 +296,96 @@ export const KIT_METAS: KitMeta[] = [
       }
     ],
     "bought": 9
+  },
+  {
+    "id": "so101-arm",
+    "title": "6-axis robot arm kit (SO-101)",
+    "blurb": "Open-source 6-axis desktop robot arm driven by six STS3215 serial bus servos and a USB motor control board. Upstream print settings: PLA+, 0.2 mm layers, 15% infill, supports on. Servos, board and power supply are bought separately.",
+    "category": "robotics",
+    "design": {
+      "author": "TheRobotStudio",
+      "licence": "Apache-2.0"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Base",
+        "qty": 1
+      },
+      {
+        "name": "Base motor holder",
+        "qty": 1
+      },
+      {
+        "name": "Motor holder (base)",
+        "qty": 1
+      },
+      {
+        "name": "Motor holder (wrist)",
+        "qty": 1
+      },
+      {
+        "name": "Under arm",
+        "qty": 1
+      },
+      {
+        "name": "Upper arm",
+        "qty": 1
+      },
+      {
+        "name": "Rotation pitch",
+        "qty": 1
+      },
+      {
+        "name": "Wrist roll pitch",
+        "qty": 1
+      },
+      {
+        "name": "Wrist roll (follower)",
+        "qty": 1
+      },
+      {
+        "name": "Moving jaw",
+        "qty": 1
+      },
+      {
+        "name": "Motor board mounting plate (Waveshare)",
+        "qty": 1
+      }
+    ],
+    "bought": 5
+  },
+  {
+    "id": "stack-chan",
+    "title": "Stack-chan desk companion kit",
+    "blurb": "Small pan-tilt desk robot that holds an M5Stack Core on two SG90 servos, with a snap-together bracket and a battery. Printed case parts only; the M5Stack, board, servos and battery are bought separately.",
+    "category": "robotics",
+    "design": {
+      "author": "Stack-chan project",
+      "licence": "Apache-2.0"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Shell",
+        "qty": 1
+      },
+      {
+        "name": "Feet",
+        "qty": 1
+      },
+      {
+        "name": "Servo bracket (front)",
+        "qty": 1
+      },
+      {
+        "name": "Servo bracket (back)",
+        "qty": 1
+      }
+    ],
+    "bought": 5
   }
 ];
 export const kitMetaPartCount = (k: KitMeta) => k.parts.reduce((n, p) => n + p.qty, 0);
