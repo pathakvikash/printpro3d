@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { shapesToBlueprint, type Blueprint } from './designBlueprint.ts';
+import { shapesToBlueprint, validateBlueprint, type Blueprint } from './designBlueprint.ts';
 import { MAX_REVISIONS, approve, createFromMesh, createFromPrompt, createFromShapes, createFromTemplate, currentBlueprint, finalize, getProject, manual, markOrdered, orderInfo, pruneProjects, revise, undo, type Ai } from './designProjects.ts';
 import type { Shape } from './playground.ts';
 import { meshStats } from './quote.ts';
@@ -189,4 +189,17 @@ test('createFromShapes saves a validated copy as a draft design, refuses junk', 
   await assert.rejects(createFromShapes({ title: 'x', shapes: [{ kind: 'box' }] }));
   await assert.rejects(createFromShapes({ title: 'x', shapes: [] }));
   await assert.rejects(createFromShapes({ title: 'x', shapes: 'no' }));
+});
+
+test('createFromShapes keeps dropped template groups: loose shapes <= MAX_SHAPES, grouped <= MAX_GROUPED', async () => {
+  env();
+  const grp = (n: number, tag: string): Shape[] => Array.from({ length: n }, (_, i) => ({ ...box(`${tag}${i}`, 20 + i), group: 'g1', tpl: 'fpv-frame-3in' }));
+  const p = await createFromShapes({ title: 'Frame', shapes: [box('a', 30), ...grp(35, 't')] });
+  const shapes = currentBlueprint(p).parts[0].shapes;
+  assert.equal(shapes.length, 36);
+  assert.ok(validateBlueprint(JSON.parse(JSON.stringify(currentBlueprint(p)))).ok, 'a later edit revalidates the same shapes');
+  assert.equal(shapes.filter((s) => s.group === 'g1' && s.tpl === 'fpv-frame-3in').length, 35);
+  await assert.rejects(createFromShapes({ title: 'x', shapes: [box('a', 30), ...grp(101, 't')] }));
+  const many = Array.from({ length: 21 }, (_, i) => box(`l${i}`, 20));
+  await assert.rejects(createFromShapes({ title: 'x', shapes: many }));
 });

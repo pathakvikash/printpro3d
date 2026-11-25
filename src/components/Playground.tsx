@@ -5,20 +5,24 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import UploadForm from './UploadForm';
 import Icon from './Icon';
-import PlaygroundScene, { type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import PlaygroundScene, { type DndApi, type Hint, type Placing, type Pose, type SimView, type Tool } from './playground/PlaygroundScene';
+import Palette, { type DragItem } from './playground/Palette';
+import Bom from './playground/Bom';
 import SuggestBar, { ArmedPanel } from './playground/SuggestBar';
 import { MASS_NAME, kindOfMassName, massHalfHeight, mergeAi, nudge, suggestItems, type SuggestItem } from '@/lib/suggest/plan';
 import { suggestPlacement, type Placement } from '@/lib/suggest/placement';
 import type { PartKind } from '@/lib/suggest/validate';
 import { MOTORS, type PropMotor } from '@/lib/motors';
+import { cloneShapes, membersOf, moveBy, placeTemplate, rotateZ90, snapGrid, NUDGE_FINE_MM, NUDGE_MM } from '@/lib/buildDnd';
+import { defaultCfg, templateById } from '@/lib/templateDefs';
 import { DEFAULT_WHEEL_MM, groundAt, groundMassKg, topRun, gearMotor } from '@/lib/flight/ground';
 import { MAX_COMPONENTS, MAX_MASS_G, MAX_MOTORS, MAX_POS_MM, motorKind, typicalMass } from '@/lib/flight/components';
 import { meshBody, printedDensity, type Body, type Vec3 } from '@/lib/flight/mass';
 import { trim } from '@/lib/flight/trim';
 import { propDiameterMm } from '@/lib/flight/rotor';
 import {
-  MASS_PARTS, NO_PARTS, PARTS_KEY, addMass, addMotor, loadParts, makeQuad, mountPoints, nextSpin, patchMass, patchMotor, pushHistory, redoHistory,
-  removePart, savedParts, undoHistory, type History, type Parts,
+  NO_PARTS, PARTS_KEY, addMass, addMotor, loadParts, makeQuad, mountPoints, nextSpin, roundPos, patchMass, patchMotor, pushHistory, redoHistory,
+  removePart, savedParts, snapToMount, undoHistory, type History, type Parts,
 } from '@/lib/flight/layout';
 import { BED_MM, fitsBed, meshStats } from '@/lib/quote';
 import { exampleById } from '@/lib/examples';
@@ -28,14 +32,13 @@ import { DESIGNS_KEY, parseDesigns, upsertDesign } from '@/lib/designList';
 import { PROJECT_KEY } from '@/lib/buildFlow';
 import FlowStrip from '@/components/FlowStrip';
 import {
-  DEFAULT_SIZE, KINDS, LABEL, MAX_SHAPES, MIN_SIZE, clampCoord, minZ, parseDesign, solidsSize, toStl,
+  DEFAULT_SIZE, LABEL, MAX_GROUPED, MAX_SHAPES, MIN_SIZE, clampCoord, minZ, parseDesign, solidsSize, toStl,
   type Kind, type Shape, type V3,
 } from '@/lib/playground';
 
 const KEY = 'printpro3d.playground.v1';
 const AI_KEY = 'printpro3d.aidesign.v1'; // written by the Draw it with AI form
 const PROP_MOTOR = MOTORS.find((m): m is PropMotor => m.kind === 'prop')!;
-const GEAR_MOTORS = MOTORS.filter((m) => m.kind === 'gear');
 const AiChat = dynamic(() => import('./AiChat').then((m) => m.AiChat), { ssr: false, loading: () => <p className="p-4 text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
 const FlightHud = dynamic(() => import('./playground/FlightHud'), { ssr: false });
 const clampPos = (v: number) => Math.max(-MAX_POS_MM, Math.min(MAX_POS_MM, v));
@@ -170,7 +173,6 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const [dismissed, setDismissed] = useState(false);
   const [armed, setArmed] = useState<{ kind: PartKind; place: Placement | null; reason: string } | null>(null);
   const [armNote, setArmNote] = useState<string | null>(null);
-  const [gearId, setGearId] = useState(GEAR_MOTORS[0].id);
   const [wheelMm, setWheelMm] = useState(DEFAULT_WHEEL_MM);
   const [aiRes, setAiRes] = useState<{ key: string; items: SuggestItem[] } | null>(null);
   const aiOff = useRef(false); // the server said no AI key: stop asking
@@ -203,12 +205,12 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   const motor = parts.motors.find((m) => m.id === partSel) ?? null;
   const mass = parts.components.find((c) => c.id === partSel) ?? null;
   const mounts = useMemo(() => mountPoints(shapes), [shapes]);
-  const startPlace = (p: Placing) => {
+  const startPlace = (p: Placing, toggle = true) => {
     if (locked) return;
     if (p.kind === 'motor' && parts.motors.some((m) => m.motorId !== p.motorId)) { setNote('Do not mix motor models: a design is a drone (propeller motors) or a ground vehicle with one gear motor model. Delete the other motors first.'); return; }
     if (p.kind === 'motor' && parts.motors.length >= MAX_MOTORS) { setNote(`That is the limit: ${MAX_MOTORS} motors.`); return; }
     if (p.kind === 'mass' && parts.components.length >= MAX_COMPONENTS) { setNote(`That is the limit: ${MAX_COMPONENTS} parts.`); return; }
-    setPlacing((cur) => (cur?.kind === p.kind && (p.kind === 'motor' || (cur as Placing & { name: string }).name === p.name) ? null : p));
+    setPlacing((cur) => (toggle && cur?.kind === p.kind && (p.kind === 'motor' || (cur as Placing & { name: string }).name === p.name) ? null : p));
     setSelectedId(null); setPartSel(null);
   };
   const place = (pos: Vec3) => {
@@ -223,25 +225,73 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   }, [commitParts]);
 
 
+  const uid = () => Math.random().toString(36).slice(2, 10);
   const full = () => {
-    if (shapes.length < MAX_SHAPES) return false;
+    if (shapes.filter((s) => !s.group).length < MAX_SHAPES) return false;
     setNote(`That is the limit: ${MAX_SHAPES} shapes per model. Delete one to add another.`);
     return true;
   };
-  const add = (kind: Kind) => {
-    if (full()) return;
+  const add = (kind: Kind, at?: { x: number; y: number }) => {
+    if (locked || full()) return;
     const sz = DEFAULT_SIZE[kind];
-    const id = Math.random().toString(36).slice(2, 10);
+    const id = uid();
     const n = shapes.length;
-    // sits on the plate, staggered so new shapes do not hide each other
-    commit((all) => [...all, { id, kind, mode: 'solid', position: { x: ((n * 25 + 75) % 150) - 75, y: 0, z: sz.z / 2 }, rotation: { x: 0, y: 0, z: 0 }, size: { ...sz } }]);
+    // sits on the plate (a drop lands on the 5 mm grid), staggered so new shapes do not hide each other
+    const xy = at ? { x: snapGrid(at.x), y: snapGrid(at.y) } : { x: ((n * 25 + 75) % 150) - 75, y: 0 };
+    commit((all) => [...all, { id, kind, mode: 'solid', position: { ...xy, z: sz.z / 2 }, rotation: { x: 0, y: 0, z: 0 }, size: { ...sz } }]);
     setSelectedId(id);
   };
+  /** A template at its default config, as grouped shapes. The shapes are built after the drop (client only), never while rendering. */
+  const addTemplate = async (tid: string, at?: { x: number; y: number }) => {
+    const t = templateById(tid);
+    if (!t || locked) return;
+    const grouped = () => shapesRef.current.filter((s) => s.group).length;
+    if (grouped() >= MAX_GROUPED) { setNote('That is the limit for template parts. Delete one to add another.'); return; }
+    let built: Shape[];
+    try { built = (await import('@/lib/templates')).buildTemplate(t, defaultCfg(t)).shapes; } catch { setNote('That part could not be added. Try again.'); return; }
+    if (grouped() + built.length > MAX_GROUPED) { setNote('That is the limit for template parts. Delete one to add another.'); return; }
+    const n = new Set(shapesRef.current.flatMap((s) => (s.group ? [s.group] : []))).size;
+    const placed = placeTemplate(built, t.id, uid(), at ?? { x: ((n * 40 + 80) % 160) - 80, y: 0 });
+    commit((all) => [...all, ...placed]);
+    setSelectedId(placed[0].id);
+  };
   const duplicate = () => {
-    if (!sel || full()) return;
-    const id = Math.random().toString(36).slice(2, 10);
-    commit((all) => [...all, { ...sel, id, position: { ...sel.position, x: sel.position.x + 10, y: sel.position.y + 10 }, rotation: { ...sel.rotation }, size: { ...sel.size } }]);
-    setSelectedId(id);
+    if (!sel || locked) return;
+    const ids = membersOf(shapes, sel.id);
+    if (sel.group ? shapes.filter((s) => s.group).length + ids.length > MAX_GROUPED : full()) { setNote('That is the limit. Delete something to duplicate.'); return; }
+    const copies = cloneShapes(shapes, ids, { x: 10, y: 10, z: 0 }, uid);
+    commit((all) => [...all, ...copies]);
+    setSelectedId(copies[ids.indexOf(sel.id)].id);
+  };
+  const rotate = () => { if (selectedId && !locked) commit((all) => rotateZ90(all, membersOf(all, selectedId))); };
+  const nudgeSel = (dx: number, dy: number) => {
+    if (locked) return;
+    if (partSel) { const cur = motor?.pos ?? mass?.pos; if (cur) movePart(partSel, [cur[0] + dx, cur[1] + dy, cur[2]]); }
+    else if (selectedId) commit((all) => moveBy(all, membersOf(all, selectedId), { x: dx, y: dy, z: 0 }), `n${selectedId}`);
+  };
+  const act = useRef({ rotate, nudge: nudgeSel, dup: duplicate });
+  act.current = { rotate, nudge: nudgeSel, dup: duplicate };
+
+  // palette drag: the item is kept here because a drag hides its data from dragover; the canvas raycasts the screen position
+  const dnd = useRef<DndApi | null>(null);
+  const dragging = useRef<DragItem | null>(null);
+  const onDragOver = (e: React.DragEvent) => {
+    if (!dragging.current || locked) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (dragging.current.t === 'part') dnd.current?.hover(e.clientX, e.clientY);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    const d = dragging.current;
+    dragging.current = null;
+    dnd.current?.clear();
+    if (!d || locked) return;
+    e.preventDefault();
+    const p = dnd.current?.pick(e.clientX, e.clientY, d.t === 'part');
+    if (!p) { setPlacing(null); return; }
+    if (d.t === 'tpl') void addTemplate(d.id, { x: p[0], y: p[1] });
+    else if (d.t === 'shape') add(d.id, { x: p[0], y: p[1] });
+    else place(roundPos(d.placing.kind === 'motor' ? snapToMount(p, mounts).pos : p));
   };
   const clearAll = () => {
     if (shapes.length && window.confirm('Remove all shapes? You can still undo this.')) { commit(() => []); setSelectedId(null); }
@@ -303,6 +353,15 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         e.preventDefault();
         if (partSel) removeP(partSel); else if (selectedId) remove(selectedId);
       } else if (e.key === 'Escape') { setPlacing(null); setArmed(null); }
+      else if (typing || locked || e.altKey) return;
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); act.current.dup(); }
+      else if (e.ctrlKey || e.metaKey) return;
+      else if (e.key.toLowerCase() === 'r' && selectedId) { e.preventDefault(); act.current.rotate(); }
+      else if ((selectedId || partSel) && e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        const k = e.shiftKey ? NUDGE_FINE_MM : NUDGE_MM;
+        act.current.nudge(e.key === 'ArrowLeft' ? -k : e.key === 'ArrowRight' ? k : 0, e.key === 'ArrowDown' ? -k : e.key === 'ArrowUp' ? k : 0);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -330,12 +389,12 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     } catch { setSavedNote('The design could not be saved. Try again.'); } finally { setSaving(false); }
   };
 
-  const build = async () => {
+  const build = async (onlyLoose = false) => {
     setBusy(true);
     setNote(null);
     const snapshot = shapesRef.current;
     try {
-      const tris = await buildOffThread(snapshot);
+      const tris = await buildOffThread(onlyLoose ? snapshot.filter((s) => !s.group) : snapshot);
       if (shapesRef.current !== snapshot) return null; // edited meanwhile: the result is stale
       if (!tris) setNote('Nothing is left to print. A hole may be removing every solid.');
       return tris;
@@ -348,7 +407,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
   };
   const price = async () => {
     const snapshot = shapesRef.current;
-    const tris = await build();
+    const tris = await build(true); // template groups are priced on their own, from the BOM
     if (!tris || shapesRef.current !== snapshot) return;
     const file = new File([toStl(tris) as BlobPart], 'playground.stl', { type: 'model/stl' });
     if (!meshStats(tris)) setNote("We'll quote this one manually: the combined shape is not a clean closed solid.");
@@ -380,7 +439,16 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
     void price();
   });
 
-  const pose = useCallback((id: string, p: Pose) => commit((all) => all.map((s) => (s.id === id ? { ...s, ...p } : s))), [commit]);
+  // a grouped shape only moves, and drags its whole group with it
+  const pose = useCallback((id: string, p: Pose) => commit((all) => {
+    const c = all.find((s) => s.id === id);
+    if (c?.group) return moveBy(all, membersOf(all, id), { x: p.position.x - c.position.x, y: p.position.y - c.position.y, z: p.position.z - c.position.z });
+    return all.map((s) => (s.id === id ? { ...s, ...p } : s));
+  }), [commit]);
+  const loose = useMemo(() => shapes.filter((s) => !s.group), [shapes]);
+  const hasLoose = solidsSize(loose) !== null;
+  const highlight = sel?.group ? membersOf(shapes, sel.id) : [];
+  const groupName = (g: string) => templateById(shapes.find((s) => s.group === g)?.tpl)?.name ?? 'Template';
   const names = shapes.map((s, i) => `${LABEL[s.kind]} ${shapes.slice(0, i + 1).filter((o) => o.kind === s.kind).length}`);
   const fits = size ? fitsBed(size) : false;
   const frameReady = frame?.of === shapes;
@@ -486,23 +554,23 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
         </p>
       )}
 
-      <div ref={editor} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
+      <div ref={editor} className={`grid grid-cols-1 gap-4 ${project ? 'lg:grid-cols-[minmax(0,1fr)_340px]' : 'lg:grid-cols-[230px_minmax(0,1fr)_340px]'}`}>
+        {!project && (
+          <div className="min-w-0 lg:sticky lg:top-20 lg:self-start">
+            <Palette
+              disabled={locked} armed={placing} spin={spinNow}
+              onShape={(k) => add(k)} onTemplate={(id) => void addTemplate(id)}
+              onPart={(p) => startPlace(p.kind === 'motor' && motorKind(p.motorId) === 'gear' ? { ...p, spin: 'cw' } : p)}
+              onDragStart={(d) => { dragging.current = d; if (d.t === 'part') startPlace(d.placing.kind === 'motor' && motorKind(d.placing.motorId) === 'gear' ? { ...d.placing, spin: 'cw' } : d.placing, false); }}
+              onDragEnd={() => { const d = dragging.current; dragging.current = null; dnd.current?.clear(); if (d?.t === 'part') setPlacing(null); }}
+            />
+          </div>
+        )}
         <div className="space-y-3 min-w-0">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Add a shape">
-            {KINDS.map((k) => (
+          {project && <div className="flex flex-wrap gap-2" role="group" aria-label="Add a shape">
+            {(Object.keys(LABEL) as Kind[]).map((k) => (
               <button key={k} type="button" onClick={() => add(k)} disabled={locked} aria-label={`Add ${LABEL[k]}`} title={`Add ${LABEL[k]}`} className={btn}><Icon name="plus" className="h-4 w-4" />{LABEL[k]}</button>
             ))}
-          </div>
-          {!project && <div className="flex flex-wrap gap-2" role="group" aria-label="Add a motor or part">
-            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: spinNow, motorId: PROP_MOTOR.id })} aria-label="Add motor" title="Add motor" className={btnOn(placing?.kind === 'motor' && placing.motorId === PROP_MOTOR.id)}><Icon name="plus" className="h-4 w-4" />Motor</button>
-            <select aria-label="Gear motor" value={gearId} disabled={locked} onChange={(e) => setGearId(e.target.value)} className={`${btn} max-w-[11rem] truncate`}>
-              {GEAR_MOTORS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-            <button type="button" aria-pressed={placing?.kind === 'motor' && placing.motorId === gearId} disabled={locked} onClick={() => startPlace({ kind: 'motor', spin: 'cw', motorId: gearId })} aria-label="Add gear motor with wheel" title="Add gear motor with wheel" className={btnOn(placing?.kind === 'motor' && placing.motorId === gearId)}><Icon name="plus" className="h-4 w-4" />Gear</button>
-            {MASS_PARTS.map((n) => {
-              const act = placing?.kind === 'mass' && placing.name === n;
-              return <button key={n} type="button" aria-pressed={act} disabled={locked} onClick={() => startPlace({ kind: 'mass', name: n })} aria-label={`Add ${n}`} title={`Add ${n}`} className={btnOn(act)}><Icon name="plus" className="h-4 w-4" />{n === 'Flight controller' ? 'FC' : n}</button>;
-            })}
           </div>}
           {!project && !locked && !dismissed && <SuggestBar items={items} armed={armed?.kind ?? null} aiRanked={items.some((i) => i.ai)} onPick={armSuggestion} onDismiss={() => { setDismissed(true); setArmed(null); }} />}
           {!project && !locked && dismissed && items.length > 0 && <button type="button" onClick={() => setDismissed(false)} aria-label="Show suggestions" title="Show suggestions" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-sm text-indigo-700 dark:text-indigo-300 underline"><Icon name="bolt" className="h-4 w-4" />Suggest</button>}
@@ -521,12 +589,19 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             </p>
           )}
 
-          <div className={`relative h-[55vh] min-h-[320px] lg:h-[560px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 ${placing ? 'cursor-crosshair' : ''}`}>
+          <div onDragOver={onDragOver} onDrop={onDrop} onDragLeave={() => dnd.current?.clear()} className={`relative h-[55vh] min-h-[320px] lg:h-[560px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 ${placing ? 'cursor-crosshair' : ''}`}>
             <PlaygroundScene
-              shapes={shapes} selectedId={sel?.id ?? null} tool={tool} onSelect={selectShape} onPose={pose}
+              shapes={shapes} selectedId={sel?.id ?? null} tool={sel?.group ? 'translate' : tool} highlight={highlight} dndRef={dnd} onSelect={selectShape} onPose={pose}
               parts={parts} partSel={partSel} onSelectPart={selectPart} onMovePart={movePart}
               placing={placing} mounts={mounts} onPlace={place} locked={locked} sim={sim} estimated={estimated} hints={hints} wheelMm={wheelMm} wheelSpin={simulate && gres?.moves ? Math.min(gres.omegaTop, 8) : 0}
             />
+            {!project && !locked && (sel || partSel) && (
+              <div role="toolbar" aria-label="Selection" className="absolute inset-x-0 bottom-3 flex justify-center gap-2 lg:hidden">
+                {([['Rotate', 'reset', rotate, !sel], ['Duplicate', 'copy', duplicate, !sel], ['Delete', 'trash', () => (partSel ? removeP(partSel) : sel && remove(sel.id)), false]] as const).map(([name, icon, fn, off]) => (
+                  <button key={name} type="button" onClick={fn} disabled={off} aria-label={name} title={name} className={`${btn} min-w-11 bg-white/90 dark:bg-gray-900/90`}><Icon name={icon} className="h-5 w-5" /></button>
+                ))}
+              </div>
+            )}
             {simulate && (
               <FlightHud ground={isGround ? { res: gres, wheelMm, onWheelMm: setWheelMm, run: topRun(gearMotor(parts.motors[0].motorId)!) } : null} motors={parts.motors} components={parts.components} frame={frame?.body ?? null} frameMm={size ? { x: size.x, y: size.y } : null} frameState={frameReady ? 'ready' : 'building'} />
             )}
@@ -600,10 +675,10 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               )
             ) : (
               <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
+                <button type="button" onClick={price} disabled={!hasLoose || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
                 {busy && <span role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Building your model…</span>}
                 <button type="button" onClick={download} disabled={!hasSolid || busy} aria-label="Download STL" title="Download STL" className={`${btn} py-3`}><Icon name="download" className="h-4 w-4" />STL</button>
-                {!hasSolid && <p className="text-sm text-gray-500 dark:text-gray-400">Add at least one solid shape first.</p>}
+                {!hasLoose && <p className="text-sm text-gray-500 dark:text-gray-400">{hasSolid ? 'Template parts are priced in the bill of materials.' : 'Add at least one solid shape first.'}</p>}
               </div>
             )}
           </div>
@@ -613,22 +688,22 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
               <p className="text-sm text-gray-500 dark:text-gray-400">Nothing yet. Add a shape to start.</p>
             ) : (
               <ul className="space-y-1 max-h-48 overflow-y-auto">
-                {shapes.map((s, i) => (
+                {shapes.map((s, i) => (s.group && shapes.findIndex((o) => o.group === s.group) !== i ? null : (
                   <li key={s.id}>
                     <button
                       type="button"
-                      aria-pressed={s.id === sel?.id}
+                      aria-pressed={s.group ? sel?.group === s.group : s.id === sel?.id}
                       onClick={() => !locked && selectShape(s.id)}
-                      className={`w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-left ${s.id === sel?.id ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-100' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                      className={`w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-left ${(s.group ? sel?.group === s.group : s.id === sel?.id) ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-100' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                       <span className="min-w-0">
-                        <span className="block">{names[i]}</span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">L {fmt(s.size.x)} × W {fmt(s.size.y)} × H {fmt(s.size.z)} mm</span>
+                        <span className="block">{s.group ? groupName(s.group) : names[i]}</span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">{s.group ? `${shapes.filter((o) => o.group === s.group).length} parts, moves as one` : `L ${fmt(s.size.x)} × W ${fmt(s.size.y)} × H ${fmt(s.size.z)} mm`}</span>
                       </span>
-                      <span className={`text-xs ${s.mode === 'hole' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{s.mode === 'hole' ? 'Hole' : 'Solid'}</span>
+                      <span className={`text-xs ${s.mode === 'hole' && !s.group ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{s.group ? 'Template' : s.mode === 'hole' ? 'Hole' : 'Solid'}</span>
                     </button>
                   </li>
-                ))}
+                )))}
               </ul>
             )}
           </div>
@@ -681,7 +756,15 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
             </div>
           )}
 
-          {sel && !locked && (
+          {sel?.group && !locked && (
+            <div className={panel}>
+              <h3 className={heading}>{groupName(sel.group)}</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{highlight.length} parts at the default settings. Drag to move them as one. R turns 90°, arrow keys nudge 5 mm (Shift 1 mm), Ctrl/Cmd+D duplicates.</p>
+            </div>
+          )}
+          {!project && <Bom shapes={shapes} parts={parts} onPrice={price} priceBusy={busy} onSave={hasSolid ? saveCopy : undefined} saving={saving} note={savedNote} />}
+
+          {sel && !sel.group && !locked && (
             <div className={panel}>
               <h3 className={heading}>{names[shapes.indexOf(sel)]}</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -715,7 +798,7 @@ export default function Playground({ project }: { project?: PlaygroundProject } 
           <div className="pp-mobile-bar fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur lg:hidden dark:border-gray-700 dark:bg-gray-900/95">
             <span className="min-w-0 truncate text-sm text-gray-700 dark:text-gray-200">{size ? `${fmt(size.x)} × ${fmt(size.y)} × ${fmt(size.z)} mm` : 'Add a solid shape'}</span>
             <button type="button" onClick={() => setAiOpen(true)} aria-label="Customise with AI" title="Customise with AI" className={`${btn} ml-auto`}><Icon name="spark" className="h-4 w-4" />AI</button>
-            <button type="button" onClick={price} disabled={!hasSolid || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
+            <button type="button" onClick={price} disabled={!hasLoose || busy} aria-label="Get a price" title="Get a price" className={`${primary} inline-flex items-center gap-2`}><Icon name="tag" />{busy ? 'Building' : 'Price'}</button>
           </div>
         </>
       )}

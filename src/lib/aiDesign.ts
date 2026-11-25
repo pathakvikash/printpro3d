@@ -22,7 +22,7 @@
 //   AI_MODEL=<a vision model you have pulled>
 //   AI_PROVIDER=openai
 import { EXAMPLES } from './examples.ts';
-import { KINDS, MAX_SHAPES, MIN_SIZE, clampCoord, type Shape, type V3 } from './playground.ts';
+import { KINDS, MAX_GROUPED, MAX_SHAPES, MIN_SIZE, clampCoord, type Shape, type V3 } from './playground.ts';
 import { BED_MM } from './quote.ts';
 
 export type ProviderId = 'anthropic' | 'openai' | 'claude-cli';
@@ -233,16 +233,21 @@ function vec(v: unknown, f: (n: number) => number): V3 | null {
   return { x, y, z };
 }
 
-export function toDesign(input: unknown): DesignResult {
+/** `groups`: keep the group/tpl tags of dropped templates (the builder's own save path); loose shapes stay capped at MAX_SHAPES, grouped ones at MAX_GROUPED. */
+export function toDesign(input: unknown, groups = false): DesignResult {
   const o = obj(input);
   const title = clean(o.title, 60);
   const notes = clean(o.notes, 300);
   if (!Array.isArray(o.shapes)) return { ok: false, reason: NO_DESIGN };
   const seen = new Set<string>();
   const shapes: Shape[] = [];
+  let loose = 0, grouped = 0;
   for (const raw of o.shapes) {
-    if (shapes.length >= MAX_SHAPES) break;
+    if (!groups && shapes.length >= MAX_SHAPES) break;
     const s = obj(raw);
+    const tag = (v: unknown) => (typeof v === 'string' && /^[\w-]{1,32}$/.test(v) ? v : undefined);
+    const group = groups ? tag(s.group) : undefined, tpl = group ? tag(s.tpl) : undefined;
+    if (groups && (group ? grouped >= MAX_GROUPED : loose >= MAX_SHAPES)) continue;
     if (!KINDS.includes(s.kind as never) || (s.mode !== 'solid' && s.mode !== 'hole')) continue;
     const position = vec(s.position, clampCoord), rotation = vec(s.rotation, clampCoord);
     const size = vec(s.size, (n) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, n)));
@@ -251,7 +256,8 @@ export function toDesign(input: unknown): DesignResult {
     let id = typeof s.id === 'string' && /^[\w-]{1,32}$/.test(s.id) && !seen.has(s.id) ? s.id : '';
     while (!id || seen.has(id)) id = Math.random().toString(36).slice(2, 10);
     seen.add(id);
-    shapes.push({ id, kind: s.kind as Shape['kind'], mode: s.mode, position, rotation, size });
+    if (group) grouped++; else loose++;
+    shapes.push({ id, kind: s.kind as Shape['kind'], mode: s.mode, position, rotation, size, ...(group ? { group, ...(tpl ? { tpl } : {}) } : {}) });
   }
   if (!shapes.some((s) => s.mode === 'solid')) return { ok: false, reason: notes || NO_DESIGN };
   return { ok: true, title, notes, shapes };

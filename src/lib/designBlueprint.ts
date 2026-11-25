@@ -1,7 +1,7 @@
 // Blueprint-first design: the LLM proposes a Blueprint (parts made of the existing Shape primitives, plus feature notes) that the customer approves
 // before any mesh is built. Pure, no I/O. The route maps { ok:false } to HTTP 422.
 import { DESIGN_SCHEMA, toDesign } from './aiDesign.ts';
-import { MAX_COORD, MAX_SHAPES, solidsSize, minZ, worldVertices, type Shape } from './playground.ts';
+import { MAX_COORD, MAX_GROUPED, MAX_SHAPES, solidsSize, minZ, worldVertices, type Shape } from './playground.ts';
 import { BED_MM, fitsBed, type Size } from './quote.ts';
 
 export type Part = { id: string; name: string; role: string; shapes: Shape[] };
@@ -95,6 +95,7 @@ export function validateBlueprint(input: unknown, { pieces = false }: { pieces?:
   if (!Array.isArray(o.parts) || !o.parts.length) return fail('parts must be a non-empty list');
   if (o.parts.length > MAX_SHAPES) return fail('too many parts');
   const partIds = new Set<string>(), raws: unknown[] = [], owner: number[] = [];
+  let loose = 0, grouped = 0;
   for (const [pi, p] of o.parts.entries()) {
     e = checkKeys(p, ['id', 'name', 'role', 'shapes'], `parts[${pi}]`);
     if (e) return fail(e);
@@ -106,14 +107,14 @@ export function validateBlueprint(input: unknown, { pieces = false }: { pieces?:
     if (!Array.isArray(part.shapes)) return fail(`parts[${pi}].shapes must be a list`);
     for (const [si, s] of part.shapes.entries()) {
       const path = `parts[${pi}].shapes[${si}]`;
-      e = checkKeys(s, ['id', 'kind', 'mode', 'position', 'rotation', 'size'], path);
+      e = checkKeys(s, ['id', 'kind', 'mode', 'position', 'rotation', 'size', 'group', 'tpl'], path);
       if (e) return fail(e);
       const sh = s as Json;
       e = vecBad(sh.position, `${path}.position`, MAX_COORD) ?? vecBad(sh.rotation, `${path}.rotation`, MAX_COORD) ?? vecBad(sh.size, `${path}.size`, MAX_DIM);
       if (e) return fail(e);
       if (typeof sh.id !== 'string' || !ID.test(sh.id)) return fail(`${path}.id is invalid`);
       raws.push(s); owner.push(pi);
-      if (raws.length > MAX_SHAPES) return fail(`a blueprint has at most ${MAX_SHAPES} shapes`);
+      if ((sh.group === undefined ? ++loose : ++grouped) > (sh.group === undefined ? MAX_SHAPES : MAX_GROUPED)) return fail(`a blueprint has at most ${MAX_SHAPES} loose shapes and ${MAX_GROUPED} template shapes`);
     }
   }
   if (!Array.isArray(o.features) || o.features.length > 50) return fail('features must be a list of at most 50');
@@ -134,7 +135,7 @@ export function validateBlueprint(input: unknown, { pieces = false }: { pieces?:
   if (typeof (o.constraints as Json).fitsBed !== 'boolean' || typeof mw !== 'number' || !Number.isFinite(mw) || mw < 0 || mw > MAX_DIM) return fail('constraints are invalid');
 
   // reuse toDesign for the real shape validation; it silently drops bad shapes, so a count mismatch means rejection
-  const d = toDesign({ title: 'x', notes: '', shapes: raws });
+  const d = toDesign({ title: 'x', notes: '', shapes: raws }, true);
   if (!d.ok) return fail('The blueprint has no solid shape');
   if (d.shapes.length !== raws.length) return fail('Some shapes are invalid');
   const drop = Math.min(...d.shapes.filter((s) => s.mode === 'solid').map(minZ));

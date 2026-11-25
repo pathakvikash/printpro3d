@@ -18,6 +18,8 @@ export type Shape = {
   position: V3; // centre of the shape's box, mm
   rotation: V3; // degrees, applied X then Y then Z
   size: V3; // mm along the shape's own axes, before rotation
+  group?: string; // shapes dropped from one template share this id and move as one
+  tpl?: string; // the template (templateDefs id) a grouped shape came from, at its default config
 };
 
 export const DEFAULT_SIZE: Record<Kind, V3> = {
@@ -30,7 +32,8 @@ export const DEFAULT_SIZE: Record<Kind, V3> = {
 };
 export const LABEL: Record<Kind, string> = { box: 'Box', cylinder: 'Cylinder', sphere: 'Sphere', cone: 'Cone', torus: 'Ring', wedge: 'Wedge' };
 export const MIN_SIZE = 0.1;
-export const MAX_SHAPES = 20;
+export const MAX_SHAPES = 20; // loose shapes; the parts of dropped templates (group set) are capped apart
+export const MAX_GROUPED = 100;
 export const MAX_COORD = 10000; // mm, applied to every position, rotation-free size and typed value
 
 // ---------- unit geometry: each fits a 1x1x1 box centred on the origin, axis along Z ----------
@@ -313,8 +316,12 @@ export function parseDesign(json: string | null): Shape[] {
     const arr = JSON.parse(json ?? '[]');
     if (!Array.isArray(arr)) return [];
     const seen = new Set<string>();
-    return arr.slice(0, MAX_SHAPES).flatMap((o): Shape[] => {
+    let loose = 0, grouped = 0;
+    const tag = (v: unknown) => (typeof v === 'string' && v.length > 0 && v.length <= 60 ? v : undefined);
+    return arr.slice(0, MAX_SHAPES + MAX_GROUPED).flatMap((o): Shape[] => {
       if (!o || typeof o !== 'object' || !KINDS.includes(o.kind) || typeof o.id !== 'string' || seen.has(o.id)) return [];
+      const group = tag(o.group), tpl = group ? tag(o.tpl) : undefined;
+      if (group ? grouped++ >= MAX_GROUPED : loose++ >= MAX_SHAPES) return [];
       seen.add(o.id);
       const size = vec(o.size, DEFAULT_SIZE[o.kind as Kind]);
       return [{
@@ -322,6 +329,7 @@ export function parseDesign(json: string | null): Shape[] {
         position: vec(o.position, { x: 0, y: 0, z: 0 }),
         rotation: vec(o.rotation, { x: 0, y: 0, z: 0 }),
         size: { x: Math.max(MIN_SIZE, size.x), y: Math.max(MIN_SIZE, size.y), z: Math.max(MIN_SIZE, size.z) },
+        ...(group ? { group, ...(tpl ? { tpl } : {}) } : {}),
       }];
     });
   } catch {

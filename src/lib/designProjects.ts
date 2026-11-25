@@ -159,7 +159,7 @@ export async function createFromTemplate(i: { email?: string; template: unknown;
 
 /** A saved design from the builder's shapes (an AI-customised sandbox copy). The shapes are untrusted: same validator as an AI reply, all or nothing. */
 export async function createFromShapes(i: { email?: string; title: unknown; shapes: unknown }): Promise<Project> {
-  const d = toDesign({ shapes: i.shapes });
+  const d = toDesign({ shapes: i.shapes }, true);
   if (!d.ok || !Array.isArray(i.shapes) || d.shapes.length !== i.shapes.length) return fail(400, 'Those shapes cannot be saved. Add a solid shape and try again.');
   const title = (typeof i.title === 'string' ? i.title.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '').slice(0, 60) || 'My design (custom)';
   const p = base('copy', i.email);
