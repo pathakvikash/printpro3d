@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { cartTotal, lineKey, lineTotal, type CartLine } from '@/lib/cart';
 import { exampleById } from '@/lib/examples';
 import { MAX_QTY } from '@/lib/quote';
-import { lineName, lineSettings, shopItem } from '@/lib/cartView';
+import { lineHref, lineName, lineSettings, shopItem } from '@/lib/cartView';
 import { money, secondaryBtn, submitBtn } from './ContactFields';
 import { useCart, type CartTab } from './CartProvider';
 import CartThumb from './CartThumb';
@@ -229,13 +229,14 @@ function Drawer() {
           const name = lineName(l);
           const t = lineTotal(l);
           const note = lineSettings(l)[0];
+          const href = lineHref(l);
           return (
             <li key={key} className="flex gap-3 py-3 first:pt-0">
-              <CartThumb line={l} size={56} />
+              {href ? <Link href={href} onClick={closeCart} tabIndex={-1} aria-hidden className="shrink-0 rounded-lg transition-opacity hover:opacity-80"><CartThumb line={l} size={56} /></Link> : <CartThumb line={l} size={56} />}
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{name}</p>
+                    <p className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{href ? <Link href={href} onClick={closeCart} title={`Open ${name}`} className="hover:text-indigo-600 hover:underline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:text-indigo-400">{name}</Link> : name}</p>
                     {l.kind === 'kit' && <p className="truncate text-xs text-gray-500 dark:text-gray-400">{l.label.split(' · ')[0]}</p>}
                     {l.kind !== 'kit' && note && <p className="truncate text-xs text-gray-500 dark:text-gray-400">{note}</p>}
                   </div>

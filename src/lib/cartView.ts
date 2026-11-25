@@ -58,3 +58,11 @@ export function lineMaterial(l: CartLine): string {
   if (l.kind === 'tpl') return templateById(l.id)?.material ?? '';
   return l.kind === 'kit' ? '' : l.material;
 }
+
+/** The shop page a line came from (kit parts reopen the kit with their settings); null for the customer's own uploads and designs. */
+export function lineHref(l: CartLine): string | null {
+  if (l.kind === 'shop' || l.kind === 'tpl') return `/shop/${encodeURIComponent(l.id)}`;
+  if (l.kind !== 'kit') return null;
+  const q = new URLSearchParams(Object.entries(l.cfg).map(([k, v]) => [k, String(v)])).toString();
+  return `/shop/${encodeURIComponent(kitIdOf(l))}${q ? `?${q}` : ''}`;
+}

@@ -11,7 +11,7 @@ import { EMAIL } from '@/lib/contact';
 import { INDIAN_STATES, shippingError } from '@/lib/shipping';
 import { SHOP_CATEGORIES } from '@/lib/catalog';
 import { KIT_METAS, kitMetaPartCount } from '@/lib/kitMeta';
-import { groupLines, lineMaterial, lineName, lineSettings, shopItem, type Section } from '@/lib/cartView';
+import { groupLines, lineHref, lineMaterial, lineName, lineSettings, shopItem, type Section } from '@/lib/cartView';
 import { SavedRows, QtyStepper, iconBtn, iconBtnDanger, toPayloadItem } from './CartDrawer';
 import { useCart } from './CartProvider';
 import CartThumb from './CartThumb';
@@ -88,6 +88,7 @@ function LineRow({ l }: { l: CartLine }) {
   const material = lineMaterial(l);
   const each = l.kind === 'shop' ? (shopItem(l.id)?.price ?? null) : l.kind === 'tpl' || l.kind === 'kit' ? l.unitPrice : null;
   const printed = l.kind === 'tpl' || l.kind === 'kit';
+  const href = lineHref(l);
   const saveKey = l.kind === 'shop' ? `shop:${l.id}` : null;
 
   const onRemove = () => {
@@ -107,11 +108,11 @@ function LineRow({ l }: { l: CartLine }) {
 
   return (
     <li className="flex gap-3 py-3">
-      <CartThumb line={l} size={64} />
+      {href ? <Link href={href} tabIndex={-1} aria-hidden className="shrink-0 rounded-lg transition-opacity hover:opacity-80"><CartThumb line={l} size={64} /></Link> : <CartThumb line={l} size={64} />}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{name}</h3>
+            <h3 className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{href ? <Link href={href} title={`Open ${name}`} className="hover:text-indigo-600 hover:underline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:text-indigo-400">{name}</Link> : name}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {[material, each !== null ? `${money.format(each)} each` : l.kind === 'model' || l.kind === 'design' ? (l.estimate !== null ? 'Estimated' : "We'll quote this one") : ''].filter(Boolean).join(' · ')}
             </p>
@@ -155,13 +156,15 @@ function KitGroup({ s }: { s: Extract<Section, { kind: 'kit' }> }) {
     <li>
       <section aria-label={`Kit: ${s.title}`} className="overflow-hidden rounded-xl border border-indigo-200 dark:border-indigo-900">
         <header className="flex items-center justify-between gap-2 bg-indigo-50 px-3 py-2 dark:bg-indigo-950/40">
-          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} kit ${s.title}`} className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-indigo-500">
-            <Icon name="arrow" className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform dark:text-indigo-400 ${open ? 'rotate-90' : ''}`} />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} kit ${s.title}`} title={open ? 'Collapse' : 'Expand'} className="shrink-0 rounded-md p-1 focus-visible:outline-2 focus-visible:outline-indigo-500">
+              <Icon name="arrow" className={`h-4 w-4 text-indigo-600 transition-transform dark:text-indigo-400 ${open ? 'rotate-90' : ''}`} />
+            </button>
             <span className="min-w-0">
-              <span className="block break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{s.title}</span>
+              <Link href={lineHref(s.lines[0]) ?? '/shop'} title={`Open ${s.title}`} className="block break-words text-sm font-semibold text-gray-900 hover:text-indigo-600 hover:underline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-gray-100 dark:hover:text-indigo-400">{s.title}</Link>
               <span className="block text-xs text-gray-600 dark:text-gray-300">Kit · {s.lines.length} {s.lines.length === 1 ? 'part' : 'parts'} · {pieces} {pieces === 1 ? 'piece' : 'pieces'}</span>
             </span>
-          </button>
+          </div>
           <p className="whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100"><span className="sr-only">Kit subtotal </span>{money.format(sub)}</p>
           <button type="button" onClick={onRemove} aria-label={`Remove kit ${s.title}`} title="Remove" className={iconBtnDanger}>
             <Icon name="trash" />

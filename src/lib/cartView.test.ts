@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { groupLines, lineName, lineSettings } from './cartView.ts';
+import { groupLines, lineHref, lineName, lineSettings } from './cartView.ts';
 import type { CartLine } from './cart.ts';
 import { TEMPLATES, defaultCfg } from './templateDefs.ts';
 
@@ -21,4 +21,10 @@ test('template settings read as labels', () => {
   const out = lineSettings({ kind: 'tpl', id: t.id, cfg: defaultCfg(t), qty: 1, unitPrice: 1 });
   assert.equal(out.length, t.fields.length);
   assert.match(out[0], new RegExp(`^${t.fields[0].label}: `));
+});
+
+test('lineHref opens the product page; kit parts carry their settings; own uploads have none', () => {
+  assert.equal(lineHref({ kind: 'tpl', id: 'prop-guard', cfg: {}, qty: 1, unitPrice: 1 }), '/shop/prop-guard');
+  assert.equal(lineHref({ kind: 'kit', id: 'whoop-kit:frame', label: 'x', cfg: { duct: 65, aio: true }, qty: 1, unitPrice: 1 }), '/shop/whoop-kit?duct=65&aio=true');
+  assert.equal(lineHref({ kind: 'model', file: 'a.stl', label: 'a', material: 'PLA', qty: 1, estimate: null }), null);
 });
