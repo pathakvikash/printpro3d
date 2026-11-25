@@ -30,7 +30,7 @@ export const toPayloadItem = (l: CartLine) =>
         ? { kind: 'design' as const, project: l.project, material: l.material, qty: l.qty }
         : { kind: 'model' as const, file: l.file, material: l.material, qty: l.qty, label: l.label, ...(l.notes ? { notes: l.notes } : {}) }; // label and notes carry My items' colour note and notes to the owner
 
-function QtyField({ name, value, onCommit }: { name: string; value: number; onCommit: (n: number) => void }) {
+function QtyField({ name, value, onCommit, compact }: { name: string; value: number; onCommit: (n: number) => void; compact?: boolean }) {
   // the draft lets the customer clear the box while typing; only valid whole numbers reach the cart
   const [draft, setDraft] = useState(String(value));
   useEffect(() => {
@@ -51,19 +51,20 @@ function QtyField({ name, value, onCommit }: { name: string; value: number; onCo
         if (Number.isInteger(n) && n >= 1 && n <= MAX_QTY) onCommit(n);
       }}
       onBlur={() => setDraft(String(value))}
-      className={qtyInput}
+      className={compact ? `${qtyInput} !w-10 !text-sm` : qtyInput}
     />
   );
 }
 
-export function QtyStepper({ name, qty, onChange }: { name: string; qty: number; onChange: (n: number) => void }) {
+export function QtyStepper({ name, qty, onChange, compact }: { name: string; qty: number; onChange: (n: number) => void; compact?: boolean }) {
+  const sb = compact ? `${stepBtn} !w-8` : stepBtn;
   return (
-    <div className="inline-flex h-11 items-stretch overflow-hidden rounded-[10px] border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900">
-      <button type="button" aria-label={`Decrease quantity of ${name}`} disabled={qty <= 1} onClick={() => onChange(qty - 1)} className={stepBtn}>
+    <div className={`inline-flex ${compact ? 'h-8 text-sm' : 'h-11'} items-stretch overflow-hidden rounded-[10px] border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900`}>
+      <button type="button" aria-label={`Decrease quantity of ${name}`} disabled={qty <= 1} onClick={() => onChange(qty - 1)} className={sb}>
         −
       </button>
-      <QtyField name={name} value={qty} onCommit={onChange} />
-      <button type="button" aria-label={`Increase quantity of ${name}`} disabled={qty >= MAX_QTY} onClick={() => onChange(qty + 1)} className={stepBtn}>
+      <QtyField name={name} value={qty} onCommit={onChange} compact={compact} />
+      <button type="button" aria-label={`Increase quantity of ${name}`} disabled={qty >= MAX_QTY} onClick={() => onChange(qty + 1)} className={sb}>
         +
       </button>
     </div>
@@ -98,8 +99,11 @@ export function SaveButton({ savedKey, name }: { savedKey: string; name: string 
 }
 
 
-const removeBtn =
-  'inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap px-1 text-sm font-medium text-red-600 dark:text-red-400 hover:underline focus-visible:outline-2 focus-visible:outline-indigo-500';
+// small ghost icon button (32px) for line actions
+export const iconBtn =
+  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-500';
+export const iconBtnDanger = `${iconBtn} hover:!bg-red-50 hover:!text-red-600 dark:hover:!bg-red-950/40 dark:hover:!text-red-400`;
+
 const savedCard = 'rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-3';
 
 // the saved ("for later") list: shop items move to the cart, builder examples open in the builder. Shared by the drawer and the cart page.
@@ -116,12 +120,12 @@ export function SavedRows({ onNavigate }: { onNavigate?: () => void }) {
             <p className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400">{money.format(item.price)} each</p>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <button type="button" aria-label={`Move ${item.name} to cart`} title={`Move ${item.name} to cart`} onClick={() => { add({ kind: 'shop', id, qty: 1 }); toggle(key); }} className={secondaryBtn}>
-              <Icon name="cart" />Move
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label={`Move ${item.name} to cart`} title="Move to cart" onClick={() => { add({ kind: 'shop', id, qty: 1 }); toggle(key); }} className={iconBtn}>
+              <Icon name="cart" />
             </button>
-            <button type="button" aria-label={`Remove ${item.name} from saved`} title={`Remove ${item.name} from saved`} onClick={() => toggle(key)} className={removeBtn}>
-              <Icon name="trash" />Remove
+            <button type="button" aria-label={`Remove ${item.name} from saved`} title="Remove" onClick={() => toggle(key)} className={iconBtnDanger}>
+              <Icon name="trash" />
             </button>
           </div>
         </li>,
@@ -132,12 +136,12 @@ export function SavedRows({ onNavigate }: { onNavigate?: () => void }) {
     return [
       <li key={key} className={savedCard}>
         <p className="font-semibold text-gray-900 dark:text-gray-100">{ex.title}</p>
-        <div className="flex flex-wrap items-center gap-4">
-          <Link href={`/playground?mode=build&example=${ex.id}`} onClick={onNavigate} aria-label="Open in builder" title="Open in builder" className={secondaryBtn}>
-            <Icon name="wrench" />Open
+        <div className="flex items-center gap-1">
+          <Link href={`/playground?mode=build&example=${ex.id}`} onClick={onNavigate} aria-label="Open in builder" title="Open in builder" className={iconBtn}>
+            <Icon name="wrench" />
           </Link>
-          <button type="button" aria-label={`Remove ${ex.title} from saved`} title={`Remove ${ex.title} from saved`} onClick={() => toggle(key)} className={removeBtn}>
-            <Icon name="trash" />Remove
+          <button type="button" aria-label={`Remove ${ex.title} from saved`} title="Remove" onClick={() => toggle(key)} className={iconBtnDanger}>
+            <Icon name="trash" />
           </button>
         </div>
       </li>,
@@ -238,18 +242,18 @@ function Drawer() {
                   <p className="whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{t === null ? "We'll quote" : money.format(t)}</p>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <QtyStepper name={name} qty={l.qty} onChange={(n) => setLineQty(key, n)} />
+                  <QtyStepper compact name={name} qty={l.qty} onChange={(n) => setLineQty(key, n)} />
                   <button
                     type="button"
                     aria-label={`Remove ${name} from cart`}
-                    title={`Remove ${name}`}
+                    title="Remove"
                     onClick={() => {
                       remove(key);
                       toast(`Removed ${name}`, false, () => add(l));
                     }}
-                    className={removeBtn}
+                    className={iconBtnDanger}
                   >
-                    <Icon name="trash" />Remove
+                    <Icon name="trash" />
                   </button>
                 </div>
               </div>

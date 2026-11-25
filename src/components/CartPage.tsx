@@ -12,7 +12,7 @@ import { INDIAN_STATES, shippingError } from '@/lib/shipping';
 import { SHOP_CATEGORIES } from '@/lib/catalog';
 import { KIT_METAS, kitMetaPartCount } from '@/lib/kitMeta';
 import { groupLines, lineMaterial, lineName, lineSettings, shopItem, type Section } from '@/lib/cartView';
-import { SavedRows, QtyStepper, toPayloadItem } from './CartDrawer';
+import { SavedRows, QtyStepper, iconBtn, iconBtnDanger, toPayloadItem } from './CartDrawer';
 import { useCart } from './CartProvider';
 import CartThumb from './CartThumb';
 import { ContactFields, FieldError, contactFrom, input, invalidProps, label, money, secondaryBtn, submitBtn, type FieldErrors } from './ContactFields';
@@ -25,7 +25,6 @@ type Vals = Record<string, string>;
 const card = 'rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900';
 const ghostBtn =
   'inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500';
-const dangerBtn = `${ghostBtn} text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40`;
 const calmBtn = `${ghostBtn} text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40`;
 
 const itemsText = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
@@ -107,41 +106,36 @@ function LineRow({ l }: { l: CartLine }) {
   };
 
   return (
-    <li className="flex gap-3 py-4 sm:gap-4">
-      <CartThumb line={l} size={72} />
-      <div className="min-w-0 flex-1 space-y-2">
+    <li className="flex gap-3 py-3">
+      <CartThumb line={l} size={64} />
+      <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="break-words font-semibold text-gray-900 dark:text-gray-100">{name}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h3 className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{name}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {[material, each !== null ? `${money.format(each)} each` : l.kind === 'model' || l.kind === 'design' ? (l.estimate !== null ? 'Estimated' : "We'll quote this one") : ''].filter(Boolean).join(' · ')}
             </p>
+            {settings.length > 0 && (
+              <p aria-label={`Settings for ${name}`} title={settings.join(', ')} className="line-clamp-2 break-words text-xs text-gray-500 dark:text-gray-400">{settings.join(' · ')}</p>
+            )}
           </div>
           <div className="text-right">
-            <p className="whitespace-nowrap font-semibold text-gray-900 dark:text-gray-100">{total === null ? "We'll quote" : money.format(total)}</p>
-            {printed && <p className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">incl. {money.format(SETUP_FEE)} setup</p>}
+            <p className="whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">{total === null ? "We'll quote" : money.format(total)}</p>
+            {printed && <p className="whitespace-nowrap text-[11px] text-gray-500 dark:text-gray-400">incl. {money.format(SETUP_FEE)} setup</p>}
           </div>
         </div>
-        {settings.length > 0 && (
-          <ul aria-label={`Settings for ${name}`} className="flex flex-wrap gap-1.5">
-            {settings.slice(0, 4).map((s) => (
-              <li key={s} className="max-w-full break-words rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200">{s}</li>
-            ))}
-            {settings.length > 4 && (
-              <li title={settings.slice(4).join(', ')} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200">+{settings.length - 4} more</li>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <QtyStepper compact name={name} qty={l.qty} onChange={(n) => setLineQty(key, n)} />
+          <div className="flex items-center gap-0.5">
+            {saveKey && (
+              <button type="button" onClick={onSave} aria-label={`Save ${name} for later`} title="Save for later" className={iconBtn}>
+                <Icon name="save" />
+              </button>
             )}
-          </ul>
-        )}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <QtyStepper name={name} qty={l.qty} onChange={(n) => setLineQty(key, n)} />
-          {saveKey && (
-            <button type="button" onClick={onSave} aria-label={`Save ${name} for later`} title="Save for later" className={calmBtn}>
-              <Icon name="save" />Save
+            <button type="button" onClick={onRemove} aria-label={`Remove ${name} from cart`} title="Remove" className={iconBtnDanger}>
+              <Icon name="trash" />
             </button>
-          )}
-          <button type="button" onClick={onRemove} aria-label={`Remove ${name} from cart`} title="Remove from cart" className={dangerBtn}>
-            <Icon name="trash" />Remove
-          </button>
+          </div>
         </div>
       </div>
     </li>
@@ -150,6 +144,7 @@ function LineRow({ l }: { l: CartLine }) {
 
 function KitGroup({ s }: { s: Extract<Section, { kind: 'kit' }> }) {
   const { remove, add, toast } = useCart();
+  const [open, setOpen] = useState(true);
   const sub = s.lines.reduce((n, l) => n + (lineTotal(l) ?? 0), 0);
   const pieces = s.lines.reduce((n, l) => n + l.qty, 0);
   const onRemove = () => {
@@ -159,21 +154,24 @@ function KitGroup({ s }: { s: Extract<Section, { kind: 'kit' }> }) {
   return (
     <li>
       <section aria-label={`Kit: ${s.title}`} className="overflow-hidden rounded-xl border border-indigo-200 dark:border-indigo-900">
-        <header className="flex flex-wrap items-center justify-between gap-2 bg-indigo-50 px-4 py-3 dark:bg-indigo-950/40">
-          <div className="min-w-0">
-            <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100"><Icon name="cube" className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />{s.title}</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-300">Kit · {s.lines.length} {s.lines.length === 1 ? 'part' : 'parts'} · {pieces} {pieces === 1 ? 'piece' : 'pieces'}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <p className="font-semibold text-gray-900 dark:text-gray-100"><span className="sr-only">Kit subtotal </span>{money.format(sub)}</p>
-            <button type="button" onClick={onRemove} aria-label={`Remove kit ${s.title}`} title="Remove the whole kit" className={dangerBtn}>
-              <Icon name="trash" />Remove
-            </button>
-          </div>
+        <header className="flex items-center justify-between gap-2 bg-indigo-50 px-3 py-2 dark:bg-indigo-950/40">
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`${open ? 'Collapse' : 'Expand'} kit ${s.title}`} className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-indigo-500">
+            <Icon name="arrow" className={`h-4 w-4 shrink-0 text-indigo-600 transition-transform dark:text-indigo-400 ${open ? 'rotate-90' : ''}`} />
+            <span className="min-w-0">
+              <span className="block break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{s.title}</span>
+              <span className="block text-xs text-gray-600 dark:text-gray-300">Kit · {s.lines.length} {s.lines.length === 1 ? 'part' : 'parts'} · {pieces} {pieces === 1 ? 'piece' : 'pieces'}</span>
+            </span>
+          </button>
+          <p className="whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100"><span className="sr-only">Kit subtotal </span>{money.format(sub)}</p>
+          <button type="button" onClick={onRemove} aria-label={`Remove kit ${s.title}`} title="Remove" className={iconBtnDanger}>
+            <Icon name="trash" />
+          </button>
         </header>
-        <ul className="divide-y divide-gray-100 bg-white px-4 dark:divide-gray-800 dark:bg-gray-900">
-          {s.lines.map((l) => <LineRow key={lineKey(l)} l={l} />)}
-        </ul>
+        {open && (
+          <ul className="divide-y divide-gray-100 bg-white px-3 dark:divide-gray-800 dark:bg-gray-900">
+            {s.lines.map((l) => <LineRow key={lineKey(l)} l={l} />)}
+          </ul>
+        )}
       </section>
     </li>
   );
