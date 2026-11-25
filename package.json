@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/precompute-meshes.ts",
+    "prebuild": "node scripts/precompute-meshes.ts || echo precompute failed, meshes build at runtime",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src scripts",
