@@ -231,14 +231,6 @@ export default function ModelPlayground() {
                 {(Object.keys(LIGHTS) as LightKey[]).map((k) => <button key={k} type="button" aria-pressed={light === k} className={chip(light === k)} onClick={() => setLight(k)}>{LIGHTS[k]}</button>)}
               </div>
             </div>
-            <div role="group" aria-label="Material" className="space-y-2">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Material</span>
-              <div className="flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
-                {KEYS.map((k) => (
-                  <button key={k} type="button" aria-pressed={material === k} onClick={() => setMaterial(k)} className={`min-h-10 flex-1 border-r border-gray-300 px-2 py-1.5 text-sm font-medium last:border-r-0 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-gray-600 ${material === k ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'bg-white text-gray-800 dark:bg-gray-900 dark:text-gray-100'}`}>{k}</button>
-                ))}
-              </div>
-            </div>
             <div className="space-y-2">
               <button type="button" onClick={() => void send()} disabled={!file && !soup} aria-label="Send to Get a quote" title="Send to Get a quote" className="inline-flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"><Icon name="arrow" className="h-4 w-4" />Send to Get a quote</button>
               <p className="text-xs text-gray-600 dark:text-gray-300">Sends {file ? file.file.name : itemId ? `${itemId}.stl` : 'the model'} exactly as shown, at its real size. Get a quote re-measures it and prices it.</p>
@@ -247,8 +239,8 @@ export default function ModelPlayground() {
         </aside>
       </div>
 
-      <section aria-label="Compare materials" className="space-y-3 pt-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Compare materials</h2>
+      <section aria-label="Select material" className="space-y-3 pt-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Select material</h2>
         <p className="text-sm text-gray-600 dark:text-gray-300">Pick a material to see its finish on the model above{stats ? " and this part's weight in it" : ''}.</p>
         <MaterialCards selected={material} onSelect={setMaterial} partVolumeCm3={stats?.volumeCm3} />
         <p className="text-xs text-gray-600 dark:text-gray-400">{KEYS.length} materials, same prices and weights as Get a quote.</p>

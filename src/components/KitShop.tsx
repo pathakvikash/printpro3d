@@ -34,7 +34,7 @@ import { AiAction, addBtn, AddLabel, BackToShop, CardActions, CardFrame, SpecRow
 import { SettingsPanel } from './FieldControl';
 
 const KitThumb = dynamic(() => import('./assembly/KitThumb'), { ssr: false });
-const BlueprintSheet = dynamic(() => import('./BlueprintSheet'), { ssr: false });
+const BlueprintPager = dynamic(() => import('./BlueprintSheet').then((m) => m.BlueprintPager), { ssr: false });
 const ExamplePreview = dynamic(() => import('./ExamplePreview'), { ssr: false });
 const AiConfigPanel = dynamic(() => import('./AiConfigPanel'), { ssr: false, loading: () => <p className="text-sm text-gray-500 dark:text-gray-400">Loading AI…</p> });
 const AssemblyViewer = dynamic(() => import('./assembly/AssemblyViewer'), { ssr: false, loading: () => <div aria-hidden className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" /> });
@@ -96,7 +96,11 @@ export function useParts(kit: Kit): Part[] {
 const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps-puck-25', camera: 'camera-19', motor: 'motor-1404', prop: 'prop-3in', esp32: 'board-esp32-devkit', sg90: 'servo-sg90' };
 
 // The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
-export function FinishedBuild({ kit, parts, focusId, updating }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean }) {
+// partSheet: the selected part's own drawing (Inspect); it becomes a second page of the one blueprint pager, and picking a part jumps to it.
+export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean; partSheet?: { title: string; svg: string; filename: string } | null }) {
+  const [page, setPage] = useState(0);
+  const first = useRef(true);
+  useEffect(() => { if (first.current) { first.current = false; return; } setPage(1); }, [focusId]);
   const built = useMemo(() => {
     if (!kit.assembly || parts.some((p) => !p.mesh)) return null;
     const geometries: Record<string, THREE.BufferGeometry> = {}, sizes: Record<string, V3> = {};
@@ -138,9 +142,8 @@ export function FinishedBuild({ kit, parts, focusId, updating }: { kit: Kit; par
       )}
       {kit.credit && <CreditLine credit={kit.credit} />}
       {sheet && (
-        <div className="space-y-2 pt-2">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{plates ? 'Print plate drawing' : 'Assembly drawing'}</h3>
-          <BlueprintSheet svg={sheet} filename={`${plates ? 'print-plates' : 'assembly'}-${kit.id}`} />
+        <div className="pt-2">
+          <BlueprintPager index={page} onIndex={setPage} sheets={[{ title: plates ? 'Print plate drawing' : 'Assembly drawing', svg: sheet, filename: `${plates ? 'print-plates' : 'assembly'}-${kit.id}` }, ...(partSheet ? [partSheet] : [])]} />
         </div>
       )}
     </section>

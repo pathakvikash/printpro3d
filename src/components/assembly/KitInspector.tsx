@@ -1,8 +1,8 @@
 'use client';
 // Playground > Inspect for a kit: the finished assembled build next to its engineering (blueprint of the selected part,
 // a parts list with sizes). Selecting a part in the list tints it in the model and draws its blueprint.
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import { blueprint, bounds } from '@/lib/blueprint';
 import type { Kit } from '@/lib/kits';
@@ -10,7 +10,7 @@ import { FinishedBuild, VariantPicker, useParts } from '../KitShop';
 import CreditLine from '../KitCredit';
 import BoughtList from '../BoughtList';
 
-const BlueprintSheet = dynamic(() => import('../BlueprintSheet'), { ssr: false });
+const BlueprintPager = dynamic(() => import('../BlueprintSheet').then((m) => m.BlueprintPager), { ssr: false });
 const mm = (n: number) => n.toFixed(1);
 
 export default function KitInspector({ kit: top }: { kit: Kit }) {
@@ -21,16 +21,11 @@ export default function KitInspector({ kit: top }: { kit: Kit }) {
   const id = kit.items.some((i) => i.templateId === sel) ? sel : kit.items[0]?.templateId ?? null;
   const cur = parts.find((p) => p.item.templateId === id);
   const sheet = useMemo(() => (cur?.mesh ? blueprint(cur.mesh, { name: cur.name, material: cur.material }) : null), [cur]);
+  const partSheet = sheet ? { title: cur?.name ?? 'part', svg: sheet, filename: `blueprint-${(cur?.name ?? 'part').replace(/\W+/g, '-').toLowerCase()}` } : null;
   return (
     <div className="space-y-6">
       {top.variants && <VariantPicker kit={top} index={vi} onPick={setVi} />}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
-        <FinishedBuild kit={kit} parts={parts} focusId={id} />
-        <section aria-label="Blueprint of the selected part" className="space-y-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Blueprint: {cur?.name ?? '…'}</h2>
-          {sheet ? <BlueprintSheet svg={sheet} filename={`blueprint-${(cur?.name ?? 'part').replace(/\W+/g, '-').toLowerCase()}`} /> : <div role="status" aria-label="Drawing the blueprint" className="h-48 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />}
-        </section>
-      </div>
+      {kit.assembly ? <FinishedBuild kit={kit} parts={parts} focusId={id} partSheet={partSheet} /> : partSheet ? <BlueprintPager index={0} onIndex={() => {}} sheets={[partSheet]} /> : <div role="status" aria-label="Drawing the blueprint" className="h-48 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-800" />}
       <section aria-label="Parts list" className="space-y-2">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Parts list</h2>
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
