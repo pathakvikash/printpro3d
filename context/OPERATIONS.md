@@ -122,3 +122,5 @@ Remote: `https://github.com/pathakvikash/printpro3d`. Use the `pathakvikash` acc
 ## Service area and INTEGRATOR NOTE
 
 Source of truth: `src/lib/business.ts` (India only for now, base Patna, Bihar). Footer shows it. Orders carry `country`, `state`, `pin` (validated in `src/lib/shipping.ts`). Pages that should mention the service area later, once the owner gives details: `/contact` (location, pickup), `/how-it-works` (delivery FAQ: India only), `/quote` and `/shop` (delivery note), `/about`. Do not invent address, pin, phone, pickup or delivery times.
+
+CI: `.github/workflows/ci.yml` runs `npm ci`, tsc, `npm test` and `npm run build` (Turbopack) on every push and PR, so Vercel-only build failures show up on GitHub first; this Mac cannot run Turbopack's build.

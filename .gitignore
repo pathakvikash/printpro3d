@@ -55,8 +55,6 @@ printpro3d_static/
 # vscode
 .vscode/
 
-# github config
-.github/
 /ai-usage
 /ai-jobs
 /ratelimit
