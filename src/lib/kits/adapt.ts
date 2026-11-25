@@ -12,6 +12,7 @@ import { KIT_WHOOP_KIT as WHOOP } from './whoop-kit.ts';
 import { KIT_HELI_KIT as HELI } from './heli-kit.ts';
 import { KIT_TRANSFORMER_KIT as TRANSFORMER } from './transformer-kit.ts';
 import { KIT_LED_DECOR_KIT as LED } from './led-decor-kit.ts';
+import { KIT_ROLLING_COMPANION_KIT as ROLLING } from './rolling-companion-kit.ts';
 import { rcCarKit as RC } from './rc-car-kit.ts';
 import { deskPetKit as PET } from './desk-pet-kit.ts';
 
@@ -45,6 +46,10 @@ const SOURCES: Source[] = [
   {
     id: 'transformer-kit', title: TRANSFORMER.title, blurb: TRANSFORMER.blurb, category: 'toys-hobby', badge: 'Beta',
     fields: TRANSFORMER.config.fields, defaults: () => TRANSFORMER.config.defaults(), validate: (r) => TRANSFORMER.config.validate(r), parts: builtParts(TRANSFORMER.printedParts as unknown as Parameters<typeof builtParts>[0]), assembly: TRANSFORMER.assembly, bought: TRANSFORMER.boughtParts,
+  },
+  {
+    id: 'rolling-companion-kit', title: ROLLING.title, blurb: ROLLING.blurb, category: 'robotics',
+    fields: ROLLING.config.fields, defaults: () => ROLLING.config.defaults(), validate: (r) => ROLLING.config.validate(r), parts: builtParts(ROLLING.printedParts), assembly: ROLLING.assembly, bought: ROLLING.boughtParts,
   },
   {
     id: 'led-decor-kit', title: LED.title, blurb: LED.blurb, category: 'smart-home',

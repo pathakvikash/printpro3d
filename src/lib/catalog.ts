@@ -48,7 +48,7 @@ const SHOP_CAT: Record<string, ShopCategory> = {
   'drone-plate': 'drone-rc', 'drone-camera-mount': 'drone-rc', 'gps-antenna-mount': 'drone-rc', 'landing-gear': 'drone-rc', 'prop-guard': 'drone-rc', 'fpv-frame-3in': 'drone-rc', 'rc-bumper': 'drone-rc', 'battery-tray': 'drone-rc', 'wheel-hub': 'drone-rc',
   'servo-bracket': 'robotics', 'robot-chassis': 'robotics', 'robot-gripper': 'robotics',
   'fpv-3in-kit': 'drone-rc', 'rover-kit': 'robotics', 'whoop-kit': 'drone-rc', 'heli-kit': 'drone-rc', 'rc-car': 'drone-rc', 'desk-pet': 'robotics',
-  'transformer-kit': 'toys-hobby', 'led-decor-kit': 'smart-home',
+  'transformer-kit': 'toys-hobby', 'rolling-companion-kit': 'robotics', 'led-decor-kit': 'smart-home',
   'motor-mount': 'robotics', 'motor-wheel': 'robotics', 'spacer-set': 'robotics', 'board-case': 'robotics', 'pi-case': 'robotics', 'enclosure-box': 'robotics',
   'spinner-toy': 'toys-hobby', pawn: 'toys-hobby',
   'grid-bin': 'accessories',

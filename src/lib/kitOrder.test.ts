@@ -11,12 +11,12 @@ import { meshStats, quote } from './quote.ts';
 import { shopCat } from './catalog.ts';
 import { readFile } from 'node:fs/promises';
 
-const NEW = ['whoop-kit', 'heli-kit', 'transformer-kit', 'led-decor-kit', 'rc-car', 'desk-pet'];
+const NEW = ['whoop-kit', 'heli-kit', 'transformer-kit', 'rolling-companion-kit', 'led-decor-kit', 'rc-car', 'desk-pet'];
 const kitKeys = (id: string) => [kitById(id)!, ...(kitById(id)!.variants ?? [])].flatMap((k) => k.items.map((i) => i.templateId));
 const read = async (f: string) => { const b = await readFile(`public${f}`); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer; };
 
 test('all eight kits are listed, each in a shop category, with unique ids', () => {
-  assert.deepEqual(KITS.map((k) => k.id).sort(), ['desk-pet', 'fpv-3in-kit', 'heli-kit', 'led-decor-kit', 'rc-car', 'rover-kit', 'transformer-kit', 'whoop-kit']);
+  assert.deepEqual(KITS.map((k) => k.id).sort(), ['desk-pet', 'fpv-3in-kit', 'heli-kit', 'led-decor-kit', 'rc-car', 'rolling-companion-kit', 'rover-kit', 'transformer-kit', 'whoop-kit']);
   for (const k of KITS) assert.equal(shopCat(k.id), k.category, k.id);
   assert.equal(shopCat('led-decor-kit'), 'smart-home');
   assert.equal(kitById('transformer-kit')!.badge, 'Beta');
