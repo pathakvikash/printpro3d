@@ -54,7 +54,7 @@ export default function ModelPlayground() {
   const urlRef = useRef<string | null>(null);
 
   useEffect(() => { void import('@/lib/shopProducts').then(setLib); }, []);
-  useEffect(() => { void Promise.all([import('@/lib/templateDefs'), import('@/lib/kits')]).then(([t, k]) => setExtra({ tpls: shopVisible(t.TEMPLATES), kits: shopVisible(k.KITS) })); }, []);
+  useEffect(() => { void Promise.all([import('@/lib/templateDefs'), import('@/lib/kits')]).then(([t, k]) => setExtra({ tpls: shopVisible(t.TEMPLATES), kits: shopVisible(k.KITS) }), () => setExtra({ tpls: [], kits: [] })); }, []);
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
 
   const products = lib?.PRODUCTS ?? [];
@@ -135,7 +135,7 @@ export default function ModelPlayground() {
   // Modify this: catalogue samples open in the builder; templates and kits are configured on their shop page
   const modifyHref = product ? `/playground?mode=build&example=${product.item.exampleId}` : tpl || kit ? `/shop/${tpl?.id ?? kit?.id}` : null;
   const sideBySide = mode === 'both';
-  const loading = !lib || !extra;
+  const loading = !lib; // samples come with lib; templates and kits join the list when extra arrives
 
   return (
     <div
@@ -177,10 +177,12 @@ export default function ModelPlayground() {
           <Link href="/playground?mode=build" title="Start from scratch" className={`${btn} flex-1 sm:flex-none`}><Icon name="plus" className="h-4 w-4" />New</Link>
         </div>
       </section>
+      <h2 className="sr-only">{name}</h2>
+      <p className="-mt-2 px-1 text-xs text-gray-500 dark:text-gray-400">Or drop an STL or OBJ anywhere on this page. It stays in your browser until you send it to Get a quote.</p>
       {note && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">{note}</p>}
 
       {kit ? <KitInspector key={kit.id} kit={kit} /> : (<>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={`grid gap-4 ${sideBySide ? '' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'}`}>
         <section aria-label="Viewer" className="min-w-0 space-y-4">
           <div className={sideBySide ? 'grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]' : 'space-y-4'}>
             <div className={mode === 'blueprint' ? 'hidden' : 'space-y-2'}>
