@@ -42,7 +42,7 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
         {TPLS.map((t) => (
           <li key={t.id}>
             <button type="button" disabled={disabled} onClick={() => onTemplate(t.id)} aria-label={`Add ${t.name}`} title={`Add ${t.name}`} className={item} {...drag({ t: 'tpl', id: t.id })}>
-              <Icon name="cube" className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" /><span className="min-w-0 truncate">{t.name}</span>
+              <Icon name="cube" className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" /><span className="line-clamp-2 min-w-0 text-left leading-snug" title={t.name}>{t.name}</span>
             </button>
           </li>
         ))}
@@ -54,7 +54,7 @@ export default function Palette({ disabled, armed, spin, onShape, onTemplate, on
           <li key={key}>
             <button type="button" disabled={disabled} aria-pressed={isArmed(p)} onClick={() => { setOpen(false); onPart(p); }} aria-label={`Add ${name}`} title={`Add ${name}`}
               className={`${item} ${isArmed(p) ? 'border-indigo-600 ring-2 ring-indigo-500' : ''}`} {...drag({ t: 'part', placing: p })}>
-              <Icon name="bolt" className="h-4 w-4 shrink-0 text-amber-600" /><span className="min-w-0 flex-1 truncate">{name}</span>
+              <Icon name="bolt" className="h-4 w-4 shrink-0 text-amber-600" /><span className="line-clamp-2 min-w-0 flex-1 text-left leading-snug" title={name}>{name}</span>
               <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">enquiry only</span>
             </button>
           </li>
