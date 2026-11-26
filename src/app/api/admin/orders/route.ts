@@ -102,12 +102,18 @@ export async function PATCH(request: Request) {
   if (hasNote) {
     const bad = noteError(body.note);
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+  }
+  // status first: a bad status must not leave a half-applied request (note saved, status refused)
+  let r: Awaited<ReturnType<typeof setStatus>> | null = null;
+  if (typeof body.status === 'string') {
+    r = await setStatus(body.id, body.status, type);
+    if (!r.ok) return NextResponse.json({ error: r.message }, { status: r.code === 'not_found' ? 404 : 400 });
+  }
+  if (hasNote) {
     const n = await setNote(body.id, body.note, type);
     if (!n.ok) return NextResponse.json({ error: n.message }, { status: n.code === 'not_found' ? 404 : 400 });
-    if (typeof body.status !== 'string') return NextResponse.json({ ok: true, type: n.type, id: body.id });
+    if (!r) return NextResponse.json({ ok: true, type: n.type, id: body.id });
   }
-  if (typeof body.status !== 'string') return NextResponse.json({ error: 'status required' }, { status: 400 });
-  const r = await setStatus(body.id, body.status, type);
-  if (!r.ok) return NextResponse.json({ error: r.message }, { status: r.code === 'not_found' ? 404 : 400 });
+  if (!r?.ok) return NextResponse.json({ error: 'status required' }, { status: 400 });
   return NextResponse.json({ ok: true, type: r.type, id: r.id, status: r.to, emailed: r.emailed });
 }

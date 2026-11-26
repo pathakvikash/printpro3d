@@ -59,7 +59,12 @@ export default function AdminPanel() {
       }
       write(t);
       setToken(t);
-      setRecords((old) => (offset && old ? [...old, ...d.records] : d.records));
+      // a new order arriving between pages shifts the offset: skip records already shown
+      setRecords((old) => {
+        if (!offset || !old) return d.records;
+        const seen = new Set(old.map((x) => `${x.type}-${x.id}`));
+        return [...old, ...d.records.filter((x: Rec) => !seen.has(`${x.type}-${x.id}`))];
+      });
       setTotal(d.total ?? d.records.length);
       setStatuses(d.statuses);
     } catch (e) {
