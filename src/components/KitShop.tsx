@@ -149,8 +149,8 @@ export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { ki
   const prevFocus = useRef({ kit: kit.id, focus: focusId });
   useEffect(() => {
     const p = prevFocus.current;
-    if (p.kit !== kit.id) setPage(0);
-    else if (p.focus != null && focusId !== p.focus) setPage(Number.MAX_SAFE_INTEGER); // clamped to the last page (the part's) below
+    if (p.kit !== kit.id) { setPage(0); setView('finished'); }
+    else if (p.focus != null && focusId !== p.focus) { setPage(Number.MAX_SAFE_INTEGER); setView('plates'); } // clamped to the last page (the part's) below; the pager shows only outside the Finished view
     prevFocus.current = { kit: kit.id, focus: focusId };
   }, [kit.id, focusId]);
   const built = useMemo(() => {
