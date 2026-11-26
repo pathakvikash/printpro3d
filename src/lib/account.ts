@@ -10,6 +10,8 @@ const FOLDER = { order: 'orders', request: 'requests' } as const;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUB = /^[A-Za-z0-9]{1,64}$/; // Google subs are numeric; also a valid store key
 const INDEX_NS = 'user-orders';
+// orders before Google accounts existed have no owner: match those by contact email; later ones only by session owner
+const ACCOUNTS_SINCE = '2026-11-27T00:00:00.000Z';
 
 /** The signed-in user from the Auth.js session cookie (needs a Google sub and email), or null. */
 export async function sessionUser(): Promise<SessionUser | null> {
@@ -42,7 +44,11 @@ export async function listMine(u: SessionUser): Promise<MyRecord[]> {
   const found = new Map<string, MyRecord>();
   const take = (type: 'order' | 'request', r: Record<string, unknown> | null) => {
     if (!r || typeof r !== 'object' || typeof r.id !== 'string') return;
-    const mine = r.userSub === u.sub || (typeof r.email === 'string' && r.email.trim().toLowerCase() === email);
+    // records placed while signed in carry userSub/userEmail from the session; the typed contact email only counts for
+    // older records with no owner, so nobody can push a record into someone else's list by typing their address
+    const mine = r.userSub === u.sub
+      || (typeof r.userEmail === 'string' && r.userEmail.toLowerCase() === email)
+      || (!r.userSub && typeof r.email === 'string' && r.email.trim().toLowerCase() === email && String(r.createdAt ?? '') < ACCOUNTS_SINCE);
     if (!mine) return;
     found.set(`${type}-${r.id}`, {
       type, id: r.id, createdAt: String(r.createdAt ?? ''), status: String(r.status ?? ''),

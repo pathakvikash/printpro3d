@@ -49,3 +49,12 @@ test('listMine: own records by sub or by verified email, newest first, never ano
   await indexAdd(B, { type: 'order', id: id(1), createdAt: 'x' });
   assert.deepEqual((await listMine(B)).map((r) => r.id), [id(4)]);
 });
+
+test('a typed contact email cannot push a new anonymous order into someone else\'s list', async () => {
+  const spoof = { id: '00000000-0000-4000-8000-000000000077', createdAt: '2026-12-01T00:00:00Z', status: 'pending_review', lines: [{}], total: 1, currency: 'INR', email: 'b@gmail.com' };
+  await putJson('orders', `${spoof.id}.json`, spoof);
+  assert.ok(!(await listMine(B)).some((r) => r.id === spoof.id));
+  const signedIn = { ...spoof, id: '00000000-0000-4000-8000-000000000078', userSub: '222', userEmail: 'b@gmail.com' };
+  await putJson('orders', `${signedIn.id}.json`, signedIn);
+  assert.ok((await listMine(B)).some((r) => r.id === signedIn.id));
+});
