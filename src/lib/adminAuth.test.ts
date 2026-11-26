@@ -39,10 +39,10 @@ test('503 when neither ADMIN_EMAILS nor ADMIN_TOKEN is set', async () => {
   assert.deepEqual(await off!.json(), { error: 'admin disabled' });
 });
 
-test('session: allowed email passes, other or missing email is 401, no delay without a bearer header', async () => {
+test('session: allowed email passes, other email 403, missing 401, no delay without a bearer header', async () => {
   const env = { ADMIN_EMAILS: 'me@gmail.com' };
   assert.equal(await adminGate(req(), 0, env, as('Me@Gmail.com')), null);
-  assert.equal((await adminGate(req(), 0, env, as('other@gmail.com')))?.status, 401);
+  assert.equal((await adminGate(req(), 0, env, as('other@gmail.com')))?.status, 403);
   assert.equal((await adminGate(req(), 0, env, none))?.status, 401);
 });
 
@@ -72,4 +72,11 @@ test('aiSettingsGate: open outside production, admin gate in production', async 
   assert.equal((await aiSettingsGate(req(undefined, '8.8.8.9'), prod, 0, none))?.status, 401);
   assert.equal(await aiSettingsGate(req(undefined, '8.8.8.9'), prod, 0, as('me@gmail.com')), null);
   assert.equal(await aiSettingsGate(req('Bearer tok-123', '8.8.8.9'), { VERCEL: '1', ADMIN_TOKEN: 'tok-123' }, 0, none), null);
+});
+
+test('a signed-in non-admin gets 403 (not 401); signed out stays 401', async () => {
+  const env = { ADMIN_EMAILS: 'me@gmail.com' };
+  assert.equal((await adminGate(req(), 0, env, as('customer@gmail.com')))?.status, 403);
+  assert.equal((await adminGate(req(), 0, env, none))?.status, 401);
+  assert.equal((await aiSettingsGate(req(), { ...env, NODE_ENV: 'production' }, 0, as('customer@gmail.com')))?.status, 403);
 });

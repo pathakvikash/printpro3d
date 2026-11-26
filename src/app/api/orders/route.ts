@@ -10,6 +10,7 @@ import { checkEntry, mergeChecked } from '@/lib/orderChecks';
 import { designNotes, newBudget, priceDesign, priceKit, priceModel, priceTpl, type SavedLine } from '@/lib/orderPricing';
 import { markOrdered } from '@/lib/designProjects';
 import { putJson } from '@/lib/store';
+import { indexAdd, ownerFields, sessionUser } from '@/lib/account';
 import { filled, limited } from '@/lib/spam';
 
 // ponytail: orders are JSON records in the store (local disk, or Vercel Blob); list/filter in the admin page is a full scan — move to a DB if volume grows
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
     const total = priced.length ? priced.reduce((sum, l) => sum + (l.total ?? 0), 0) : null;
 
     const id = crypto.randomUUID();
+    const user = await sessionUser(); // from the session cookie, never from the body
     // ponytail: price is an estimate — flipped-winding or overlapping bodies can under-count volume; owner confirms before sending the payment link. Per-component volume if this becomes self-serve payment.
     const status = unpricedCount === 0 ? 'pending_review' : 'needs_manual_quote';
     const order = {
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
       status,
       lines,
       ...fields,
+      ...ownerFields(user),
       notes: [fields.notes, designNotes(lines)].filter(Boolean).join('\n\n'),
       total,
       unpricedCount,
@@ -95,6 +98,7 @@ export async function POST(request: Request) {
       currency: CURRENCY,
     };
     await putJson('orders', `${id}.json`, order);
+    await indexAdd(user, { type: 'order', id, createdAt: order.createdAt }).catch(() => {});
     for (const l of lines) if (l.kind === 'design' && l.project) await markOrdered(l.project).catch(() => {});
     await notifyNewOrder(order); // never throws; the order is already saved
     return NextResponse.json({ id, status, total, unpricedCount, reviewCount, provisional, currency: CURRENCY });

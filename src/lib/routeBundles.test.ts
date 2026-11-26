@@ -95,7 +95,7 @@ test('no server page or product-page component builds a mesh while rendering', (
 
 // Google sign-in is server-only and scoped to the admin pages: next-auth must never reach the public routes' static import graphs
 test('next-auth stays out of the home, shop and cart bundles and the root layout', () => {
-  const entries = ['app/page.tsx', 'app/layout.tsx', 'app/shop/page.tsx', 'components/Navbar.tsx', ...['ShopRoute', 'ShopOrder', 'HomeShop', 'CartDrawer'].map((f) => `components/${f}.tsx`)];
+  const entries = ['components/ContactFields.tsx', 'components/CartPage.tsx', 'app/page.tsx', 'app/layout.tsx', 'app/shop/page.tsx', 'components/Navbar.tsx', ...['ShopRoute', 'ShopOrder', 'HomeShop', 'CartDrawer'].map((f) => `components/${f}.tsx`)];
   const src = fileURLToPath(new URL('..', import.meta.url));
   const seen = new Set<string>();
   const walk = (file: string) => {

@@ -38,9 +38,12 @@ export async function sessionEmail(): Promise<string | null> {
 export async function adminGate(request: Request, delayMs = 1000, env: Env = process.env, getEmail: () => Promise<string | null> = sessionEmail): Promise<Response | null> {
   const token = env.ADMIN_TOKEN;
   if (!token && adminEmails(env).length === 0) return Response.json({ error: 'admin disabled' }, { status: 503 });
-  if (emailAllowed(await getEmail(), undefined, env)) return null; // signIn already required a verified email
+  const signedIn = await getEmail();
+  if (emailAllowed(signedIn, undefined, env)) return null; // signIn already required a verified email
   const header = request.headers.get('authorization');
-  if (!token || !header) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!token || !header) {
+    return signedIn ? Response.json({ error: 'not allowed' }, { status: 403 }) : Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const ip = clientIp(request);
   if ((await seen('admin-fail', ip)) >= MAX_FAILS) return Response.json({ error: 'Too many failed attempts. Try again later.' }, { status: 429 });
   if (tokenOk(header, token)) return null;

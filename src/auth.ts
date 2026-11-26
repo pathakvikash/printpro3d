@@ -1,4 +1,5 @@
-// Auth.js (next-auth v5) Google sign-in, JWT session, no database. Only emails in ADMIN_EMAILS get a session.
+// Auth.js (next-auth v5) Google sign-in, JWT session, no database. Any verified Google email gets a session (customers);
+// only ADMIN_EMAILS may open the admin pages and APIs (checked there, not here).
 // Env: AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET (read by Auth.js itself), ADMIN_EMAILS.
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
@@ -8,8 +9,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
   session: { strategy: 'jwt' },
   trustHost: true, // Vercel sets the Host header; no fixed URL to configure
-  pages: { error: '/admin' }, // a denied sign-in lands on /admin?error=AccessDenied
   callbacks: {
-    signIn: ({ profile }) => emailAllowed(profile?.email, profile?.email_verified === true),
+    signIn: ({ profile }) => profile?.email_verified === true && !!profile.email,
+    // the session carries the Google sub (id) and whether the email is an admin; the server re-checks on every admin request
+    session: ({ session, token }) => {
+      const u = session.user as typeof session.user & { id?: string; admin?: boolean };
+      u.id = token.sub ?? '';
+      u.admin = emailAllowed(u.email, undefined);
+      return session;
+    },
   },
 });

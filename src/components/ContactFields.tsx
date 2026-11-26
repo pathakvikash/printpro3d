@@ -1,5 +1,6 @@
 // Shared bits for every form: class names, money format, contact inputs, success box.
 import { CURRENCY } from '@/lib/quote';
+import ContactPrefill from './ContactPrefill';
 
 export const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: CURRENCY, maximumFractionDigits: 0 });
 export const input =
@@ -33,6 +34,7 @@ export function ContactFields({
   const p = idPrefix;
   return (
     <>
+      <ContactPrefill idPrefix={p} />
       {/* honeypot: people never see or fill it, form-filling bots do; the server then drops the submission */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
         <label htmlFor={`${p}website`}>Leave this field empty</label>

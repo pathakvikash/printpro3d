@@ -6,6 +6,7 @@ import { parseContact, text } from '@/lib/contact';
 import { isImage } from '@/lib/image';
 import { notifyNewRequest } from '@/lib/notify';
 import { del, onBlobStore, putBytes, putJson } from '@/lib/store';
+import { indexAdd, ownerFields, sessionUser } from '@/lib/account';
 import { imagesTotalProblem } from '@/lib/uploadRules';
 import { filled, limited } from '@/lib/spam';
 
@@ -76,9 +77,10 @@ export async function POST(request: Request) {
     }
 
     const id = crypto.randomUUID();
+    const user = await sessionUser(); // from the session cookie, never from the form
     const rec = {
       id, createdAt: new Date().toISOString(), status: 'new',
-      category, description, sizeMm, qtyBand, deliver, extras, budget, images: names, ...fields,
+      category, description, sizeMm, qtyBand, deliver, extras, budget, images: names, ...fields, ...ownerFields(user),
     };
     try {
       await putJson('requests', `${id}.json`, rec);
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
       await Promise.all(names.map((n) => del('uploads', n).catch(() => {})));
       throw e;
     }
+    await indexAdd(user, { type: 'request', id, createdAt: rec.createdAt }).catch(() => {});
     await notifyNewRequest(rec); // never throws; the request is already saved
     return NextResponse.json({ id, status: rec.status });
   } catch (e) {

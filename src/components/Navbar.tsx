@@ -8,6 +8,7 @@ import Logo from './Logo';
 import { useCart } from './CartProvider';
 import { OPEN_AI_CHAT } from './AiChatLauncher';
 import { business, phoneHref } from '@/lib/contact';
+import { useAccountUser } from '@/lib/sessionClient';
 
 const LINKS = [
   { href: '/shop', label: 'Shop' },
@@ -34,6 +35,8 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const themeLabel = `Theme: ${mounted && theme === 'dark' ? 'dark' : 'light'} (switch to ${mounted && theme === 'dark' ? 'light' : 'dark'})`;
   const { count, openCart } = useCart();
+  const user = useAccountUser(1500); // lazy, after idle; no auth code on the page
+  const who = user?.email ? { label: user.email, initial: (user.name || user.email)[0].toUpperCase() } : null;
 
   useEffect(() => {
     setMounted(true);
@@ -156,23 +159,34 @@ export default function Navbar() {
                 title='Account and settings'
                 className={iconBtn}
               >
-                <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0' />
-                </svg>
+                {who ? (
+                  <span aria-hidden='true' className='flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white'>{who.initial}</span>
+                ) : (
+                  <svg aria-hidden='true' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0' />
+                  </svg>
+                )}
               </button>
               {acct && (
                 <ul id='account-menu' className='absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-gray-700 dark:bg-gray-900'>
+                  {who && <li className='truncate px-3 py-2 text-xs text-gray-500 dark:text-gray-400'>{who.label}</li>}
                   {MENU_LINKS.map((l) => (
                     <li key={l.href}>
                       <Link href={l.href} className={itemCls}>{l.label}</Link>
                     </li>
                   ))}
-                  <li>
-                    <Link href='/admin' className={itemCls}><Icon name='lock' className='mr-2 inline h-4 w-4 align-text-bottom' />Admin</Link>
-                  </li>
-                  <li>
-                    <Link href='/settings/ai' className={itemCls}><Icon name='gear' className='mr-2 inline h-4 w-4 align-text-bottom' />AI settings</Link>
-                  </li>
+                  {who ? (
+                    <>
+                      <li><Link href='/account' className={itemCls}>My orders</Link></li>
+                      {user?.admin && <li><Link href='/admin' className={itemCls}><Icon name='lock' className='mr-2 inline h-4 w-4 align-text-bottom' />Admin</Link></li>}
+                      {user?.admin && <li><Link href='/settings/ai' className={itemCls}><Icon name='gear' className='mr-2 inline h-4 w-4 align-text-bottom' />AI settings</Link></li>}
+                      <li>
+                        <form action='/account/signout' method='post'><button type='submit' className={`${itemCls} w-full text-left`}>Sign out</button></form>
+                      </li>
+                    </>
+                  ) : (
+                    <li><Link href='/account' className={itemCls}>Sign in with Google</Link></li>
+                  )}
                   <li className='border-t border-gray-200 dark:border-gray-700 mt-1 pt-1'>
                     <button type='button' onClick={toggleTheme} aria-label={themeLabel} title={themeLabel} className={`${itemCls} w-full whitespace-nowrap text-left`}>
                       <Icon name={mounted && theme === 'dark' ? 'moon' : 'sun'} className='mr-2 inline h-4 w-4 align-text-bottom' />Theme
@@ -222,12 +236,18 @@ export default function Navbar() {
               </Link>
             </li>
           ))}
-          <li>
-            <Link href='/admin' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'><Icon name='lock' className='mr-2 inline h-4 w-4 align-text-bottom' />Admin</Link>
-          </li>
-          <li>
-            <Link href='/settings/ai' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'><Icon name='gear' className='mr-2 inline h-4 w-4 align-text-bottom' />AI settings</Link>
-          </li>
+          {who ? (
+            <>
+              <li><Link href='/account' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'>My orders</Link></li>
+              {user?.admin && <li><Link href='/admin' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'><Icon name='lock' className='mr-2 inline h-4 w-4 align-text-bottom' />Admin</Link></li>}
+              {user?.admin && <li><Link href='/settings/ai' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'><Icon name='gear' className='mr-2 inline h-4 w-4 align-text-bottom' />AI settings</Link></li>}
+              <li>
+                <form action='/account/signout' method='post'><button type='submit' className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>Sign out ({who.label})</button></form>
+              </li>
+            </>
+          ) : (
+            <li><Link href='/account' className='block rounded-lg px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300'>Sign in with Google</Link></li>
+          )}
           <li className='mt-1 border-t border-gray-200 pt-1 dark:border-gray-800'>
             <button type='button' onClick={toggleTheme} aria-label={themeLabel} title={themeLabel} className='block w-full rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 dark:text-gray-300'>
               <Icon name={mounted && theme === 'dark' ? 'moon' : 'sun'} className='mr-2 inline h-4 w-4 align-text-bottom' />Theme
