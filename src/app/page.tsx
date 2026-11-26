@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Icon, { type IconName } from '@/components/Icon';
 import { ArtTile, BedArt, StartArt } from '@/components/Art';
 import { redirect } from 'next/navigation';
+import CompleteBuilds from '@/components/CompleteBuilds';
 import HomeKits from '@/components/HomeKits';
 import { SHOP_CATEGORIES } from '@/lib/catalog';
 import HeroPart from '@/components/HeroPart';
@@ -96,6 +97,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
           </div>
         </div>
       </section>
+
+      <div className="border-b border-gray-200 bg-white py-10 dark:border-gray-800 dark:bg-gray-950">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6"><CompleteBuilds limit={8} id="complete-builds-h" /></div>
+      </div>
 
       <div className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950 sm:px-6">
         <div className="mx-auto max-w-7xl"><FlowStrip current="pick" /></div>

@@ -1,7 +1,7 @@
 // Light copy of what a /shop kit card shows (no geometry imports, so /shop's first load stays free of three and the CSG).
 // kits.test.ts checks it against KITS; when a kit changes, that test prints the new value to paste here.
 export type KitMeta = {
-  id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics' | 'toys-hobby' | 'smart-home'; badge?: string;
+  id: string; title: string; blurb: string; category: 'drone-rc' | 'robotics' | 'toys-hobby' | 'smart-home'; badge?: string; photo?: string;
   design?: { author: string; licence: string }; products?: string[]; hasAssembly: boolean; assemblyData?: false; parts: { name: string; qty: number }[]; bought: number;
 };
 export const KIT_METAS: KitMeta[] = [
@@ -422,6 +422,7 @@ export const KIT_METAS: KitMeta[] = [
     "title": "Open RC car chassis kit",
     "blurb": "Open-source RC car chassis: printed chassis, steering, drive and gear parts for a 2-cell battery, an A2212 1000KV brushless motor with a 30 A ESC, an FS90 steering servo and a 2.4 GHz receiver and transmitter. Needs four 608ZZ bearings and M3, M4, M6 and M8 bolts. Receiver, transmitter, motor, ESC, servo, battery and hardware are bought separately.",
     "category": "drone-rc",
+    "photo": "/models/kits/open-rc-car/finished-1.webp",
     "design": {
       "author": "CreativeElectronics",
       "licence": "CC BY"
@@ -493,6 +494,7 @@ export const KIT_METAS: KitMeta[] = [
     "title": "Quadruped robot dog kit",
     "blurb": "Open-source quadruped robot dog with twelve MG996R servos (three per leg) controlled by an Arduino Mega, with two ultrasonic sensors, a Bluetooth module, a gyro sensor and a small LCD. Prints the MG995/MG996R servo version for the Arduino Mega plate. Upstream note: attach servo horns to the printed parts with hot glue. No firmware is included. Electronics, servos, battery and hardware are bought separately.",
     "category": "robotics",
+    "photo": "/models/kits/robot-dog/finished-1.webp",
     "design": {
       "author": "KDY0523",
       "licence": "CC BY"
@@ -588,6 +590,7 @@ export const KIT_METAS: KitMeta[] = [
     "title": "Pocket FPV drone kit (PIXXY)",
     "blurb": "Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately. Part counts are not stated upstream: we confirm them before printing.",
     "category": "drone-rc",
+    "photo": "/models/kits/pocket-drone/finished-1.webp",
     "design": {
       "author": "3dxl",
       "licence": "CC BY-SA"
@@ -615,6 +618,7 @@ export const KIT_METAS: KitMeta[] = [
     "title": "Small biped humanoid kit (Hadron)",
     "blurb": "Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download. Part counts are not stated upstream: we confirm how many of each bracket you need before printing.",
     "category": "robotics",
+    "photo": "/models/kits/humanoid-biped/finished-1.webp",
     "design": {
       "author": "loguito",
       "licence": "CC BY-SA"
@@ -654,6 +658,7 @@ export const KIT_METAS: KitMeta[] = [
     "title": "Car-to-robot toy kit",
     "blurb": "Small printable toy car that folds out into a robot, in the style of 1980s micro-series toy racers: body, wheels, axle pin, interior windows, arms, legs and feet, plus a head printed as one part for single-extrusion printers. Upstream also offers a two-part head for dual extrusion; this kit lists the single head. No bought parts are listed upstream.",
     "category": "toys-hobby",
+    "photo": "/models/kits/car-robot/finished-1.webp",
     "design": {
       "author": "SlightlyAbnormal",
       "licence": "CC BY"
