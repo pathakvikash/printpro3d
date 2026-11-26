@@ -19,6 +19,9 @@ import { so101ArmKit as SO101 } from './so101-arm-kit.ts';
 import { stackChanKit as STACK } from './stack-chan-kit.ts';
 import { openRcCarKit as OPENRC } from './open-rc-car-kit.ts';
 import { robotDogKit as DOG } from './robot-dog-kit.ts';
+import { pocketDroneKit as PDRONE } from './pocket-drone-kit.ts';
+import { humanoidBipedKit as BIPED } from './humanoid-biped-kit.ts';
+import { carRobotKit as CARBOT } from './car-robot-kit.ts';
 
 type PartDef = { id: string; label: string; material: PartMaterial; qty: (c: Cfg) => number; file?: string; build?: (c: Cfg) => BufferGeometry; product?: string };
 type Credit = { author: string; url: string; licence: string };
@@ -87,6 +90,18 @@ const SOURCES: Source[] = [
   {
     id: 'robot-dog', title: DOG.title, blurb: DOG.blurb, category: 'robotics', credit: DOG.credit, approximate: true, assemblyData: DOG.assemblyData,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(DOG.printedParts), assembly: () => DOG.assembly(), bought: DOG.boughtParts,
+  },
+  {
+    id: 'pocket-drone', title: PDRONE.title, blurb: PDRONE.blurb, category: 'drone-rc', credit: PDRONE.credit, approximate: true, assemblyData: PDRONE.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(PDRONE.printedParts), assembly: () => PDRONE.assembly(), bought: PDRONE.boughtParts,
+  },
+  {
+    id: 'humanoid-biped', title: BIPED.title, blurb: BIPED.blurb, category: 'robotics', credit: BIPED.credit, approximate: true, assemblyData: BIPED.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(BIPED.printedParts), assembly: () => BIPED.assembly(), bought: BIPED.boughtParts,
+  },
+  {
+    id: 'car-robot', title: CARBOT.title, blurb: CARBOT.blurb, category: 'toys-hobby', credit: CARBOT.credit, approximate: true, assemblyData: CARBOT.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(CARBOT.printedParts), assembly: () => CARBOT.assembly(), bought: CARBOT.boughtParts,
   },
 ];
 

@@ -582,6 +582,147 @@ export const KIT_METAS: KitMeta[] = [
       }
     ],
     "bought": 10
+  },
+  {
+    "id": "pocket-drone",
+    "title": "Pocket FPV drone kit (PIXXY)",
+    "blurb": "Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately.",
+    "category": "drone-rc",
+    "design": {
+      "author": "3dxl",
+      "licence": "CC BY-SA"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Top cover",
+        "qty": 1
+      },
+      {
+        "name": "Main frame",
+        "qty": 1
+      },
+      {
+        "name": "Motor base cup",
+        "qty": 1
+      }
+    ],
+    "bought": 4
+  },
+  {
+    "id": "humanoid-biped",
+    "title": "Small biped humanoid kit (Hadron)",
+    "blurb": "Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download.",
+    "category": "robotics",
+    "design": {
+      "author": "loguito",
+      "licence": "CC BY-SA"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Body base plate",
+        "qty": 1
+      },
+      {
+        "name": "Body joint",
+        "qty": 1
+      },
+      {
+        "name": "U servo bracket",
+        "qty": 1
+      },
+      {
+        "name": "Servo axle bracket",
+        "qty": 1
+      },
+      {
+        "name": "Hand",
+        "qty": 1
+      },
+      {
+        "name": "Hollow foot",
+        "qty": 1
+      }
+    ],
+    "bought": 4
+  },
+  {
+    "id": "car-robot",
+    "title": "Car-to-robot toy kit",
+    "blurb": "Small printable toy car that folds out into a robot, in the style of 1980s micro-series toy racers: body, wheels, axle pin, interior windows, arms, legs and feet, plus a head printed as one part for single-extrusion printers. Upstream also offers a two-part head for dual extrusion; this kit lists the single head. No bought parts are listed upstream.",
+    "category": "toys-hobby",
+    "design": {
+      "author": "SlightlyAbnormal",
+      "licence": "CC BY"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Rear body (outer)",
+        "qty": 1
+      },
+      {
+        "name": "Rear body (bottom)",
+        "qty": 1
+      },
+      {
+        "name": "Interior windows",
+        "qty": 1
+      },
+      {
+        "name": "Head (single part)",
+        "qty": 1
+      },
+      {
+        "name": "Arm (left)",
+        "qty": 1
+      },
+      {
+        "name": "Arm (right)",
+        "qty": 1
+      },
+      {
+        "name": "Leg (left)",
+        "qty": 1
+      },
+      {
+        "name": "Leg (right)",
+        "qty": 1
+      },
+      {
+        "name": "Foot (left)",
+        "qty": 1
+      },
+      {
+        "name": "Foot (right)",
+        "qty": 1
+      },
+      {
+        "name": "Foot bottom (left)",
+        "qty": 1
+      },
+      {
+        "name": "Foot bottom (right)",
+        "qty": 1
+      },
+      {
+        "name": "Front wheel",
+        "qty": 1
+      },
+      {
+        "name": "Rear wheel",
+        "qty": 1
+      },
+      {
+        "name": "Axle pin",
+        "qty": 1
+      }
+    ],
+    "bought": 0
   }
 ];
 export const kitMetaPartCount = (k: KitMeta) => k.parts.reduce((n, p) => n + p.qty, 0);
