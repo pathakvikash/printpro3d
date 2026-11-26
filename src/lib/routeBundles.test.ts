@@ -56,7 +56,7 @@ function heavyReached(entries: string[]) {
 }
 
 test('/shop static import graph never reaches three, the CSG or a mesh builder', () => {
-  const { bad, seen } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'HomeKits'].map((f) => `components/${f}.tsx`));
+  const { bad, seen } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'CompleteBuilds'].map((f) => `components/${f}.tsx`));
   assert.deepEqual(bad, []);
   assert.ok(seen.size > 8, 'the walk found the graph');
 });
@@ -75,7 +75,7 @@ test('AI customise panels load only through next/dynamic', () => {
     assert.doesNotMatch(src, new RegExp(`^import[^;]*from\\s+'${mod.replace('.', '\\.')}'`, 'm'), f);
     assert.match(src, new RegExp(`import\\('${mod.replace('.', '\\.')}'\\)`), f);
   }
-  const { bad } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'HomeKits'].map((f) => `components/${f}.tsx`));
+  const { bad } = heavyReached(['ShopRoute', 'ShopOrder', 'ShopCards', 'ShopParts', 'MotorShelf', 'HomeShop', 'CompleteBuilds'].map((f) => `components/${f}.tsx`));
   assert.deepEqual(bad, []);
 });
 

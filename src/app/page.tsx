@@ -3,8 +3,6 @@ import Icon, { type IconName } from '@/components/Icon';
 import { ArtTile, BedArt, StartArt } from '@/components/Art';
 import { redirect } from 'next/navigation';
 import CompleteBuilds from '@/components/CompleteBuilds';
-import HomeKits from '@/components/HomeKits';
-import { SHOP_CATEGORIES } from '@/lib/catalog';
 import HeroPart from '@/components/HeroPart';
 import HeroDrop from '@/components/HeroDrop';
 import Capabilities from '@/components/Capabilities';
@@ -159,28 +157,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
               </li>
             ))}
           </ul>
-        </div>
-      </section>
-
-      {/* Featured builds: the complete kits, shown assembled */}
-      <section aria-labelledby="featured-h" className="bg-white py-14 dark:bg-gray-950 sm:py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <h2 id="featured-h" className="text-3xl font-bold text-gray-900 dark:text-white">Featured builds</h2>
-          <p className="mt-3 text-gray-600 dark:text-gray-400">Complete kits of our own designs: every printed part, with the list of what to buy.</p>
-          <ul aria-label="Shop by category" className="mt-6 flex flex-wrap gap-2">
-            {[...SHOP_CATEGORIES.filter((c) => c.id !== 'accessories').map((c) => ({ href: `/shop?cat=${c.id}`, label: c.label })), { href: '/shop#parts-h', label: 'Electronics & parts' }].map((c) => (
-              <li key={c.href}>
-                <Link href={c.href} className="inline-flex min-h-11 items-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-800 hover:border-indigo-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">{c.label}</Link>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8"><HomeKits /></div>
-          <p className="mt-6 text-gray-600 dark:text-gray-400">
-            <Link href="/shop" className="font-medium text-indigo-600 underline underline-offset-4 hover:no-underline dark:text-indigo-400">See everything in the shop</Link>
-            {' · '}Not in the list?{' '}
-            <Link href="/request" className="text-indigo-600 underline hover:no-underline dark:text-indigo-400">Describe your idea</Link> or{' '}
-            <Link href="/quote" className="text-indigo-600 underline hover:no-underline dark:text-indigo-400">upload a 3D file</Link>.
-          </p>
         </div>
       </section>
 

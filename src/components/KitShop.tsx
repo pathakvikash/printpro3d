@@ -249,6 +249,13 @@ export function KitCard({ kit }: { kit: Kit }) {
   );
 }
 
+// just the assembled 3D picture, for the light "Complete builds" cards (CompleteBuilds.tsx); no prices, so no part meshes are built
+export function KitThumbById({ id }: { id: string }) {
+  const kit = kitById(id);
+  const sources = useMemo(() => (kit?.items ?? []).map((i) => { const d = describe(i); return { id: i.templateId, shapes: d.shapes, template: d.template, kit: d.kit ? { key: i.templateId, cfg: i.config } : undefined }; }), [kit]);
+  return kit && kit.assembly ? <KitThumb kit={kit} sources={sources} /> : null;
+}
+
 // the light grid card (ShopCards.tsx) swaps itself for this one once KitShop has loaded
 export function KitCardById({ id }: { id: string }) {
   const kit = kitById(id);
