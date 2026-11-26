@@ -27,6 +27,8 @@ export const boughtParts = [
 
 ];
 
+// View-only picture(s) of the finished product (never priced or added to the cart); see CREDITS.md.
+export const finished = { photos: [{ src: '/models/kits/car-robot/finished-1.webp', alt: 'Car-to-robot toy, car mode (render)' }, { src: '/models/kits/car-robot/finished-2.webp', alt: 'Car-to-robot toy, printed car mode' }, { src: '/models/kits/car-robot/finished-3.webp', alt: 'Car-to-robot toy, printed robot mode' }] };
 export const credit = { author: 'SlightlyAbnormal', url: 'https://www.thingiverse.com/thing:2463084', licence: 'CC BY' };
 
 // ponytail: upstream ships loose printable files and no assembly data, so the layout is a plain grid, not the real fit.
@@ -36,4 +38,4 @@ export function assembly(): AssemblyPart[] {
   return printedParts.map((p, i) => ({ id: p.id, label: p.label, geometry: p.file, material: p.material, size: p.size, position: [(i % 5) * 150, Math.floor(i / 5) * 130, p.size[2] / 2] as V3, rotation: [0, 0, 0] as V3, explode: [0, 0, 0] as V3 }));
 }
 
-export const carRobotKit = { id: 'car-robot', title: 'Car-to-robot toy kit', category: 'robot', blurb: 'Small printable toy car that folds out into a robot, in the style of 1980s micro-series toy racers: body, wheels, axle pin, interior windows, arms, legs and feet, plus a head printed as one part for single-extrusion printers. Upstream also offers a two-part head for dual extrusion; this kit lists the single head. No bought parts are listed upstream.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };
+export const carRobotKit = { id: 'car-robot', title: 'Car-to-robot toy kit', category: 'robot', blurb: 'Small printable toy car that folds out into a robot, in the style of 1980s micro-series toy racers: body, wheels, axle pin, interior windows, arms, legs and feet, plus a head printed as one part for single-extrusion printers. Upstream also offers a two-part head for dual extrusion; this kit lists the single head. No bought parts are listed upstream.', printedParts, assembly, boughtParts, credit, finished, approximate, assemblyData };

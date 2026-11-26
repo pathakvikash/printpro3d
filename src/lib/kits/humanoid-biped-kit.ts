@@ -21,6 +21,8 @@ export const boughtParts = [
   { name: 'Arduino Mega 2560', spec: '', qty: 1, typical: 'electronics store' },
 ];
 
+// View-only picture(s) of the finished product (never priced or added to the cart); see CREDITS.md.
+export const finished = { photos: [{ src: '/models/kits/humanoid-biped/finished-1.webp', alt: 'Hadron biped robot, fully assembled' }] };
 export const credit = { author: 'loguito', url: 'https://www.thingiverse.com/thing:356398', licence: 'CC BY-SA' };
 
 // ponytail: upstream ships loose printable files and no assembly data, so the layout is a plain grid, not the real fit.
@@ -30,4 +32,4 @@ export function assembly(): AssemblyPart[] {
   return printedParts.map((p, i) => ({ id: p.id, label: p.label, geometry: p.file, material: p.material, size: p.size, position: [(i % 3) * 150, Math.floor(i / 3) * 130, p.size[2] / 2] as V3, rotation: [0, 0, 0] as V3, explode: [0, 0, 0] as V3 }));
 }
 
-export const humanoidBipedKit = { id: 'humanoid-biped', title: 'Small biped humanoid kit (Hadron)', category: 'robot', blurb: 'Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };
+export const humanoidBipedKit = { id: 'humanoid-biped', title: 'Small biped humanoid kit (Hadron)', category: 'robot', blurb: 'Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download.', printedParts, assembly, boughtParts, credit, finished, approximate, assemblyData };

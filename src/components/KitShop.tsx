@@ -16,8 +16,9 @@ import { kitBlocked, kitById, kitLines, kitPartCount, type Kit, type KitItem } f
 import { isKitKey, kitPartByKey, kitSettings, settingsSummary } from '@/lib/kits/adapt';
 import CreditLine from './KitCredit';
 import * as THREE from 'three';
+import { STLLoader } from 'three-stdlib';
 import { prepGeometry } from './PrintMaterial';
-import type { V3 } from '@/lib/assembly';
+import type { AssemblyPart, V3 } from '@/lib/assembly';
 import { meshStats, quote, SETUP_FEE } from '@/lib/quote';
 import { normalizeCfg, templateById, type Cfg, type Field } from '@/lib/templateDefs';
 import { buildTemplate } from '@/lib/templates';
@@ -95,10 +96,54 @@ export function useParts(kit: Kit): Part[] {
 // Assembly part id (digits stripped) -> its reference model in parts.ts, for the assembly drawing; others stay placeholders.
 const BOUGHT_MODEL: Record<string, string> = { battery: 'lipo-3s-4s', puck: 'gps-puck-25', camera: 'camera-19', motor: 'motor-1404', prop: 'prop-3in', esp32: 'board-esp32-devkit', sg90: 'servo-sg90' };
 
+// A kit's view-only finished product: one STL (never priced, not one of the kit's parts) in the shared viewer, or the source project's photos.
+function FinishedModel({ url, title }: { url: string; title: string }) {
+  const [geo, setGeo] = useState<THREE.BufferGeometry | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let on = true, made: THREE.BufferGeometry | null = null;
+    setGeo(null); setFailed(false);
+    fetch(url).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+      .then((b) => { made = prepGeometry(new STLLoader().parse(b)); if (on) setGeo(made); else made.dispose(); })
+      .catch(() => on && setFailed(true));
+    return () => { on = false; made?.dispose(); };
+  }, [url]);
+  const part = useMemo(() => {
+    if (!geo?.boundingBox) return null;
+    const { x, y, z } = geo.boundingBox.getSize(new THREE.Vector3());
+    return { id: 'finished', label: title, geometry: url, material: 'PLA', size: [x, y, z], position: [0, 0, z / 2], rotation: [0, 0, 0], explode: [0, 0, 0] } satisfies AssemblyPart;
+  }, [geo, url, title]);
+  if (failed) return <p role="status" className="rounded-xl bg-gray-100 p-4 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">The finished model could not be loaded.</p>;
+  return part && geo ? <AssemblyViewer parts={[part]} geometries={{ [url]: geo }} /> : <div role="status" aria-label="Loading the finished model" className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />;
+}
+
+function FinishedPhotos({ photos, credit }: { photos: { src: string; alt: string }[]; credit?: Kit['credit'] }) {
+  const [i, setI] = useState(0);
+  const cur = photos[Math.min(i, photos.length - 1)];
+  return (
+    <div className="space-y-2">
+      {/* eslint-disable-next-line @next/next/no-img-element -- already sized WebP files under public/, no optimiser needed */}
+      <img src={cur.src} alt={cur.alt} width={1200} height={800} loading="lazy" className="aspect-[3/2] w-full rounded-xl bg-gray-100 object-contain dark:bg-gray-800" />
+      {photos.length > 1 && (
+        <div className="flex gap-2">
+          {photos.map((ph, n) => (
+            <button key={ph.src} type="button" onClick={() => setI(n)} aria-label={`Show photo ${n + 1} of ${photos.length}`} aria-pressed={n === i} className={`overflow-hidden rounded-lg border-2 ${n === i ? 'border-indigo-600' : 'border-transparent opacity-70 hover:opacity-100'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- thumbnail of the same file */}
+              <img src={ph.src} alt="" width={96} height={64} loading="lazy" className="h-16 w-24 object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+      {credit && <p className="text-xs text-gray-600 dark:text-gray-400">Photo: <a href={credit.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:no-underline">{credit.author}, {credit.licence}</a></p>}
+    </div>
+  );
+}
+
 // The finished build: the kit's assembly() posed in the shared viewer, once every part mesh is built (bounding boxes come from them).
 // partSheet: the selected part's own drawing (Inspect); it becomes a second page of the one blueprint pager, and picking a part jumps to it.
 export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { kit: Kit; parts: Part[]; focusId?: string | null; updating?: boolean; partSheet?: { title: string; svg: string; filename: string } | null }) {
   const [page, setPage] = useState(0);
+  const [view, setView] = useState<'finished' | 'plates'>('finished');
   // jump to the part's drawing only when the user picks a different part (not on the initial null -> first part, nor a Strict Mode re-run)
   // (a kit switch changes focusId to the new kit's first item: reset to the assembly page instead)
   const prevFocus = useRef({ kit: kit.id, focus: focusId });
@@ -139,18 +184,29 @@ export function FinishedBuild({ kit, parts, focusId, updating, partSheet }: { ki
   if (!kit.assembly) return null;
   const plates0 = kit.assemblyData === false;
   const sheets = [...(sheet ? [{ title: plates0 ? 'Print plate drawing' : 'Assembly drawing', svg: sheet, filename: `${plates0 ? 'print-plates' : 'assembly'}-${kit.id}` }] : []), ...(partSheet ? [partSheet] : [])];
+  const fin = kit.finished && (kit.finished.model || kit.finished.photos?.length) ? kit.finished : null;
+  const showFin = !!fin && view === 'finished';
   const plates = kit.assemblyData === false; // no real assembly data: show what gets printed, never a guessed assembly
   return (
     <section aria-labelledby="kit-finished" className="space-y-2">
-      <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">{plates ? 'What you\'ll print' : 'The finished build'}</h2>
-      {built ? <div className="relative"><AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} plates={built.plates || undefined} />{updating && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}</div> : <div role="status" aria-label={plates ? 'Laying out the print plates' : 'Building the finished model'} className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
-      {plates ? (
+      <h2 id="kit-finished" className="text-lg font-semibold text-gray-900 dark:text-white">{plates && !showFin ? 'What you\'ll print' : 'The finished build'}</h2>
+      {fin && (
+        <div role="group" aria-label="View" className="inline-flex rounded-lg border border-gray-300 p-0.5 text-sm dark:border-gray-700">
+          {([['finished', 'Finished'], ['plates', 'Print plates']] as const).map(([v, label]) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`rounded-md px-3 py-1.5 font-medium ${view === v ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}>{label}</button>
+          ))}
+        </div>
+      )}
+      {showFin ? (fin.model ? <FinishedModel url={fin.model} title={kit.title} /> : <FinishedPhotos photos={fin.photos!} credit={kit.credit} />) : built ? <div className="relative"><AssemblyViewer parts={built.assembly} geometries={built.geometries} focusId={focusId} plates={built.plates || undefined} />{updating && <p role="status" className="absolute left-3 top-3 rounded bg-black/60 px-2 py-1 text-xs text-white">Updating…</p>}</div> : <div role="status" aria-label={plates ? 'Laying out the print plates' : 'Building the finished model'} className="h-[360px] animate-pulse rounded-xl bg-gray-200 sm:h-[480px] dark:bg-gray-800" />}
+      {showFin ? (
+        <p className="text-sm text-gray-600 dark:text-gray-400">The finished product, for reference. Print plates shows what you get printed.</p>
+      ) : plates ? (
         <p className="text-sm text-gray-600 dark:text-gray-400">Shown as printed, not assembled.{(kit.plates?.length ?? 0) > 1 && ' Parts are laid out flat on two print plates.'}{kit.credit && <> <a href={kit.credit.url} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-700 underline underline-offset-2 hover:no-underline dark:text-indigo-400">Assembly guide on the source project page →</a></>}</p>
       ) : (
         <p className="text-sm text-gray-600 dark:text-gray-400">Grey parts are bought separately. Bought parts are drawn as placeholders at typical sizes.{kit.approximate && ' The positions of the parts are approximate (a stacked layout, not the real fit).'}</p>
       )}
       {kit.credit && <CreditLine credit={kit.credit} />}
-      {sheets.length > 0 && (
+      {!showFin && sheets.length > 0 && (
         <div className="pt-2">
           <BlueprintPager index={Math.min(page, sheets.length - 1)} onIndex={setPage} sheets={sheets} />
         </div>
@@ -187,7 +243,7 @@ export function KitCard({ kit }: { kit: Kit }) {
       name={kit.title}
       blurb={kit.blurb}
       rows={rows}
-      preview={kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
+      preview={kit.finished?.photos?.[0] ? <img src={kit.finished.photos[0].src} alt={kit.finished.photos[0].alt} width={400} height={300} loading="lazy" className="h-full w-full object-cover" /> : kit.assembly ? <KitThumb kit={kit} sources={sources} /> : <div className="flex h-full flex-col justify-center gap-0.5 p-4 text-sm text-gray-700 dark:text-gray-300">{names.map((n) => <span key={n}>{n}</span>)}</div>}
       actions={<CardActions kind="kit" id={kit.id} added={added} disabled={!ready} onPrimary={() => addAll()} title={kit.variants ? `Add the ${kit.variants[0].title} kit to cart (choose the product on the kit page)` : undefined} />}
     />
   );

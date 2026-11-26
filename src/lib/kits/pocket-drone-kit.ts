@@ -18,6 +18,8 @@ export const boughtParts = [
   { name: 'FPV camera', spec: '', qty: 1, typical: 'electronics store' },
 ];
 
+// View-only picture(s) of the finished product (never priced or added to the cart); see CREDITS.md.
+export const finished = { photos: [{ src: '/models/kits/pocket-drone/finished-1.webp', alt: 'Pocket FPV drone, assembled with propellers' }, { src: '/models/kits/pocket-drone/finished-2.webp', alt: 'Pocket FPV drone in flight trim, angled view' }, { src: '/models/kits/pocket-drone/finished-3.webp', alt: 'Pocket FPV drone held in a hand for scale' }] };
 export const credit = { author: '3dxl', url: 'https://www.thingiverse.com/thing:272234', licence: 'CC BY-SA' };
 
 // ponytail: upstream ships loose printable files and no assembly data, so the layout is a plain grid, not the real fit.
@@ -27,4 +29,4 @@ export function assembly(): AssemblyPart[] {
   return printedParts.map((p, i) => ({ id: p.id, label: p.label, geometry: p.file, material: p.material, size: p.size, position: [(i % 3) * 150, Math.floor(i / 3) * 130, p.size[2] / 2] as V3, rotation: [0, 0, 0] as V3, explode: [0, 0, 0] as V3 }));
 }
 
-export const pocketDroneKit = { id: 'pocket-drone', title: 'Pocket FPV drone kit (PIXXY)', category: 'robot', blurb: 'Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };
+export const pocketDroneKit = { id: 'pocket-drone', title: 'Pocket FPV drone kit (PIXXY)', category: 'robot', blurb: 'Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately.', printedParts, assembly, boughtParts, credit, finished, approximate, assemblyData };

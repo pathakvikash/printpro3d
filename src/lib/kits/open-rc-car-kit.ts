@@ -35,6 +35,8 @@ export const boughtParts = [
   { name: 'M8 bolts', spec: 'M8-30, with 2 M8 nuts', qty: 2, typical: 'hardware store' },
 ];
 
+// View-only picture(s) of the finished product (never priced or added to the cart); see CREDITS.md.
+export const finished = { photos: [{ src: '/models/kits/open-rc-car/finished-1.webp', alt: 'Open RC Car V3 assembled, side view' }, { src: '/models/kits/open-rc-car/finished-2.webp', alt: 'Open RC Car V3 assembled, front three-quarter view' }, { src: '/models/kits/open-rc-car/finished-3.webp', alt: 'Open RC Car V3 assembled, rear three-quarter view' }] };
 export const credit = { author: 'CreativeElectronics', url: 'https://www.thingiverse.com/thing:4584657', licence: 'CC BY' };
 
 // ponytail: upstream ships loose printable files and no assembly data, so the layout is a plain grid, not the real fit.
@@ -44,4 +46,4 @@ export function assembly(): AssemblyPart[] {
   return printedParts.map((p, i) => ({ id: p.id, label: p.label, geometry: p.file, material: p.material, size: p.size, position: [(i % 4) * 150, Math.floor(i / 4) * 130, p.size[2] / 2] as V3, rotation: [0, 0, 0] as V3, explode: [0, 0, 0] as V3 }));
 }
 
-export const openRcCarKit = { id: 'open-rc-car', title: 'Open RC car chassis kit', category: 'robot', blurb: 'Open-source RC car chassis: printed chassis, steering, drive and gear parts for a 2-cell battery, an A2212 1000KV brushless motor with a 30 A ESC, an FS90 steering servo and a 2.4 GHz receiver and transmitter. Needs four 608ZZ bearings and M3, M4, M6 and M8 bolts. Receiver, transmitter, motor, ESC, servo, battery and hardware are bought separately.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };
+export const openRcCarKit = { id: 'open-rc-car', title: 'Open RC car chassis kit', category: 'robot', blurb: 'Open-source RC car chassis: printed chassis, steering, drive and gear parts for a 2-cell battery, an A2212 1000KV brushless motor with a 30 A ESC, an FS90 steering servo and a 2.4 GHz receiver and transmitter. Needs four 608ZZ bearings and M3, M4, M6 and M8 bolts. Receiver, transmitter, motor, ESC, servo, battery and hardware are bought separately.', printedParts, assembly, boughtParts, credit, finished, approximate, assemblyData };

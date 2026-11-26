@@ -27,6 +27,8 @@ export const boughtParts = [
   { name: 'Table clamp', spec: 'to hold the base to the desk', qty: 2, typical: 'hardware store' },
 ];
 
+// View-only picture(s) of the finished product (never priced or added to the cart); see CREDITS.md.
+export const finished = { model: DIR + 'assembled.stl' };
 export const credit = { author: 'TheRobotStudio', url: 'https://github.com/TheRobotStudio/SO-ARM100', licence: 'Apache-2.0' };
 
 // ponytail: upstream ships one-plate files and no assembly data, so the layout is a plain grid, not the real fit.
@@ -36,4 +38,4 @@ export function assembly(): AssemblyPart[] {
   return printedParts.map((p, i) => ({ id: p.id, label: p.label, geometry: p.file, material: p.material, size: p.size, position: [(i % 4) * 150, Math.floor(i / 4) * 130, p.size[2] / 2] as V3, rotation: [0, 0, 0] as V3, explode: [0, 0, 0] as V3 }));
 }
 
-export const so101ArmKit = { id: 'so101-arm', title: '6-axis robot arm kit (SO-101)', category: 'robot', blurb: 'Open-source 6-axis desktop robot arm driven by six STS3215 serial bus servos and a USB motor control board. Upstream print settings: PLA+, 0.2 mm layers, 15% infill, supports on. Servos, board and power supply are bought separately.', printedParts, assembly, boughtParts, credit, approximate, assemblyData };
+export const so101ArmKit = { id: 'so101-arm', title: '6-axis robot arm kit (SO-101)', category: 'robot', blurb: 'Open-source 6-axis desktop robot arm driven by six STS3215 serial bus servos and a USB motor control board. Upstream print settings: PLA+, 0.2 mm layers, 15% infill, supports on. Servos, board and power supply are bought separately.', printedParts, assembly, boughtParts, credit, finished, approximate, assemblyData };

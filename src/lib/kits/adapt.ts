@@ -27,7 +27,7 @@ type PartDef = { id: string; label: string; material: PartMaterial; qty: (c: Cfg
 type Credit = { author: string; url: string; licence: string };
 type Bought = { name: string; spec: string; qty: number; typical: boolean | string };
 type Source = {
-  id: string; title: string; blurb: string; category: Kit['category']; badge?: string; credit?: Credit; approximate?: boolean; assemblyData?: false; plates?: string[][];
+  id: string; title: string; blurb: string; category: Kit['category']; badge?: string; credit?: Credit; approximate?: boolean; assemblyData?: false; plates?: string[][]; finished?: Kit['finished'];
   defaults: () => Cfg; fields: Field[]; validate: (raw: unknown) => Cfg; parts: PartDef[]; assembly: (c: Cfg) => AssemblyPart[]; bought: Bought[];
   /** assembly placeholder id (exact, else with trailing digits dropped) -> reference part page, for the assembly drawing */
   refs?: Record<string, string>;
@@ -75,7 +75,7 @@ const SOURCES: Source[] = [
     refs: { servo: 'servo-sg90' },
   },
   {
-    id: 'so101-arm', title: SO101.title, blurb: SO101.blurb, category: 'robotics', credit: SO101.credit, approximate: true, assemblyData: SO101.assemblyData,
+    id: 'so101-arm', title: SO101.title, blurb: SO101.blurb, category: 'robotics', credit: SO101.credit, approximate: true, assemblyData: SO101.assemblyData, finished: SO101.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(SO101.printedParts), assembly: () => SO101.assembly(), bought: SO101.boughtParts,
   },
   {
@@ -84,23 +84,23 @@ const SOURCES: Source[] = [
     refs: { servo: 'servo-sg90' },
   },
   {
-    id: 'open-rc-car', title: OPENRC.title, blurb: OPENRC.blurb, category: 'drone-rc', credit: OPENRC.credit, approximate: true, assemblyData: OPENRC.assemblyData,
+    id: 'open-rc-car', title: OPENRC.title, blurb: OPENRC.blurb, category: 'drone-rc', credit: OPENRC.credit, approximate: true, assemblyData: OPENRC.assemblyData, finished: OPENRC.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(OPENRC.printedParts), assembly: () => OPENRC.assembly(), bought: OPENRC.boughtParts,
   },
   {
-    id: 'robot-dog', title: DOG.title, blurb: DOG.blurb, category: 'robotics', credit: DOG.credit, approximate: true, assemblyData: DOG.assemblyData,
+    id: 'robot-dog', title: DOG.title, blurb: DOG.blurb, category: 'robotics', credit: DOG.credit, approximate: true, assemblyData: DOG.assemblyData, finished: DOG.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(DOG.printedParts), assembly: () => DOG.assembly(), bought: DOG.boughtParts,
   },
   {
-    id: 'pocket-drone', title: PDRONE.title, blurb: PDRONE.blurb, category: 'drone-rc', credit: PDRONE.credit, approximate: true, assemblyData: PDRONE.assemblyData,
+    id: 'pocket-drone', title: PDRONE.title, blurb: PDRONE.blurb, category: 'drone-rc', credit: PDRONE.credit, approximate: true, assemblyData: PDRONE.assemblyData, finished: PDRONE.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(PDRONE.printedParts), assembly: () => PDRONE.assembly(), bought: PDRONE.boughtParts,
   },
   {
-    id: 'humanoid-biped', title: BIPED.title, blurb: BIPED.blurb, category: 'robotics', credit: BIPED.credit, approximate: true, assemblyData: BIPED.assemblyData,
+    id: 'humanoid-biped', title: BIPED.title, blurb: BIPED.blurb, category: 'robotics', credit: BIPED.credit, approximate: true, assemblyData: BIPED.assemblyData, finished: BIPED.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(BIPED.printedParts), assembly: () => BIPED.assembly(), bought: BIPED.boughtParts,
   },
   {
-    id: 'car-robot', title: CARBOT.title, blurb: CARBOT.blurb, category: 'toys-hobby', credit: CARBOT.credit, approximate: true, assemblyData: CARBOT.assemblyData,
+    id: 'car-robot', title: CARBOT.title, blurb: CARBOT.blurb, category: 'toys-hobby', credit: CARBOT.credit, approximate: true, assemblyData: CARBOT.assemblyData, finished: CARBOT.finished,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(CARBOT.printedParts), assembly: () => CARBOT.assembly(), bought: CARBOT.boughtParts,
   },
 ];
@@ -170,6 +170,7 @@ function toKit(s: Source, o: { id: string; title: string; product?: string; boug
     assembly: () => s.assembly(cfg).map((p) => ({ ...p, geometry: own(p.geometry) })),
     ...(s.credit ? { credit: { ...s.credit, files: s.parts.flatMap((p) => p.file ?? []) } } : {}),
     ...(s.approximate ? { approximate: true } : {}),
+    ...(s.finished ? { finished: s.finished } : {}),
     ...(s.assemblyData === false ? { assemblyData: false as const, ...(s.plates ? { plates: s.plates.map((g) => g.map((id) => kitPartKey(s.id, id))) } : {}) } : {}),
     ...(s.badge ? { badge: s.badge } : {}),
     ...(s.refs ? { refs: s.refs } : {}),
