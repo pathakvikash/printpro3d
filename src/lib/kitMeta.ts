@@ -586,7 +586,7 @@ export const KIT_METAS: KitMeta[] = [
   {
     "id": "pocket-drone",
     "title": "Pocket FPV drone kit (PIXXY)",
-    "blurb": "Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately.",
+    "blurb": "Palm-sized FPV quad that weighs about 40 g: a printed top cover, main frame and motor base cup that snap together with no screws or glue, ABS recommended. Nano-sized multirotor and FPV hardware is soldered in: motors, a flight controller board, a video transmitter and a camera. Motors, flight controller, video transmitter, camera and battery are bought separately. Part counts are not stated upstream: we confirm them before printing.",
     "category": "drone-rc",
     "design": {
       "author": "3dxl",
@@ -613,7 +613,7 @@ export const KIT_METAS: KitMeta[] = [
   {
     "id": "humanoid-biped",
     "title": "Small biped humanoid kit (Hadron)",
-    "blurb": "Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download.",
+    "blurb": "Printable biped robot with 17 degrees of freedom, built from a few repeated bracket parts plus a body plate, hands and hollow feet, for low-cost MG995 servos. Upstream also describes a four-legged build from the same parts. Uses SG90 servos for the head, MG995 for the legs, S3003 for the arms and one Arduino Mega 2560. Servos, Arduino and hardware are bought separately; the head design is a separate upstream download. Part counts are not stated upstream: we confirm how many of each bracket you need before printing.",
     "category": "robotics",
     "design": {
       "author": "loguito",
