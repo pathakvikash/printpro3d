@@ -50,7 +50,7 @@ npm run ai:models                             # list models the configured AI pr
 npm run designs:prune                         # delete unordered design projects older than 30 days (weekly)
 ```
 
-Or open `/admin` (needs `ADMIN_TOKEN`). Orders and requests are listed newest first; status changes and file downloads go through the admin API.
+Or open `/admin` (Google sign-in with an `ADMIN_EMAILS` address). Orders and requests are listed newest first; status changes and file downloads go through the admin API.
 
 Order statuses: `pending_review`, `needs_manual_quote`, `quoted`, `awaiting_payment`, `paid`, `printing`, `shipped`, `delivered`, `cancelled`. Request statuses: `new`, `designing`, `quote_sent`, `approved`, `cancelled`. Source: `src/lib/tracking.ts`.
 
@@ -64,7 +64,7 @@ Everything is listed with a comment in [.env.example](.env.example). Summary:
 | `AI_DESIGN_TIER`, `AI_DESIGN_MODEL`, `AI_REVISIONS_PER_PROJECT`, `AI_DAILY_PER_EMAIL`, `AI_DAILY_TOTAL` | Blueprint AI model tier and caps |
 | `MESHY_API_KEY` | Meshy text/image to 3D |
 | `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`, `SITE_URL` | Owner email on new order, customer email on status change |
-| `ADMIN_TOKEN` | `/admin` and the admin API (unset = disabled). `/admin` also picks the AI provider, preset, model and base URL (saved in the store, beats the `AI_*` env vars; keys stay env-only) |
+| `ADMIN_EMAILS` | Google emails allowed into `/admin` and the admin API (unset = disabled; also needs `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`). `/admin` also picks the AI provider, preset, model and base URL (saved in the store, beats the `AI_*` env vars; keys stay env-only) |
 | `BLOB_READ_WRITE_TOKEN` | Durable storage on Vercel (private Blob store) |
 | `DATA_DIR` | Where local files go (default: project root) |
 
@@ -74,7 +74,7 @@ Keys are read on the server only. Never commit `.env*` (already ignored except `
 
 1. Import the GitHub repo in Vercel (personal account).
 2. Storage > create a **private** Blob store and connect it; this sets `BLOB_READ_WRITE_TOKEN`.
-3. Set `ADMIN_TOKEN`, `SITE_URL` (the live URL) and any AI, Meshy and Resend keys.
+3. Set `ADMIN_EMAILS` and the `AUTH_*` sign-in vars, `SITE_URL` (the live URL) and any AI, Meshy and Resend keys.
 4. Deploy. Without the Blob store, Vercel only has `/tmp`: orders vanish between requests. Do not take real orders that way.
 
 Vercel limits to know: request bodies over 4.5 MB are refused by the platform, so large models upload straight to Blob (see context/ARCHITECTURE.md). Function time caps depend on your plan.

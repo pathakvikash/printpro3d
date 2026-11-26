@@ -5,7 +5,7 @@
 The full grouped list is in [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md). Everything after `3de4d31` is local, not pushed or deployed.
 
 1. Create a **private** Vercel Blob store and connect it to the project (sets `BLOB_READ_WRITE_TOKEN`).
-2. Set `ADMIN_TOKEN` (long random), `SITE_URL`, and for emails `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`.
+2. Set `ADMIN_EMAILS` and the `AUTH_*` Google sign-in vars, `SITE_URL`, and for emails `RESEND_API_KEY`, `ORDER_NOTIFY_TO`, `ORDER_NOTIFY_FROM`.
 3. For AI: `ANTHROPIC_API_KEY` (or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL`) and `MESHY_API_KEY`.
 4. Set real prices in `src/lib/quote.ts` (materials, setup fee, minimum) and `src/lib/catalog.ts` (shop items are sample prices).
 5. Confirm copy: "We use your files only to quote and print your order." and the files line in `page.tsx` marked `// OWNER:`.

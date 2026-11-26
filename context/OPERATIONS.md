@@ -110,7 +110,7 @@ See the README. The first deploy is a manual step by the owner: import the repo 
 ## Live deployment
 
 - URL: https://printpro3d.vercel.app (Vercel project `printpro3d`, personal account, Hobby plan, deploys from `main`).
-- Env set in Vercel: `ADMIN_TOKEN`, `SITE_URL`, and from the private Blob store `printpro3d-blob`: `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`. Not yet set: AI, Meshy and Resend keys. Last pushed commit on origin/main: 3de4d31; later work is local only (see the tracker).
+- Env set in Vercel: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ADMIN_EMAILS`, `SITE_URL`, an unused `ADMIN_TOKEN` (safe to remove), and from the private Blob store `printpro3d-blob`: `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY`. Not yet set: AI, Meshy and Resend keys. Last pushed commit on origin/main: 3de4d31; later work is local only (see the tracker).
 - Vercel blocks deploys of vulnerable Next.js versions (15.3.5 was refused). The project is now on Next 16.4.
 - Hobby is for non-commercial use and caps function time at 60 s. Check Vercel's terms and move to Pro before taking paid orders.
 - Env var changes need a redeploy (push a commit or use Redeploy on a deployment).
