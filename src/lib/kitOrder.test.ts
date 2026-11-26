@@ -11,12 +11,12 @@ import { meshStats, quote } from './quote.ts';
 import { shopCat } from './catalog.ts';
 import { readFile } from 'node:fs/promises';
 
-const NEW = ['whoop-kit', 'heli-kit', 'transformer-kit', 'rolling-companion-kit', 'led-decor-kit', 'rc-car', 'desk-pet', 'so101-arm', 'stack-chan'];
+const NEW = ['whoop-kit', 'heli-kit', 'transformer-kit', 'rolling-companion-kit', 'led-decor-kit', 'rc-car', 'desk-pet', 'so101-arm', 'stack-chan', 'open-rc-car', 'robot-dog'];
 const kitKeys = (id: string) => [kitById(id)!, ...(kitById(id)!.variants ?? [])].flatMap((k) => k.items.map((i) => i.templateId));
 const read = async (f: string) => { const b = await readFile(`public${f}`); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer; };
 
-test('all eleven kits are listed, each in a shop category, with unique ids', () => {
-  assert.deepEqual(KITS.map((k) => k.id).sort(), ['desk-pet', 'fpv-3in-kit', 'heli-kit', 'led-decor-kit', 'rc-car', 'rolling-companion-kit', 'rover-kit', 'so101-arm', 'stack-chan', 'transformer-kit', 'whoop-kit']);
+test('all thirteen kits are listed, each in a shop category, with unique ids', () => {
+  assert.deepEqual(KITS.map((k) => k.id).sort(), ['desk-pet', 'fpv-3in-kit', 'heli-kit', 'led-decor-kit', 'open-rc-car', 'rc-car', 'robot-dog', 'rolling-companion-kit', 'rover-kit', 'so101-arm', 'stack-chan', 'transformer-kit', 'whoop-kit']);
   for (const k of KITS) assert.equal(shopCat(k.id), k.category, k.id);
   assert.equal(shopCat('led-decor-kit'), 'smart-home');
   assert.equal(kitById('transformer-kit')!.badge, 'Beta');
@@ -53,9 +53,9 @@ test('whole-kit cart lines are kind kit, fit the caps and survive the cart parse
     assert.equal(parseCart(JSON.parse(JSON.stringify(lines))).length, lines.length, k.id);
   }
   // over the kit-line cap: refused whole, never half-added
-  const many = ['desk-pet', 'transformer-kit'].flatMap((id) => kitLines(kitById(id)!, () => 1));
+  const many = ['robot-dog', 'desk-pet', 'transformer-kit'].flatMap((id) => kitLines(kitById(id)!, () => 1));
   assert.equal(many.length > MAX_KIT_LINES, true);
-  assert.match(kitBlocked(kitLines(kitById('desk-pet')!, () => 1), kitLines(kitById('transformer-kit')!, () => 1))!, /kit parts/);
+  assert.match(kitBlocked(kitLines(kitById('robot-dog')!, () => 1), kitLines(kitById('desk-pet')!, () => 1))!, /kit parts/);
 });
 
 // each new kit kind is repriced by the server from the kit file: every printed part of every kit, STL and parametric
@@ -97,6 +97,6 @@ test('mergeChecked: the same kit part and config merges; the kit-line cap and MA
   assert.equal(m.length, 1);
   assert.equal(m[0].qty, 5);
   assert.throws(() => mergeChecked([a, checkEntry({ kind: 'kit', id: 'heli-kit:skid', cfg, qty: 99 }, 2)]), /quantity over/);
-  const lines = kitLines(kitById('desk-pet')!, () => 1).concat(kitLines(kitById('heli-kit')!, () => 1)) as Extract<CartLine, { kind: 'kit' }>[];
+  const lines = kitLines(kitById('robot-dog')!, () => 1).concat(kitLines(kitById('desk-pet')!, () => 1)) as Extract<CartLine, { kind: 'kit' }>[];
   assert.throws(() => mergeChecked(lines.map((l, i) => checkEntry({ kind: 'kit', id: l.id, cfg: l.cfg, qty: 1 }, i + 1))), /different kit parts/);
 });

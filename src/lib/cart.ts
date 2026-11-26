@@ -7,13 +7,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; 
 import { MAX_QTY, MIN_ORDER, SETUP_FEE } from './quote.ts';
 import { cfgKey, normalizeCfg, templateById, type Cfg } from './templateDefs.ts';
 
-export const MAX_LINES = 20;
+export const MAX_LINES = 30;
 export const MAX_SAVED = 50;
 // Each template line is a server CSG rebuild at checkout, so an order carries at most this many distinct configured parts
 // (checked in /api/orders via orderChecks, and before a kit is added to the cart).
 export const MAX_TPL_LINES = 6;
 // Kit part lines are rebuilt (or read from an STL file) at checkout too, but the parts are small: more of them may share one order.
-export const MAX_KIT_LINES = 12;
+export const MAX_KIT_LINES = 24;
 
 export type CartLine =
   | { kind: 'shop'; id: string; qty: number }

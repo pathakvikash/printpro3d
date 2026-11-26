@@ -17,6 +17,8 @@ import { rcCarKit as RC } from './rc-car-kit.ts';
 import { deskPetKit as PET } from './desk-pet-kit.ts';
 import { so101ArmKit as SO101 } from './so101-arm-kit.ts';
 import { stackChanKit as STACK } from './stack-chan-kit.ts';
+import { openRcCarKit as OPENRC } from './open-rc-car-kit.ts';
+import { robotDogKit as DOG } from './robot-dog-kit.ts';
 
 type PartDef = { id: string; label: string; material: PartMaterial; qty: (c: Cfg) => number; file?: string; build?: (c: Cfg) => BufferGeometry; product?: string };
 type Credit = { author: string; url: string; licence: string };
@@ -77,6 +79,14 @@ const SOURCES: Source[] = [
     id: 'stack-chan', title: STACK.title, blurb: STACK.blurb, category: 'robotics', credit: STACK.credit, approximate: true, assemblyData: STACK.assemblyData,
     fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(STACK.printedParts), assembly: () => STACK.assembly(), bought: STACK.boughtParts,
     refs: { servo: 'servo-sg90' },
+  },
+  {
+    id: 'open-rc-car', title: OPENRC.title, blurb: OPENRC.blurb, category: 'drone-rc', credit: OPENRC.credit, approximate: true, assemblyData: OPENRC.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(OPENRC.printedParts), assembly: () => OPENRC.assembly(), bought: OPENRC.boughtParts,
+  },
+  {
+    id: 'robot-dog', title: DOG.title, blurb: DOG.blurb, category: 'robotics', credit: DOG.credit, approximate: true, assemblyData: DOG.assemblyData,
+    fields: [], defaults: () => ({}), validate: () => ({}), parts: stlParts(DOG.printedParts), assembly: () => DOG.assembly(), bought: DOG.boughtParts,
   },
 ];
 

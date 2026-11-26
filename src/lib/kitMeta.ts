@@ -416,6 +416,172 @@ export const KIT_METAS: KitMeta[] = [
       }
     ],
     "bought": 5
+  },
+  {
+    "id": "open-rc-car",
+    "title": "Open RC car chassis kit",
+    "blurb": "Open-source RC car chassis: printed chassis, steering, drive and gear parts for a 2-cell battery, an A2212 1000KV brushless motor with a 30 A ESC, an FS90 steering servo and a 2.4 GHz receiver and transmitter. Needs four 608ZZ bearings and M3, M4, M6 and M8 bolts. Receiver, transmitter, motor, ESC, servo, battery and hardware are bought separately.",
+    "category": "drone-rc",
+    "design": {
+      "author": "CreativeElectronics",
+      "licence": "CC BY"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Part 1",
+        "qty": 1
+      },
+      {
+        "name": "Part 2",
+        "qty": 1
+      },
+      {
+        "name": "Part 3",
+        "qty": 1
+      },
+      {
+        "name": "Part 4",
+        "qty": 1
+      },
+      {
+        "name": "Part 4 (mirrored)",
+        "qty": 1
+      },
+      {
+        "name": "Part 5",
+        "qty": 1
+      },
+      {
+        "name": "Part 6",
+        "qty": 1
+      },
+      {
+        "name": "Part 7",
+        "qty": 1
+      },
+      {
+        "name": "Part 7 (mirrored)",
+        "qty": 1
+      },
+      {
+        "name": "Part 8",
+        "qty": 1
+      },
+      {
+        "name": "Part 9",
+        "qty": 1
+      },
+      {
+        "name": "Part 10",
+        "qty": 1
+      },
+      {
+        "name": "Gear Z12",
+        "qty": 1
+      },
+      {
+        "name": "Gear Z36",
+        "qty": 1
+      }
+    ],
+    "bought": 10
+  },
+  {
+    "id": "robot-dog",
+    "title": "Quadruped robot dog kit",
+    "blurb": "Open-source quadruped robot dog with twelve MG996R servos (three per leg) controlled by an Arduino Mega, with two ultrasonic sensors, a Bluetooth module, a gyro sensor and a small LCD. Prints the MG995/MG996R servo version for the Arduino Mega plate. Upstream note: attach servo horns to the printed parts with hot glue. No firmware is included. Electronics, servos, battery and hardware are bought separately.",
+    "category": "robotics",
+    "design": {
+      "author": "KDY0523",
+      "licence": "CC BY"
+    },
+    "hasAssembly": true,
+    "assemblyData": false,
+    "parts": [
+      {
+        "name": "Top cover",
+        "qty": 1
+      },
+      {
+        "name": "Back cover",
+        "qty": 1
+      },
+      {
+        "name": "Front cover",
+        "qty": 1
+      },
+      {
+        "name": "Rear cover",
+        "qty": 1
+      },
+      {
+        "name": "Arduino Mega plate",
+        "qty": 1
+      },
+      {
+        "name": "Side plate (left)",
+        "qty": 1
+      },
+      {
+        "name": "Side plate (right)",
+        "qty": 1
+      },
+      {
+        "name": "Inner shoulder",
+        "qty": 4
+      },
+      {
+        "name": "Outer shoulder",
+        "qty": 4
+      },
+      {
+        "name": "Leg arm (left)",
+        "qty": 2
+      },
+      {
+        "name": "Upper leg (right)",
+        "qty": 2
+      },
+      {
+        "name": "Leg arm cover (left)",
+        "qty": 2
+      },
+      {
+        "name": "Upper leg cover (right)",
+        "qty": 2
+      },
+      {
+        "name": "Leg arm joint (left)",
+        "qty": 2
+      },
+      {
+        "name": "Knee joint (right)",
+        "qty": 2
+      },
+      {
+        "name": "Leg wrist (left)",
+        "qty": 2
+      },
+      {
+        "name": "Lower leg (right)",
+        "qty": 2
+      },
+      {
+        "name": "Foot",
+        "qty": 4
+      },
+      {
+        "name": "Ultrasonic sensor mount (left)",
+        "qty": 1
+      },
+      {
+        "name": "Ultrasonic sensor mount (right)",
+        "qty": 1
+      }
+    ],
+    "bought": 10
   }
 ];
 export const kitMetaPartCount = (k: KitMeta) => k.parts.reduce((n, p) => n + p.qty, 0);
