@@ -27,6 +27,11 @@ test('routes attach the session user, not body fields', () => {
   }
 });
 
+test('session id is Google\'s stable account id, not Auth.js\'s per-login random UUID', () => {
+  const src = readFileSync(new URL('../auth.ts', import.meta.url), 'utf8');
+  assert.match(src, /token\.sub = account\.providerAccountId/);
+});
+
 test('indexAdd appends to the per-user index; signed out writes nothing', async () => {
   await indexAdd(A, { type: 'order', id: id(1), createdAt: 'x' });
   await indexAdd(A, { type: 'request', id: id(2), createdAt: 'y' });

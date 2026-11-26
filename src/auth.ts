@@ -11,6 +11,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true, // Vercel sets the Host header; no fixed URL to configure
   callbacks: {
     signIn: ({ profile }) => profile?.email_verified === true && !!profile.email,
+    // without a DB adapter Auth.js puts a fresh random UUID in token.sub each sign-in; use Google's stable account id instead
+    jwt: ({ token, account }) => {
+      if (account?.provider === 'google' && account.providerAccountId) token.sub = account.providerAccountId;
+      return token;
+    },
     // the session carries the Google sub (id) and whether the email is an admin; the server re-checks on every admin request
     session: ({ session, token }) => {
       const u = session.user as typeof session.user & { id?: string; admin?: boolean };
