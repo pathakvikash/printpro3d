@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Icon from './Icon';
-import { card, input, label, money, secondaryBtn, submitBtn } from './ContactFields';
+import { card, input, label, money, secondaryBtn } from './ContactFields';
 import AdminAiSettings from './AdminAiSettings';
 import { NOTE_MAX, countBy, filterRecs, needsAction, toCsv } from '@/lib/adminList';
-
-// The admin token lives in sessionStorage only (gone when the tab closes) and goes out as an Authorization header, never in a URL.
-const KEY = 'printpro3d.admin';
-const read = () => { try { return sessionStorage.getItem(KEY) ?? ''; } catch { return ''; } };
-const write = (v: string) => { try { if (v) sessionStorage.setItem(KEY, v); else sessionStorage.removeItem(KEY); } catch {} };
 
 type Item = { kind?: string; name: string; qty: number; material?: string; config?: string; cfg?: unknown; total?: number | null; unit?: number | null; file?: string; aiPrompt?: string; review?: boolean; reviewReason?: string; project?: string };
 type Rec = {
@@ -36,8 +31,6 @@ const when = (iso: string) => (iso ? new Date(iso).toLocaleString() : '');
 const pretty = (s: string) => s.replace(/_/g, ' ');
 
 export default function AdminPanel() {
-  const [token, setToken] = useState('');
-  const [typed, setTyped] = useState('');
   const [records, setRecords] = useState<Rec[] | null>(null);
   const [statuses, setStatuses] = useState<Statuses | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,18 +40,15 @@ export default function AdminPanel() {
   const [fStatus, setFStatus] = useState('');
   const [q, setQ] = useState('');
 
-  const load = useCallback(async (t: string, offset = 0) => {
+  const load = useCallback(async (offset = 0) => {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/orders?offset=${offset}`, { headers: { Authorization: `Bearer ${t}` }, cache: 'no-store' });
+      const res = await fetch(`/api/admin/orders?offset=${offset}`, { cache: 'no-store' });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (res.status === 401) write('');
-        throw new Error(res.status === 503 ? 'Admin is off: ADMIN_TOKEN is not set on this server.' : d.error || 'Could not load');
+        throw new Error(res.status === 503 ? 'Admin is off: ADMIN_EMAILS is not set on this server.' : d.error || 'Could not load');
       }
-      write(t);
-      setToken(t);
       // a new order arriving between pages shifts the offset: skip records already shown
       setRecords((old) => {
         if (!offset || !old) return d.records;
@@ -68,7 +58,6 @@ export default function AdminPanel() {
       setTotal(d.total ?? d.records.length);
       setStatuses(d.statuses);
     } catch (e) {
-      setToken('');
       setRecords(null);
       setError(e instanceof Error ? e.message : 'Could not load');
     } finally {
@@ -76,47 +65,29 @@ export default function AdminPanel() {
     }
   }, []);
 
-  useEffect(() => {
-    const t = read();
-    if (t) void load(t);
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const shown = records ? filterRecs(records, { type: fType, status: fStatus, q }) : [];
-  const lock = () => { write(''); setToken(''); setTyped(''); setRecords(null); };
 
-  if (!token || !records || !statuses) {
-    return (
-      <form
-        onSubmit={(e) => { e.preventDefault(); void load(typed); }}
-        className={`${card} max-w-md`}
-      >
-        <div>
-          <label htmlFor="admin-token" className={label}>Admin token</label>
-          <input id="admin-token" type="password" autoComplete="off" required value={typed} onChange={(e) => setTyped(e.target.value)} className={input} />
-        </div>
-        <p className="text-sm text-gray-600 dark:text-gray-300">The admin token is a password you choose. Set it as ADMIN_TOKEN in Vercel → Project → Settings → Environment Variables (and in .env.local for local runs), then redeploy. Enter the same value here.</p>
-        {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
-        <button type="submit" disabled={busy || !typed} className={submitBtn}>{busy ? 'Checking' : 'Open'}</button>
-      </form>
-    );
+  if (!records || !statuses) {
+    return error ? <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p> : <p role="status" className="text-sm text-gray-600 dark:text-gray-300">Loading</p>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => void load(token)} disabled={busy} className={secondaryBtn}><Icon name="reset" />{busy ? 'Loading' : 'Refresh'}</button>
-        <button type="button" onClick={lock} className={secondaryBtn}><Icon name="lock" />Lock</button>
+        <button type="button" onClick={() => void load()} disabled={busy} className={secondaryBtn}><Icon name="reset" />{busy ? 'Loading' : 'Refresh'}</button>
         <p className="text-sm text-gray-600 dark:text-gray-300">{records.length} of {total} loaded, newest first</p>
       </div>
-      <AdminAiSettings token={token} />
+      <AdminAiSettings />
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
       <Controls records={records} fType={fType} setFType={setFType} fStatus={fStatus} setFStatus={setFStatus} q={q} setQ={setQ} shown={shown} />
       {shown.map((r) => (
-        <Row key={`${r.type}-${r.id}`} r={r} token={token} statuses={statuses} onChange={(patch) => setRecords((all) => all && all.map((x) => (x === r ? { ...x, ...patch } : x)))} />
+        <Row key={`${r.type}-${r.id}`} r={r} statuses={statuses} onChange={(patch) => setRecords((all) => all && all.map((x) => (x === r ? { ...x, ...patch } : x)))} />
       ))}
       {shown.length === 0 && <p className="text-gray-600 dark:text-gray-300">{records.length ? 'Nothing matches.' : 'Nothing yet.'}</p>}
       {records.length < total && (
-        <button type="button" onClick={() => void load(token, records.length)} disabled={busy} className={secondaryBtn}>{busy ? 'Loading' : `Load more (${total - records.length} older)`}</button>
+        <button type="button" onClick={() => void load(records.length)} disabled={busy} className={secondaryBtn}>{busy ? 'Loading' : `Load more (${total - records.length} older)`}</button>
       )}
     </div>
   );
@@ -158,7 +129,7 @@ function Controls({ records, shown, fType, setFType, fStatus, setFStatus, q, set
   );
 }
 
-function Row({ r, token, statuses, onChange }: { r: Rec; token: string; statuses: Statuses; onChange: (patch: Partial<Rec>) => void }) {
+function Row({ r, statuses, onChange }: { r: Rec; statuses: Statuses; onChange: (patch: Partial<Rec>) => void }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState(r.status);
   const [note, setNote] = useState(r.ownerNote ?? '');
@@ -172,7 +143,7 @@ function Row({ r, token, statuses, onChange }: { r: Rec; token: string; statuses
     try {
       const res = await fetch('/api/admin/orders', {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: r.id, type: r.type, ...body }),
       });
       const d = await res.json().catch(() => ({}));
@@ -196,7 +167,7 @@ function Row({ r, token, statuses, onChange }: { r: Rec; token: string; statuses
 
   const download = async (name: string) => {
     try {
-      const res = await fetch(`/api/admin/files/${encodeURIComponent(name)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/admin/files/${encodeURIComponent(name)}`);
       if (!res.ok) throw new Error();
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');

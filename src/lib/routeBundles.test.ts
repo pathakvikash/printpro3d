@@ -92,3 +92,26 @@ test('no server page or product-page component builds a mesh while rendering', (
   assert.doesNotMatch(tpl, /\btemplateMesh\b/);
   assert.match(tpl, /buildOffThread\(shapes, true\)/);
 });
+
+// Google sign-in is server-only and scoped to the admin pages: next-auth must never reach the public routes' static import graphs
+test('next-auth stays out of the home, shop and cart bundles and the root layout', () => {
+  const entries = ['app/page.tsx', 'app/layout.tsx', 'app/shop/page.tsx', 'components/Navbar.tsx', ...['ShopRoute', 'ShopOrder', 'HomeShop', 'CartDrawer'].map((f) => `components/${f}.tsx`)];
+  const src = fileURLToPath(new URL('..', import.meta.url));
+  const seen = new Set<string>();
+  const walk = (file: string) => {
+    const rel = relative(src, file);
+    if (seen.has(rel)) return;
+    seen.add(rel);
+    assert.ok(!/(^|\/)(auth\.ts|AdminAccess\.tsx|lib\/adminAuth\.ts)$/.test(rel), `${rel} is reachable from a public entry`);
+    const code = readFileSync(file, 'utf8');
+    for (const m of code.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s+'([^']+)'|^import\s+'([^']+)'/gm)) {
+      const spec = m[1] ?? m[2];
+      assert.ok(!/^(next-auth|@auth\/)/.test(spec), `${spec} imported from ${rel}`);
+      const base = spec.startsWith('@/') ? join(src, spec.slice(2)) : spec.startsWith('.') ? resolve(dirname(file), spec) : null;
+      const hit = base && ['', '.ts', '.tsx', '/index.ts'].map((e) => base + e).find((c) => existsSync(c) && statSync(c).isFile());
+      if (hit) walk(hit);
+    }
+  };
+  for (const f of entries) if (existsSync(join(src, f))) walk(join(src, f));
+  assert.ok(seen.size > 20, 'the walk found the graph');
+});

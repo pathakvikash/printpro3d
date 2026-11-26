@@ -12,8 +12,8 @@ type Settings = { provider: string; preset?: string; model?: string; baseUrl?: s
 type Info = { stored: Settings | null; effective: Effective; keys: Record<string, boolean>; presets: Record<string, Preset>; cliAllowed: boolean; auto: { provider: string | null; model: string | null; label: string } };
 type Model = { id: string; name?: string; vision: string };
 
-// token '' = no Authorization header (the API allows that outside production only).
-export default function AdminAiSettings({ token }: { token: string }) {
+// Calls /api/admin/ai with the Google session cookie (the API allows no session outside production only).
+export default function AdminAiSettings() {
   const id = useId();
   const [info, setInfo] = useState<Info | null>(null);
   const [provider, setProvider] = useState('auto');
@@ -27,13 +27,13 @@ export default function AdminAiSettings({ token }: { token: string }) {
   const call = useCallback(async (method: string, body?: unknown) => {
     const res = await fetch('/api/admin/ai', {
       method, cache: 'no-store',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: body ? { 'Content-Type': 'application/json' } : {},
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || `Failed (${res.status})`);
     return d;
-  }, [token]);
+  }, []);
 
   const fill = (s: Settings | null) => {
     setProvider(s?.provider ?? 'auto');
