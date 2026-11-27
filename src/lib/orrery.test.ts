@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { TOOLS, acceptHandoff, bearerSub, handleRpc, manifest, orreryConfig, safeNext, validFileName, verifyJwt, type Deps } from './orrery.ts';
+import { TOOLS, acceptHandoff, bearerSub, handleRpc, manifest, manifestResponse, orreryConfig, safeNext, validFileName, verifyJwt, type Deps } from './orrery.ts';
 import { startJob } from './aiGenerate.ts';
 
 const SECRET = 's3cret-for-tests';
@@ -94,7 +94,7 @@ test('manifest: contract shape, actions permission, origin from env', () => {
   assert.deepEqual(m.capabilities, ['job', 'model3d', 'link']);
   assert.deepEqual(m.deepLinks, { quote: '/quote?file={file}', home: '/' });
   assert.equal(m.permission, 'actions');
-  assert.equal(orreryConfig({}), null); // unset secret: route returns 404
+  assert.equal(orreryConfig({}), null); // unset secret: MCP and file routes answer 503
   assert.equal(manifest({}).baseUrl, 'https://printpro3d.vercel.app');
 });
 
@@ -149,4 +149,13 @@ test('quota is keyed by the token sub: startJob counts usage for that email, and
   assert.deepEqual([denied.ok, !denied.ok && denied.status], [false, 429]);
   assert.deepEqual(taken, ['sub@x.io', 'other@x.io']);
   assert.equal(wrote.length, 1);
+});
+
+test('manifest is served before ORRERY_APP_SECRET is set, so Orrery can register the app and issue the secret', async () => {
+  const r = manifestResponse({ SITE_URL: 'https://p.example.com', ORRERY_APP_ID: 'pp-staging' });
+  assert.equal(r.status, 200);
+  const m = await r.json();
+  assert.equal(m.id, 'pp-staging');
+  assert.equal(m.auth, 'orrery-jwt');
+  assert.equal(m.mcp.url, 'https://p.example.com/api/mcp');
 });
