@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { PrintMesh, PrintStage, prepGeometry, useReducedMotion, type StageOptions } from './PrintMaterial';
+import { PrintMesh, PrintStage, STAGE_BG, StageLoading, prepGeometry, useReducedMotion, type StageOptions } from './PrintMaterial';
 import type { MaterialKey } from '@/lib/quote';
 import { scalePositions } from '@/lib/blueprint';
 
@@ -49,15 +49,6 @@ function useGeometry(url: string, ext: 'stl' | 'obj', scaleTo?: number) {
   return { geometry, error };
 }
 
-function PlaceholderScene() {
-  return (
-    <mesh position={[0, 0, 20]}>
-      <icosahedronGeometry args={[20, 1]} />
-      <meshStandardMaterial color="#6366f1" roughness={0.5} />
-    </mesh>
-  );
-}
-
 // onPositions: hands the loaded triangle soup (mm) to the parent, e.g. for the blueprint; material: the finish shown (the quote's pick, PLA by default like the quote)
 // positions: show a triangle soup already in memory instead of loading url; scaleTo: show (and report) a copy scaled so its longest side is that many mm
 export default function ModelViewer({ url, positions, scaleTo, onPositions, material = 'PLA', className = 'h-full min-h-[320px] sm:min-h-[400px]', stage }: { stage?: StageOptions; url?: string; positions?: Float32Array | null; scaleTo?: number; onPositions?: (p: Float32Array) => void; material?: MaterialKey; className?: string }) {
@@ -76,12 +67,14 @@ export default function ModelViewer({ url, positions, scaleTo, onPositions, mate
     const b = geometry?.boundingBox;
     return b ? { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z } : { x: 40, y: 40, z: 40 };
   }, [geometry]);
+  const pending = !geometry && !error && !!(kind || positions);
   return (
-    <div className={`w-full rounded-xl overflow-hidden ${className}`}>
-      {/* key: refit the camera when a different model loads */}
-      <PrintStage key={geometry?.uuid ?? 'none'} size={size} material={material} interactive reduceMotion={reduce} stage={stage}>
-        {geometry ? <PrintMesh geometry={geometry} /> : (!(kind || positions) || error) && <PlaceholderScene />}
-      </PrintStage>
+    <div className={`relative w-full rounded-xl overflow-hidden ${STAGE_BG} ${className}`}>
+      {/* the stage mounts once the geometry is ready, then the canvas fades in; key: refit the camera when a different model loads */}
+      <div className={`h-full w-full transition-opacity duration-250 motion-reduce:transition-none ${geometry ? 'opacity-100' : 'opacity-0'}`}>
+        {geometry && <PrintStage key={geometry.uuid} size={size} material={material} interactive reduceMotion={reduce} stage={stage}><PrintMesh geometry={geometry} /></PrintStage>}
+      </div>
+      {!geometry && <StageLoading reduce={reduce} text={pending ? undefined : error ? 'Could not load the 3D model' : 'No 3D preview'} />}
     </div>
   );
 }
