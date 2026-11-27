@@ -39,6 +39,24 @@ test('jwt: 30 s skew is allowed, a handoff token is not a bearer token and the r
   assert.ok(verifyJwt(sign({ purpose: 'sso' }), cfg, 'sso', NOW));
 });
 
+test('jwt: lifetime clamp (service <= 120 s, handoff <= 60 + skew) and service tokens with any purpose claim are rejected', () => {
+  assert.ok(verifyJwt(sign({ exp: sec + 120 }), cfg, undefined, NOW));
+  assert.equal(verifyJwt(sign({ exp: sec + 121 }), cfg, undefined, NOW), null);
+  assert.ok(verifyJwt(sign({ purpose: 'sso', exp: sec + 90 }), cfg, 'sso', NOW));
+  assert.equal(verifyJwt(sign({ purpose: 'sso', exp: sec + 91 }), cfg, 'sso', NOW), null);
+  assert.equal(verifyJwt(sign({ purpose: 'sso' }), cfg, undefined, NOW), null);
+  assert.equal(verifyJwt(sign({ purpose: 'anything' }), cfg, undefined, NOW), null);
+});
+
+test('mcp: job_status for an unknown job is a normal failed result, not isError', async () => {
+  const d: Deps = { ...deps([]), status: async () => null };
+  const r = await handleRpc(rpc('tools/call', { name: 'job_status', arguments: { jobId: 'nope' } }), 'u@x.io', d);
+  const res = (r.body as { result: { isError?: boolean; structuredContent: unknown; content: { text: string }[] } }).result;
+  assert.equal(res.isError, undefined);
+  assert.deepEqual(res.structuredContent, { state: 'failed', error: 'Job not found' });
+  assert.ok(res.content[0].text.length > 0);
+});
+
 test('bearerSub: 503 when unset, 401 without or with a bad token, sub when good', async () => {
   const req = (h?: string) => new Request('https://x.test/api/mcp', { headers: h ? { authorization: h } : {} });
   assert.equal((bearerSub(req(), {}) as Response).status, 503);

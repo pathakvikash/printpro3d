@@ -10,6 +10,8 @@ import type { Deps } from './orrery.ts';
 export const logCall = (sub: string, tool: string, started: number) =>
   console.log(JSON.stringify({ orrery: 'call', sub, tool, ms: Date.now() - started }));
 
+const lastProgress = new Map<string, number>(); // ponytail: per instance, cleared when a job finishes; add a store field if it matters
+
 export const realDeps: Deps = {
   async generate({ sub, prompt }) {
     if (!meshyEnabled()) return { ok: false, error: 'AI generation is not available right now.' };
@@ -22,9 +24,21 @@ export const realDeps: Deps = {
   async status({ sub, jobId }) {
     const job = await readJob(jobId);
     if (!job || job.email.trim().toLowerCase() !== sub) return null; // someone else's job looks like a missing one
-    const p = await pollJob(job);
+    let p;
+    try {
+      p = await pollJob(job);
+    } catch (e) { // transient (store or network hiccup): keep the card polling with the last progress we saw
+      console.error('Orrery job_status poll failed:', e instanceof Error ? e.message : e);
+      return { state: 'running', progress: lastProgress.get(jobId) ?? 0 };
+    }
     if (p.state === 'failed') return { state: 'failed', error: p.message };
-    if (p.state === 'working') return { state: p.progress ? 'running' : 'queued', progress: p.progress ?? 0 };
+    if (p.state === 'working') {
+      // pollJob reports 0 when Meshy blips; keep the best progress seen (in-process, resets on cold start)
+      const progress = Math.max(p.progress ?? 0, lastProgress.get(jobId) ?? 0);
+      lastProgress.set(jobId, progress);
+      return { state: progress ? 'running' : 'queued', progress };
+    }
+    lastProgress.delete(jobId);
     return { state: 'done', progress: 100, result: { orrery: 1, type: 'model3d', format: 'stl', file: p.file, title: job.prompt.slice(0, 60) } };
   },
 };

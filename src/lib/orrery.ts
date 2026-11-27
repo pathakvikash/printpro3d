@@ -6,7 +6,8 @@ type Env = Record<string, string | undefined>;
 export type Claims = { iss?: string; aud?: string | string[]; sub?: string; iat?: number; exp?: number; jti?: string; purpose?: string };
 
 const SKEW = 30; // seconds of clock skew allowed
-const MAX_LIFE = 300; // a token that lives longer than this is not one Orrery made
+const MAX_LIFE = 120; // service tokens: contract says 60 s, small margin
+const MAX_LIFE_SSO = 60 + SKEW; // handoff tokens: 60 s plus skew
 
 /** null while ORRERY_APP_SECRET is unset: the integration is off (503 on the API, 404 on the manifest). */
 export function orreryConfig(env: Env = process.env) {
@@ -36,7 +37,7 @@ export function verifyJwt(token: string, cfg: OrreryConfig, purpose?: 'sso', now
   if (c.iss !== cfg.issuer) return null;
   if (!(c.aud === cfg.appId || (Array.isArray(c.aud) && c.aud.includes(cfg.appId)))) return null;
   if (typeof c.exp !== 'number' || typeof c.iat !== 'number') return null;
-  if (c.exp + SKEW < now || c.iat - SKEW > now || c.exp - c.iat > MAX_LIFE) return null;
+  if (c.exp + SKEW < now || c.iat - SKEW > now || c.exp - c.iat > (purpose === 'sso' ? MAX_LIFE_SSO : MAX_LIFE)) return null;
   if (typeof c.sub !== 'string' || !c.sub.trim() || c.sub.length > 254) return null;
   if ((c.purpose ?? undefined) !== purpose) return null; // a handoff token is never a bearer token, and the reverse
   return { ...c, sub: c.sub.trim().toLowerCase() };
@@ -187,7 +188,8 @@ export async function handleRpc(msg: unknown, sub: string, deps: Deps): Promise<
       }
       if (name === 'job_status') {
         const s = typeof args.jobId === 'string' ? await deps.status({ sub, jobId: args.jobId }) : null;
-        if (!s) return reply(text('Job not found.', undefined, true));
+        // unknown or foreign job: a normal result, so Orrery's card shows "failed" instead of retrying a 502
+        if (!s) return reply(text('Job not found.', { state: 'failed', error: 'Job not found' }));
         return reply(text(`Job is ${s.state}${s.progress !== undefined ? ` (${s.progress}%)` : ''}.`, s));
       }
       return rpcErr(m.id, -32602, 'Unknown tool');
