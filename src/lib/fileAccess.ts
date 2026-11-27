@@ -1,9 +1,9 @@
 // Who may read a stored upload. Owner records live in 'upload-owners' (key `${file}.json`); files without one are admin-only.
 // `email` only ever comes from a verified session (or an Orrery token sub), never from a typed contact email. Server only.
 import { emailAllowed, sessionEmail } from './adminAuth.ts';
-import { linksFile, sessionUser } from './account.ts';
+import { LEGACY_LINK_BEFORE, linksFile, sessionUser } from './account.ts';
 import { bearerSub } from './orrery.ts';
-import { getJson, putJson } from './store.ts';
+import { getJson, putJson, storedAt } from './store.ts';
 
 export type Owner = { sub?: string; email?: string; guest?: string };
 export const OWNERS = 'upload-owners';
@@ -52,6 +52,16 @@ export async function recordOwner(file: string, owner: Owner): Promise<boolean> 
   return true;
 }
 
+/**
+ * Files stored before owner records existed stay readable by their unguessable name, as before, unless LEGACY_FILES_PUBLIC=0 (then admin-only,
+ * plus the verified order link). The time comes from the store's own metadata; an unreadable time counts as not legacy (locked).
+ */
+export async function legacyPublic(file: string, env: Record<string, string | undefined> = process.env, at: (f: string) => Promise<Date | null> = (f) => storedAt('uploads', f)): Promise<boolean> {
+  if (env.LEGACY_FILES_PUBLIC === '0') return false;
+  const t = await at(file);
+  return !!t && !Number.isNaN(t.getTime()) && t.getTime() < Date.parse(LEGACY_LINK_BEFORE);
+}
+
 export type JobInfo = { email: string; owner?: Owner };
 export type AccessDeps = {
   admin: () => Promise<boolean>;
@@ -59,6 +69,7 @@ export type AccessDeps = {
   bearer: (request: Request) => { sub: string } | Response | null;
   owner: (file: string) => Promise<Owner | null>;
   jobOf: (file: string) => Promise<JobInfo | null>; // the AI job that made `file`; scans the job list, so called last
+  legacyPublic: (file: string) => Promise<boolean>; // grandfathered: ownerless and stored before the cutoff (only asked when there is no owner record)
   linked: (sub: string, file: string) => Promise<boolean>; // legacy files: a pre-cutoff order/request placed while signed in as `sub` names it
 };
 
@@ -67,6 +78,7 @@ const real: AccessDeps = {
   user: sessionUser,
   bearer: bearerSub,
   owner: (file) => getJson<Owner>(OWNERS, `${file}.json`),
+  legacyPublic: (file) => legacyPublic(file),
   linked: (sub, file) => linksFile(sub, file),
   async jobOf(file) {
     return (await import('./aiJobs.ts')).findJobByFile(file);
@@ -85,10 +97,11 @@ export async function ownedBy(who: { sub?: string; email: string }, file: string
   return file.toLowerCase().endsWith('.stl') && jobMatches(await deps.jobOf(file), who);
 }
 
-/** Admin, the file's owner (session, guest cookie), or an Orrery service token whose sub owns it. */
+/** Admin, a grandfathered legacy file, the file's owner (session, guest cookie), or an Orrery service token whose sub owns it. */
 export async function canRead(request: Request, file: string, deps: AccessDeps = real): Promise<boolean> {
   if (await deps.admin()) return true;
   const owner = await deps.owner(file);
+  if (!owner && (await deps.legacyPublic(file))) return true; // grandfathered, same as before owner records; never used by the Orrery routes
   const job = () => (file.toLowerCase().endsWith('.stl') ? deps.jobOf(file) : Promise.resolve(null));
   if (request.headers.get('authorization')) {
     const b = deps.bearer(request);

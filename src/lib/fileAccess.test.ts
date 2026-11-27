@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canRead, guestFromRequest, ownerFor, recordOwner, OWNERS, type AccessDeps, type Owner } from './fileAccess.ts';
+import { canRead, legacyPublic, guestFromRequest, ownerFor, recordOwner, OWNERS, type AccessDeps, type Owner } from './fileAccess.ts';
 import { finalizeUpload } from './uploads.ts';
 import { createFromMesh } from './designProjects.ts';
 import { ownsFile } from './orreryServer.ts';
@@ -16,6 +16,7 @@ const mk = (o: Partial<Omit<AccessDeps, "owner">> & { owner?: Owner | null }): A
   bearer: () => null,
   jobOf: async () => null,
   linked: async () => false,
+  legacyPublic: async () => false,
   ...o,
   owner: async () => (o.owner === undefined ? { sub: 's1', email: 'a@x.com', guest: G1 } : o.owner),
 });
@@ -131,4 +132,41 @@ test('legacy file (no owner record): a verified order/request link of the signed
   assert.equal(await canRead(req(), 'a.stl', mk({ owner: null, linked })), false); // signed out
   // a file that has an owner record never falls back to order links
   assert.equal(await canRead(req(), 'a.stl', mk({ owner: { guest: G2 }, linked, user: async () => ({ sub: 's1', email: 'a@x.com' }) })), false);
+});
+
+test('grandfathered legacy file: ownerless + legacyPublic is readable by anyone; an owned file never is', async () => {
+  const on = async () => true;
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: null, legacyPublic: on })), true);
+  assert.equal(await canRead(req({ authorization: 'Bearer bad' }), 'a.stl', mk({ owner: null, legacyPublic: on })), true); // same as before: name only
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: { guest: G2 }, legacyPublic: on })), false);
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: null })), false); // switch off or new file
+});
+test('legacyPublic: stored before the cutoff and switch not 0; store time only, unreadable time locks', async () => {
+  const old = async () => new Date('2026-11-01T00:00:00Z');
+  const fresh = async () => new Date('2026-11-27T13:00:00Z');
+  assert.equal(await legacyPublic('a.stl', {}, old), true);
+  assert.equal(await legacyPublic('a.stl', { LEGACY_FILES_PUBLIC: '1' }, old), true);
+  assert.equal(await legacyPublic('a.stl', { LEGACY_FILES_PUBLIC: '0' }, old), false);
+  assert.equal(await legacyPublic('a.stl', {}, fresh), false);
+  assert.equal(await legacyPublic('a.stl', {}, async () => null), false);
+  assert.equal(await legacyPublic('a.stl', {}, async () => new Date('nope')), false);
+});
+test('Orrery routes never use the grandfather path', async () => {
+  assert.equal(await ownsFile('o@x.com', 'a.stl', mk({ owner: null, legacyPublic: async () => true })), false);
+  const src = readFileSync(new URL('./orreryServer.ts', import.meta.url), 'utf8') + readFileSync(new URL('../app/api/orrery/file/route.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /legacyPublic|canRead/);
+});
+test('legacyPublic reads the real store time (disk backend mtime)', async () => {
+  const { mkdtempSync, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = await import('node:path');
+  const { putBytes } = await import('./store.ts');
+  process.env.DATA_DIR = mkdtempSync(path.join(tmpdir(), 'legacy-'));
+  await putBytes('uploads', 'old.stl', 'x');
+  await putBytes('uploads', 'new.stl', 'x');
+  utimesSync(path.join(process.env.DATA_DIR, 'uploads', 'old.stl'), new Date('2026-11-01'), new Date('2026-11-01'));
+  utimesSync(path.join(process.env.DATA_DIR, 'uploads', 'new.stl'), new Date('2026-12-01'), new Date('2026-12-01'));
+  assert.equal(await legacyPublic('old.stl', {}), true);
+  assert.equal(await legacyPublic('new.stl', {}), false);
+  assert.equal(await legacyPublic('missing.stl', {}), false);
 });
