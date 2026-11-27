@@ -18,6 +18,7 @@ export type Job = {
   files: string[]; // every upload name made from this job (base + sized copies), for the order email
   repairTried?: boolean;
   repairedFile?: string; // repaired STL, stored in the 'ai-jobs' namespace
+  owner?: { sub?: string; email?: string; guest?: string }; // who may read this job's files (see fileAccess.ts)
   downloadAttempts?: number; // failed downloads or STL checks of the result; the job fails after two
 };
 

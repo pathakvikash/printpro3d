@@ -6,6 +6,7 @@ import { parseContact, text } from '@/lib/contact';
 import { isImage } from '@/lib/image';
 import { notifyNewRequest } from '@/lib/notify';
 import { del, onBlobStore, putBytes, putJson } from '@/lib/store';
+import { ownerFor, recordOwner, withCookie } from '@/lib/fileAccess';
 import { indexAdd, ownerFields, sessionUser } from '@/lib/account';
 import { imagesTotalProblem } from '@/lib/uploadRules';
 import { filled, limited } from '@/lib/spam';
@@ -70,9 +71,11 @@ export async function POST(request: Request) {
 
     // everything validated; now write (client filenames are never used)
     const names: string[] = [];
+    const { owner, setCookie } = await ownerFor(request);
     for (const img of images) {
       const name = `${Date.now()}-${crypto.randomUUID()}${img.ext}`;
       await putBytes('uploads', name, img.bytes);
+      await recordOwner(name, owner);
       names.push(name);
     }
 
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
     }
     await indexAdd(user, { type: 'request', id, createdAt: rec.createdAt }).catch(() => {});
     await notifyNewRequest(rec); // never throws; the request is already saved
-    return NextResponse.json({ id, status: rec.status });
+    return withCookie(NextResponse.json({ id, status: rec.status }), setCookie);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Invalid request' }, { status: 400 });
   }

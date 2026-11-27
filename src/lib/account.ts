@@ -67,3 +67,25 @@ export async function listMine(u: SessionUser): Promise<MyRecord[]> {
   }
   return [...found.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+/**
+ * True when a record placed while signed in as `sub` references `file` (a model line's upload or a request image). Read-time fallback for
+ * files stored before owner records existed: reads only this user's index, and a record counts only when its userSub (set from the session)
+ * is `sub` and it was created before LEGACY_LINK_BEFORE, so neither a typed contact email, a forged index entry nor a new order links anyone.
+ */
+// Owner records went in after this instant (set before the change was deployed). Only records created before it can link a legacy file:
+// otherwise anyone could place a free order naming someone else's file and unlock it.
+export const LEGACY_LINK_BEFORE = '2026-11-27T12:40:00.000Z';
+
+export async function linksFile(sub: string, file: string): Promise<boolean> {
+  if (!SUB.test(sub)) return false;
+  const index = await getJson<Entry[]>(INDEX_NS, `${sub}.json`);
+  for (const e of Array.isArray(index) ? index : []) {
+    if (!e || (e.type !== 'order' && e.type !== 'request') || !UUID.test(e.id)) continue;
+    const r = await getJson<{ userSub?: unknown; createdAt?: unknown; lines?: unknown; names?: unknown }>(FOLDER[e.type], `${e.id.toLowerCase()}.json`);
+    if (!r || r.userSub !== sub || !(String(r.createdAt ?? '') < LEGACY_LINK_BEFORE)) continue;
+    const lines = Array.isArray(r.lines) ? r.lines.map((l: { file?: unknown } | null) => l?.file) : [];
+    if ([...lines, ...(Array.isArray(r.names) ? r.names : [])].includes(file)) return true;
+  }
+  return false;
+}

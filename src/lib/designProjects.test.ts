@@ -148,9 +148,9 @@ test('mesh project: scale only, finalize scales the upload', async () => {
   const file = '1700000000000-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.stl';
   await putBytes('uploads', file, stl);
   await putJson('uploads', `${file}.stats.json`, meshStats(tris));
-  await assert.rejects(createFromMesh({ file: 'x.obj' }), /STL/);
-  await assert.rejects(createFromMesh({ file, origin: 'meshy', env: {} }), /not set up/);
-  const p = await createFromMesh({ file });
+  await assert.rejects(createFromMesh({ file: 'x.obj', readable: async () => true }), /STL/);
+  await assert.rejects(createFromMesh({ file, origin: 'meshy', env: {}, readable: async () => true }), /not set up/);
+  const p = await createFromMesh({ file, readable: async () => true });
   await assert.rejects(revise(stub([]).ai, p.id, { email: E, request: 'redraw' }), /only be scaled/);
   await assert.rejects(manual(p.id, { blueprint: bp() }), /longestMm/);
   await assert.rejects(manual(p.id, { longestMm: 5000 }), /does not fit/);

@@ -192,6 +192,7 @@ Every variable is listed with a comment in [.env.example](.env.example). Keys ar
 | `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in |
 | `ADMIN_EMAILS` | Comma-separated Google emails allowed into admin (unset = admin disabled) |
 | `BLOB_READ_WRITE_TOKEN` | Durable storage on Vercel (private Blob store) |
+| `LEGACY_FILES_PUBLIC` | Unset or `1`: files stored before per-file owners (2026-11-27 12:40 UTC) stay readable by their link, as before. `0`: lock them (admin, or the customer's own signed-in order). Newer files always need their owner, admin or an Orrery token |
 | `ANTHROPIC_API_KEY` | AI drawing with Anthropic; or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL` for an OpenAI-compatible provider |
 | `AI_DESIGN_TIER`, `AI_DESIGN_MODEL`, `AI_REVISIONS_PER_PROJECT`, `AI_DAILY_PER_EMAIL`, `AI_DAILY_TOTAL` | AI model tier and caps |
 | `MESHY_API_KEY` | Meshy text/image to 3D |
@@ -199,6 +200,25 @@ Every variable is listed with a comment in [.env.example](.env.example). Keys ar
 | `DATA_DIR` | Where local files go (default: project root) |
 
 The AI provider, model and base URL can also be chosen in `/admin` (saved in the store, overrides the `AI_*` variables; keys stay in env only).
+
+## Using Print Pro 3D from Orrery
+
+Orrery (the owner's chat app) can call this site as an app: generate an STL from a prompt, poll the job, open the quote page. The manifest is always served; `/api/mcp` and `/api/orrery/*` answer 503 until `ORRERY_APP_SECRET` is set.
+
+| Variable | Meaning |
+| --- | --- |
+| `ORRERY_APP_SECRET` | Shared HS256 secret, shown once by Orrery at registration |
+| `ORRERY_APP_ID` | App id, default `printpro3d` (token `aud`) |
+| `ORRERY_ISSUER` | Token `iss`, default `orrery` |
+| `NEXT_PUBLIC_ORRERY_URL` | Orrery's URL; shows the "Part of Orrery / Open Orrery" strip (hidden when unset) |
+| `NEXT_PUBLIC_SITE_URL` | This site's production origin for the manifest; falls back to `SITE_URL`, `AUTH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, then `https://printpro3d.vercel.app` |
+
+Registration: deploy, then in Orrery open Settings > Apps and enter `https://<this site>/.well-known/orrery-app.json`. Review the preview (tools `generate_model`, which spends Meshy credit so Orrery asks before each run, and read-only `job_status`), approve, copy the secret Orrery shows once, set `ORRERY_APP_SECRET` (and `ORRERY_ISSUER=orrery`) on Vercel and redeploy.
+
+- `POST /api/mcp`: minimal stateless MCP (JSON-RPC over HTTP). Each call needs an Orrery bearer token; `sub` is the user's email and the usual per-email daily quota (`AI_DAILY_PER_EMAIL`) is counted on it.
+- `GET /api/orrery/file?name=<stl>`: STL bytes, bearer token required, and only files made by that user's own jobs.
+- `/sso?token=&next=`: Orrery's 60 s single-use handoff signs the user in (Auth.js `orrery` provider) and redirects to a same-origin path. It never grants admin.
+- `/quote?file=<stl>` (or `?job=<id>`) preselects a model the signed-in user generated.
 
 ## Deploy
 

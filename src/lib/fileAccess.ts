@@ -1,0 +1,117 @@
+// Who may read a stored upload. Owner records live in 'upload-owners' (key `${file}.json`); files without one are admin-only.
+// `email` only ever comes from a verified session (or an Orrery token sub), never from a typed contact email. Server only.
+import { emailAllowed, sessionEmail } from './adminAuth.ts';
+import { LEGACY_LINK_BEFORE, linksFile, sessionUser } from './account.ts';
+import { bearerSub } from './orrery.ts';
+import { getJson, putJson, storedAt } from './store.ts';
+
+export type Owner = { sub?: string; email?: string; guest?: string };
+export const OWNERS = 'upload-owners';
+export const GUEST_COOKIE = 'pp3d_guest';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The guest id from the cookie header, or null when absent or malformed. */
+export function guestFromRequest(request: Request): string | null {
+  for (const part of (request.headers.get('cookie') ?? '').split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === GUEST_COOKIE) {
+      const id = v.join('=');
+      return UUID.test(id) ? id.toLowerCase() : null;
+    }
+  }
+  return null;
+}
+
+/** Owner of what this request stores: the signed-in session's sub/email plus a guest id (minted, with its Set-Cookie value, when the request has none). */
+export async function ownerFor(request: Request, getUser: typeof sessionUser = sessionUser): Promise<{ owner: Owner; setCookie?: string }> {
+  const u = await getUser();
+  let guest = guestFromRequest(request);
+  let setCookie: string | undefined;
+  if (!guest) {
+    guest = crypto.randomUUID();
+    setCookie = `${GUEST_COOKIE}=${guest}; Path=/; SameSite=Lax; HttpOnly; Max-Age=31536000${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+  }
+  return { owner: { ...(u ? { sub: u.sub, email: u.email } : {}), guest }, ...(setCookie ? { setCookie } : {}) };
+}
+
+/** Adds the guest Set-Cookie (when one was minted) to a response and returns it. */
+export function withCookie<T extends Response>(res: T, setCookie?: string): T {
+  if (setCookie) res.headers.append('Set-Cookie', setCookie);
+  return res;
+}
+
+/** True when `file` already has an owner record. */
+export const hasOwner = async (file: string): Promise<boolean> => (await getJson<Owner>(OWNERS, `${file}.json`)) !== null;
+
+/** Stores who owns `file`, once: an existing record is never overwritten (returns false). An empty owner writes nothing.
+ * ponytail: read then write, two simultaneous first writers can race; names are random so only an attacker who knows one could try. */
+export async function recordOwner(file: string, owner: Owner): Promise<boolean> {
+  if (!owner.sub && !owner.email && !owner.guest) return false;
+  if (await hasOwner(file)) return false;
+  await putJson(OWNERS, `${file}.json`, owner);
+  return true;
+}
+
+/**
+ * Files stored before owner records existed stay readable by their unguessable name, as before, unless LEGACY_FILES_PUBLIC=0 (then admin-only,
+ * plus the verified order link). The time comes from the store's own metadata; an unreadable time counts as not legacy (locked).
+ */
+export async function legacyPublic(file: string, env: Record<string, string | undefined> = process.env, at: (f: string) => Promise<Date | null> = (f) => storedAt('uploads', f)): Promise<boolean> {
+  if (env.LEGACY_FILES_PUBLIC === '0') return false;
+  const t = await at(file);
+  return !!t && !Number.isNaN(t.getTime()) && t.getTime() < Date.parse(LEGACY_LINK_BEFORE);
+}
+
+export type JobInfo = { email: string; owner?: Owner };
+export type AccessDeps = {
+  admin: () => Promise<boolean>;
+  user: () => Promise<{ sub: string; email: string } | null>;
+  bearer: (request: Request) => { sub: string } | Response | null;
+  owner: (file: string) => Promise<Owner | null>;
+  jobOf: (file: string) => Promise<JobInfo | null>; // the AI job that made `file`; scans the job list, so called last
+  legacyPublic: (file: string) => Promise<boolean>; // grandfathered: ownerless and stored before the cutoff (only asked when there is no owner record)
+  linked: (sub: string, file: string) => Promise<boolean>; // legacy files: a pre-cutoff order/request placed while signed in as `sub` names it
+};
+
+const real: AccessDeps = {
+  admin: async () => emailAllowed(await sessionEmail(), undefined),
+  user: sessionUser,
+  bearer: bearerSub,
+  owner: (file) => getJson<Owner>(OWNERS, `${file}.json`),
+  legacyPublic: (file) => legacyPublic(file),
+  linked: (sub, file) => linksFile(sub, file),
+  async jobOf(file) {
+    return (await import('./aiJobs.ts')).findJobByFile(file);
+  },
+};
+
+const same = (a: string | undefined, b: string | undefined) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+const ownerMatches = (o: Owner | null | undefined, who: { sub?: string; email: string }) => !!o && (same(o.email, who.email) || (!!o.sub && o.sub === who.sub));
+
+/** Job ownership by VERIFIED identity only (job.owner, set at job start from the session or the Orrery token). The typed contact email never counts. */
+export const jobMatches = (j: JobInfo | null, who: { sub?: string; email: string }) => !!j && ownerMatches(j.owner, who);
+
+/** True when `who` verifiably owns `file`: its create-only owner record, or the verified owner of the AI job that made it (.stl only, scans jobs). */
+export async function ownedBy(who: { sub?: string; email: string }, file: string, deps: Pick<AccessDeps, 'owner' | 'jobOf'> = real): Promise<boolean> {
+  if (ownerMatches(await deps.owner(file), who)) return true;
+  return file.toLowerCase().endsWith('.stl') && jobMatches(await deps.jobOf(file), who);
+}
+
+/** Admin, a grandfathered legacy file, the file's owner (session, guest cookie), or an Orrery service token whose sub owns it. */
+export async function canRead(request: Request, file: string, deps: AccessDeps = real): Promise<boolean> {
+  if (await deps.admin()) return true;
+  const owner = await deps.owner(file);
+  if (!owner && (await deps.legacyPublic(file))) return true; // grandfathered, same as before owner records; never used by the Orrery routes
+  const job = () => (file.toLowerCase().endsWith('.stl') ? deps.jobOf(file) : Promise.resolve(null));
+  if (request.headers.get('authorization')) {
+    const b = deps.bearer(request);
+    if (!b || b instanceof Response) return false;
+    return ownedBy({ email: b.sub }, file, deps);
+  }
+  const u = await deps.user();
+  if (u && ownerMatches(owner, u)) return true;
+  const guest = guestFromRequest(request);
+  if (guest && owner?.guest === guest) return true;
+  if (u && !owner && (await deps.linked(u.sub, file))) return true; // stored before owner records: a verified order/request link only
+  return !!u && jobMatches(await job(), u);
+}

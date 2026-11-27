@@ -11,6 +11,7 @@ import { BLUEPRINT_SCHEMA, blueprintToShapes, diffBlueprints, shapesToBlueprint,
 import { MAX_TOTAL_SHAPES, buildMesh, toStl, type Shape } from './playground.ts';
 import { toDesign } from './aiDesign.ts';
 import { BED_MM, fitsBed, meshStats, type MeshStats } from './quote.ts';
+import { recordOwner, type Owner } from './fileAccess.ts';
 import { del, getBytes, getJson, list, putBytes, putJson } from './store.ts';
 import { scaleStl } from './stlScale.ts';
 import { buildTemplate, templateMesh } from './templates.ts';
@@ -34,7 +35,7 @@ export type Revision = {
   createdAt: string;
 };
 export type Project = {
-  id: string; createdAt: string; email?: string; source: Source;
+  id: string; createdAt: string; email?: string; owner?: Owner; source: Source;
   origin?: 'upload' | 'meshy'; meshFile?: string; // mesh projects: the stored upload
   status: Status; current: number; approvedRev?: number; finalRev?: number; finalFile?: string;
   aiRevisions: number; revisions: Revision[];
@@ -83,7 +84,7 @@ async function save(p: Project): Promise<Project> {
   return p;
 }
 
-const base = (source: Source, email?: string): Project => ({ id: crypto.randomUUID(), createdAt: now(), ...(email ? { email } : {}), source, status: 'draft', current: 0, aiRevisions: 0, revisions: [] });
+const base = (source: Source, email?: string, owner?: Owner): Project => ({ id: crypto.randomUUID(), createdAt: now(), ...(email ? { email } : {}), ...(owner ? { owner } : {}), source, status: 'draft', current: 0, aiRevisions: 0, revisions: [] });
 
 // ---------- AI plumbing ----------
 
@@ -114,7 +115,7 @@ export type PlanOutcome = { kind: 'questions'; questions: string[]; canSkip: tru
  * First plan from a prompt. The AI may answer with ONE round of up to 3 questions (kind 'questions'); the client then sends
  * the same prompt again with `answers` (text) or `skip: true`, and the AI must plan, listing its assumptions in the blueprint notes.
  */
-export async function createFromPrompt(ai: Ai, i: { email: string; prompt: string; answers?: string; skip?: boolean }): Promise<PlanOutcome> {
+export async function createFromPrompt(ai: Ai, i: { email: string; prompt: string; answers?: string; skip?: boolean; owner?: Owner }): Promise<PlanOutcome> {
   const second = !!(i.answers || i.skip);
   const key = hash('plan', i.prompt, i.answers ?? '', second ? '2' : '1');
   type Stored = { kind: 'questions'; questions: string[] } | { kind: 'plan'; blueprint: Blueprint };
@@ -138,12 +139,12 @@ export async function createFromPrompt(ai: Ai, i: { email: string; prompt: strin
     await putJson(CACHE, `${key}.json`, out).catch(() => {});
   }
   if (out.kind === 'questions') return { kind: 'questions', questions: out.questions, canSkip: true };
-  const p = base('prompt', i.email);
+  const p = base('prompt', i.email, i.owner);
   push(p, { by: 'ai', request: [i.prompt, i.answers].filter(Boolean).join(' / '), blueprint: out.blueprint });
   return { kind: 'plan', project: await save(p) };
 }
 
-export async function createFromTemplate(i: { email?: string; template: unknown; cfg: unknown }): Promise<Project> {
+export async function createFromTemplate(i: { email?: string; owner?: Owner; template: unknown; cfg: unknown }): Promise<Project> {
   const t = templateById(i.template) ?? fail(400, 'Unknown template');
   let cfg: Cfg;
   try {
@@ -152,17 +153,17 @@ export async function createFromTemplate(i: { email?: string; template: unknown;
     return fail(400, e instanceof Error ? e.message : 'Bad configuration');
   }
   const built = buildTemplate(t, cfg);
-  const p = base('template', i.email);
+  const p = base('template', i.email, i.owner);
   push(p, { by: 'template', request: t.name, blueprint: shapesToBlueprint(built.shapes, t.name, built.description.slice(0, 300)) });
   return save(p);
 }
 
 /** A saved design from the builder's shapes (an AI-customised sandbox copy). The shapes are untrusted: same validator as an AI reply, all or nothing. */
-export async function createFromShapes(i: { email?: string; title: unknown; shapes: unknown }): Promise<Project> {
+export async function createFromShapes(i: { email?: string; owner?: Owner; title: unknown; shapes: unknown }): Promise<Project> {
   const d = toDesign({ shapes: i.shapes }, true);
   if (!d.ok || !Array.isArray(i.shapes) || d.shapes.length !== i.shapes.length) return fail(400, 'Those shapes cannot be saved. Add a solid shape and try again.');
   const title = (typeof i.title === 'string' ? i.title.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '').slice(0, 60) || 'My design (custom)';
-  const p = base('copy', i.email);
+  const p = base('copy', i.email, i.owner);
   push(p, { by: 'manual', request: title, blueprint: shapesToBlueprint(d.shapes, title, 'Customised from a copy. Check every size before you approve.') });
   return save(p);
 }
@@ -170,9 +171,10 @@ export async function createFromShapes(i: { email?: string; title: unknown; shap
 const longest = (s: MeshStats['sizeMm']) => Math.max(s.x, s.y, s.z);
 
 /** A project around an uploaded STL (or a Meshy result). Scale-only: the blueprint is a bounding box stand-in and the scale lives on the revision. */
-export async function createFromMesh(i: { email?: string; file: unknown; origin?: unknown; env?: Record<string, string | undefined> }): Promise<Project> {
+export async function createFromMesh(i: { email?: string; owner?: Owner; file: unknown; origin?: unknown; env?: Record<string, string | undefined>; readable: (file: string) => Promise<boolean> }): Promise<Project> {
   const file = typeof i.file === 'string' ? i.file : '';
   if (!/\.stl$/i.test(file)) fail(400, 'Uploaded models can be scaled here only when they are STL files.');
+  if (!(await i.readable(file))) fail(404, 'File not found'); // only the file's owner (or admin) may copy it into a project
   const origin = i.origin === 'meshy' ? 'meshy' : 'upload';
   if (origin === 'meshy') {
     if (!(i.env ?? process.env).MESHY_API_KEY) fail(400, 'AI mesh generation is not set up.');
@@ -183,7 +185,7 @@ export async function createFromMesh(i: { email?: string; file: unknown; origin?
   const s = stats!.sizeMm;
   const box: Shape = { id: 'mesh', kind: 'box', mode: 'solid', position: { x: 0, y: 0, z: s.z / 2 }, rotation: { x: 0, y: 0, z: 0 }, size: { ...s } };
   const bp = shapesToBlueprint([box], 'Uploaded model', `${origin === 'meshy' ? 'AI-generated' : 'Uploaded'} mesh: scale only. The box shows its overall size.`);
-  const p = base('mesh', i.email);
+  const p = base('mesh', i.email, i.owner);
   p.origin = origin;
   p.meshFile = file;
   push(p, { by: 'mesh', blueprint: bp, longestMm: Math.round(longest(s) * 100) / 100 });
@@ -303,6 +305,7 @@ export const finalize = (id: string): Promise<Project> =>
       if (!stats) fail(422, 'We could not read that model.');
       if (!fitsBed(stats!.sizeMm)) fail(422, 'The scaled model does not fit the print bed.');
       await putBytes('uploads', name, out);
+      await recordOwner(name, p.owner ?? {});
     } else {
       const shapes = blueprintToShapes(r.blueprint);
       if (shapes.length > MAX_TOTAL_SHAPES) fail(422, `A design can have at most ${MAX_TOTAL_SHAPES} shapes.`);
@@ -310,6 +313,7 @@ export const finalize = (id: string): Promise<Project> =>
       if (!fitsBed(m.stats.sizeMm)) fail(422, 'The design does not fit the print bed.');
       stats = m.stats;
       await putBytes('uploads', name, toStl(m.tris));
+      await recordOwner(name, p.owner ?? {});
     }
     await putJson('uploads', `${name}.stats.json`, stats); // priceModel reads this sidecar, so pricing works unchanged
     p.status = 'finalized';

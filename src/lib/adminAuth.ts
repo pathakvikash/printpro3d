@@ -14,10 +14,11 @@ export function emailAllowed(email: string | null | undefined, verified: boolean
   return e !== '' && adminEmails(env).includes(e);
 }
 
-/** The signed-in Google email from the Auth.js session cookie, or null. */
-export async function sessionEmail(): Promise<string | null> {
+/** The signed-in email from the Auth.js session cookie, or null. A session made by the Orrery handoff only counts when `handoff` is true (never for admin gates). */
+export async function sessionEmail(handoff = false): Promise<string | null> {
   try {
-    return (await (await import('../auth.ts')).auth())?.user?.email ?? null;
+    const u = (await (await import('../auth.ts')).auth())?.user as { email?: string | null; via?: string } | undefined;
+    return u?.via === 'orrery' && !handoff ? null : u?.email ?? null;
   } catch {
     return null; // e.g. AUTH_SECRET missing
   }

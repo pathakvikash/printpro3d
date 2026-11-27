@@ -5,6 +5,7 @@ import { createFromMesh, createFromPrompt, createFromShapes, createFromTemplate,
 import { capabilities } from '@/lib/designAi';
 import { aiEnv } from '@/lib/aiSettings';
 import { filled, limited } from '@/lib/spam';
+import { canRead, ownerFor } from '@/lib/fileAccess';
 import { aiOrResponse, readBody, respond, view } from './respond';
 
 export const runtime = 'nodejs';
@@ -22,9 +23,12 @@ const checked = (v: unknown, what: string): string => {
 
 /** Create a project: { source: 'prompt', email, prompt, answers?, skip? } | { source: 'template', template, cfg, email? } | { source: 'mesh', file, origin?, email? } */
 export async function POST(request: Request) {
+  let cookie: string | undefined;
   return respond(async () => {
     const body = await readBody(request);
     if (filled(body.website)) return { kind: 'plan', project: null }; // honeypot: look like a success, do nothing
+    const { owner, setCookie } = await ownerFor(request);
+    cookie = setCookie;
     const email = body.email === undefined || body.email === '' ? undefined : parseEmailSafe(body.email);
     if (body.source === 'prompt') {
       const a = await aiOrResponse(request);
@@ -32,16 +36,16 @@ export async function POST(request: Request) {
       if (!email) throw new DesignError(400, 'email is required');
       const prompt = checked(body.prompt, 'prompt');
       const answers = body.answers ? checked(body.answers, 'answers') : undefined;
-      const out = await createFromPrompt(a.ai, { email, prompt, answers, skip: body.skip === true });
+      const out = await createFromPrompt(a.ai, { email, prompt, answers, skip: body.skip === true, owner });
       return out.kind === 'plan' ? { kind: 'plan', project: view(out.project) } : out;
     }
     const slow = await limited(request, 'design');
     if (slow) throw new DesignError(429, 'Too many requests. Please try again in an hour.');
-    if (body.source === 'template') return { kind: 'plan', project: view(await createFromTemplate({ email, template: body.template, cfg: body.cfg })) };
-    if (body.source === 'shapes') return { kind: 'plan', project: view(await createFromShapes({ email, title: body.title, shapes: body.shapes })) };
-    if (body.source === 'mesh') return { kind: 'plan', project: view(await createFromMesh({ email, file: body.file, origin: body.origin })) };
+    if (body.source === 'template') return { kind: 'plan', project: view(await createFromTemplate({ email, owner, template: body.template, cfg: body.cfg })) };
+    if (body.source === 'shapes') return { kind: 'plan', project: view(await createFromShapes({ email, owner, title: body.title, shapes: body.shapes })) };
+    if (body.source === 'mesh') return { kind: 'plan', project: view(await createFromMesh({ email, owner, file: body.file, origin: body.origin, readable: (f) => canRead(request, f) })) };
     throw new DesignError(400, 'source must be "prompt", "template", "shapes" or "mesh"');
-  });
+  }, () => cookie);
 }
 
 function parseEmailSafe(v: unknown): string {

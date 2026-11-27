@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
 import { getBytes } from '@/lib/store';
+import { canRead } from '@/lib/fileAccess';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     const { name } = await params;
     const sanitized = path.basename(name);
+    if (!(await canRead(request, sanitized))) throw new Error('not found');
     const buffer = await getBytes('uploads', sanitized);
     if (!buffer) throw new Error('not found');
 
@@ -29,10 +31,11 @@ export async function GET(
       headers: {
         'Content-Type': mimeMap[ext] || 'application/octet-stream',
         'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, no-store',
         'Content-Disposition': `inline; filename="${sanitized}"`,
       },
     });
   } catch {
-    return NextResponse.json({ error: 'File not found' }, { status: 404, headers: { 'X-Content-Type-Options': 'nosniff' } });
+    return NextResponse.json({ error: 'File not found' }, { status: 404, headers: { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store' } });
   }
 }

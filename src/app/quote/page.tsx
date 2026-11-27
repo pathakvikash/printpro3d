@@ -4,6 +4,8 @@ import PageShell from '@/components/PageShell';
 import UploadForm from '@/components/UploadForm';
 import Capabilities from '@/components/Capabilities';
 import MaterialCards from '@/components/MaterialCards';
+import { sessionEmail } from '@/lib/adminAuth';
+import { preselectFile } from '@/lib/orreryServer';
 
 export const metadata: Metadata = { title: 'Get a quote - PrintPro3D', description: 'Upload an STL or OBJ file and get an instant price for your 3D print.' };
 
@@ -52,10 +54,13 @@ const below = (
   </>
 );
 
-export default function QuotePage() {
+export default async function QuotePage({ searchParams }: { searchParams: Promise<{ file?: string; job?: string }> }) {
+  const q = await searchParams;
+  // ?file= / ?job= (from Orrery or the AI page) preselect a generated model, but only the signed-in user's own
+  const preselect = q.file || q.job ? await preselectFile(q, await sessionEmail(true)) : null;
   return (
     <PageShell wide title="Get a quote" lead="Upload your 3D file, pick a material and quantity, and see the price.">
-      <UploadForm idle={{ side, below }} />
+      <UploadForm idle={{ side, below }} preselect={preselect ?? undefined} />
     </PageShell>
   );
 }

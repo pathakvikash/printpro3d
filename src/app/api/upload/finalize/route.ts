@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { onBlobStore } from '@/lib/store';
 import { finalizeUpload } from '@/lib/uploads';
+import { ownerFor, recordOwner, withCookie } from '@/lib/fileAccess';
 
 export const maxDuration = 60; // seconds: fetching and parsing a large mesh takes a while
 
@@ -10,7 +11,9 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   try {
     const r = await finalizeUpload(body?.name, body?.originalName);
-    return NextResponse.json(r.body, { status: r.status });
+    const { owner, setCookie } = await ownerFor(request);
+    if (r.status === 200 && typeof body?.name === 'string') await recordOwner(body.name, owner);
+    return withCookie(NextResponse.json(r.body, { status: r.status }), setCookie);
   } catch (error) {
     console.error('Finalize error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

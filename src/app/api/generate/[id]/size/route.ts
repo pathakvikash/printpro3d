@@ -9,6 +9,7 @@ import { MeshyError, downloadTo, getTask, repairForPrint } from '@/lib/meshy';
 import { JOBS, claimRepair, readJob, releaseCopy, reserveCopy, serialJob, updateJob } from '@/lib/aiJobs';
 import { scaleStl } from '@/lib/stlScale';
 import { getBytes, putBytes, putJson } from '@/lib/store';
+import { recordOwner } from '@/lib/fileAccess';
 
 export const maxDuration = 60; // seconds: the first size may wait for Meshy's print repair (up to 90 s)
 
@@ -73,6 +74,7 @@ async function sizeJob(id: string, longestMm: number): Promise<NextResponse> {
     if (!base) throw new Error('base model missing');
     const buffer = scaleStl(base, longestMm);
     await putBytes('uploads', file, buffer);
+    await recordOwner(file, job.owner ?? {});
     const stats = analyzeModel(buffer, '.stl');
     await putJson('uploads', `${file}.stats.json`, stats); // same sidecar as /api/upload
 

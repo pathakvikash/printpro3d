@@ -5,7 +5,7 @@
 //   VERCEL set, no token      -> os.tmpdir()/printpro3d, ephemeral: data is lost between invocations (warned once)
 //   otherwise                 -> $DATA_DIR/<ns>/<key>, DATA_DIR defaulting to the project root (same folders as before)
 // Must stay erasable TypeScript with explicit .ts imports: scripts/set-status.mjs imports this under Node's type stripping.
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -67,6 +67,20 @@ export async function getBytes(ns: string, key: string): Promise<Buffer | null> 
       return r && r.statusCode === 200 ? Buffer.from(await new Response(r.stream).arrayBuffer()) : null;
     }
     return await readFile(filePath(ns, key));
+  } catch {
+    return null;
+  }
+}
+
+/** When the object was last written, from the store itself (Blob uploadedAt, file mtime), never from the name; null when missing. */
+export async function storedAt(ns: string, key: string): Promise<Date | null> {
+  if (!validKey(ns, key)) return null;
+  try {
+    if (onBlob()) {
+      const { head } = await blob();
+      return (await head(blobName(ns, key))).uploadedAt;
+    }
+    return (await stat(filePath(ns, key))).mtime;
   } catch {
     return null;
   }

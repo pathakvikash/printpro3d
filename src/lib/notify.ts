@@ -16,7 +16,7 @@ import { describeStatus, type TrackType } from './tracking.ts';
 // Links come from SITE_URL, never from the request, so a forged Host header cannot reach the email.
 const fileLink = (name: string) => {
   const base = process.env.SITE_URL?.trim().replace(/\/+$/, '');
-  return base ? `${base}/api/upload/${encodeURIComponent(name)}` : name;
+  return base ? `${base}/api/admin/files/${encodeURIComponent(name)}` : name;
 };
 
 export type OrderLine = {
