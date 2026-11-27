@@ -97,7 +97,7 @@ export function manifest(env: Env = process.env) {
   const base = siteBase(env);
   return {
     manifestVersion: 1,
-    id: orreryConfig(env)?.appId ?? APP_ID,
+    id: env.ORRERY_APP_ID?.trim() || APP_ID,
     name: 'Print Pro 3D',
     icon: `${base}/icon.svg`,
     baseUrl: base,
@@ -111,6 +111,10 @@ export function manifest(env: Env = process.env) {
     permission: 'actions', // generate_model spends Meshy credit, so Orrery asks the user before every run
   };
 }
+
+/** GET /.well-known/orrery-app.json. Served even before ORRERY_APP_SECRET is set: Orrery reads the manifest to register the
+ *  app and only then shows the secret (the MCP and file routes stay 503 until it is set). */
+export const manifestResponse = (env: Env = process.env) => Response.json(manifest(env), { headers: { 'Cache-Control': 'public, max-age=300' } });
 
 // ---- MCP tools ----
 export const TOOLS = [

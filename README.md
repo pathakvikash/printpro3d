@@ -202,7 +202,7 @@ The AI provider, model and base URL can also be chosen in `/admin` (saved in the
 
 ## Using Print Pro 3D from Orrery
 
-Orrery (the owner's chat app) can call this site as an app: generate an STL from a prompt, poll the job, open the quote page. Off until `ORRERY_APP_SECRET` is set (then `/api/mcp` and `/api/orrery/*` answer 503 and the manifest 404).
+Orrery (the owner's chat app) can call this site as an app: generate an STL from a prompt, poll the job, open the quote page. The manifest is always served; `/api/mcp` and `/api/orrery/*` answer 503 until `ORRERY_APP_SECRET` is set.
 
 | Variable | Meaning |
 | --- | --- |
