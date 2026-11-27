@@ -3,6 +3,7 @@ import path from 'path';
 import { storeUpload } from '@/lib/uploads';
 import { ALLOWED_EXTS as ALLOWED, MAX_UPLOAD as MAX_SIZE } from '@/lib/uploadRules';
 import { filled, limited } from '@/lib/spam';
+import { ownerFor, recordOwner, withCookie } from '@/lib/fileAccess';
 
 export const maxDuration = 60; // seconds: parsing a large mesh takes a while
 
@@ -43,7 +44,10 @@ export async function POST(request: Request) {
 
     // random name: the download URL has no login, so it must not be guessable
     const uniqueName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
-    return NextResponse.json(await storeUpload(buffer, uniqueName, file.name));
+    const stored = await storeUpload(buffer, uniqueName, file.name);
+    const { owner, setCookie } = await ownerFor(request);
+    await recordOwner(uniqueName, owner);
+    return withCookie(NextResponse.json(stored), setCookie);
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

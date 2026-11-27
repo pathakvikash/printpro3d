@@ -8,6 +8,7 @@ import { MeshyError, downloadTo, getTask } from './meshy.ts';
 import { markReady, readJob, recordDownloadFailure, updateJob, type Job } from './aiJobs.ts';
 import { parseStl } from './stlScale.ts';
 import { del, putBytes } from './store.ts';
+import { recordOwner } from './fileAccess.ts';
 
 export type Poll = { state: 'working'; progress?: number } | { state: 'ready'; file: string } | { state: 'failed'; message: string };
 
@@ -31,6 +32,7 @@ async function fetchStl(id: string, stlUrl: string): Promise<string> {
     await rm(tmp, { recursive: true, force: true });
   }
   const file = await markReady(id, name);
+  if (file === name) await recordOwner(name, (await readJob(id))?.owner ?? {});
   if (file !== name) {
     await del('uploads', name).catch(() => {}); // another poll stored its copy first
     if (file) return file;

@@ -6,7 +6,7 @@ import { MeshyError, createImageTask, createTextTask } from './meshy.ts';
 import { writeJob, type Job } from './aiJobs.ts';
 
 export type Start = { ok: true; id: string } | { ok: false; status: number; error: string };
-export type StartArgs = { email: string; name: string; phone: string; mode: 'text' | 'image'; prompt?: string; dataUri?: string };
+export type StartArgs = { email: string; name: string; phone: string; mode: 'text' | 'image'; prompt?: string; dataUri?: string; owner?: Job['owner'] };
 export type StartDeps = { take: typeof takeUsage; text: typeof createTextTask; image: typeof createImageTask; write: typeof writeJob };
 const real: StartDeps = { take: takeUsage, text: createTextTask, image: createImageTask, write: writeJob };
 
@@ -52,6 +52,7 @@ export async function startJob(a: StartArgs, d: StartDeps = real): Promise<Start
   const job: Job = {
     id: crypto.randomUUID(), meshyId, kind: a.mode, name: a.name, email: a.email, phone: a.phone,
     prompt: a.mode === 'text' ? (a.prompt ?? '') : '(customer photo)', createdAt: new Date().toISOString(), state: 'working', files: [],
+    ...(a.owner ? { owner: a.owner } : {}),
   };
   try {
     await d.write(job);

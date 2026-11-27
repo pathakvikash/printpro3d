@@ -18,7 +18,7 @@ export const realDeps: Deps = {
     const c = checkPrompt(prompt); // same length limit and weapon/brand screen as the website
     if (!c.ok) return { ok: false, error: c.reason };
     // identity is the verified token sub, so the per-email daily quota (AI_DAILY_PER_EMAIL) is that user's own
-    const r = await startJob({ email: sub, name: sub.split('@')[0] || 'Orrery user', phone: '', mode: 'text', prompt: c.prompt });
+    const r = await startJob({ email: sub, name: sub.split('@')[0] || 'Orrery user', phone: '', mode: 'text', prompt: c.prompt, owner: { email: sub } });
     return r.ok ? { ok: true, jobId: r.id } : { ok: false, error: r.error };
   },
   async status({ sub, jobId }) {

@@ -7,6 +7,7 @@ import { checkPrompt } from '@/lib/aiGuard';
 import { meshyEnabled } from '@/lib/meshy';
 import { startJob } from '@/lib/aiGenerate';
 import { filled, limited } from '@/lib/spam';
+import { ownerFor, withCookie } from '@/lib/fileAccess';
 
 export const maxDuration = 30; // seconds: starts a Meshy task and returns; the browser polls /api/generate/[id]
 
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
     return err(e instanceof Error ? e.message : 'Invalid request', 400);
   }
 
-  const r = await startJob({ email: contact.email, name: contact.name, phone: contact.phone, mode, prompt, dataUri });
+  const { owner, setCookie } = await ownerFor(request);
+  const r = await startJob({ email: contact.email, name: contact.name, phone: contact.phone, mode, prompt, dataUri, owner });
   if (!r.ok) return err(r.error, r.status);
-  return NextResponse.json({ id: r.id }); // our id only, never the Meshy id
+  return withCookie(NextResponse.json({ id: r.id }), setCookie); // our id only, never the Meshy id
 }

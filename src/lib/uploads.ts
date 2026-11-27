@@ -1,6 +1,8 @@
 // Server side of a model upload, shared by POST /api/upload (bytes in the request) and POST /api/upload/finalize (bytes already in Blob).
 import { analyzeModel } from './analyzeModel.ts';
 import type { MeshStats } from './quote.ts';
+import { hasOwner } from './fileAccess.ts';
+import { findJobByFile } from './aiJobs.ts';
 import { del, getBytes, putBytes, putJson } from './store.ts';
 import { MAX_UPLOAD, extOf, fileProblem, validUploadName } from './uploadRules.ts';
 
@@ -24,12 +26,14 @@ export type FinalizeDeps = {
   exists: (name: string) => Promise<boolean>;
   remove: (name: string) => Promise<void>;
   finish: typeof finishUpload;
+  claimed?: (name: string) => Promise<boolean>; // already has an owner record or is an AI job's file: not a fresh upload
 };
 const realDeps: FinalizeDeps = {
   read: (n) => getBytes('uploads', n),
   exists: async (n) => (await getBytes('uploads', n)) !== null,
   remove: (n) => del('uploads', n),
   finish: finishUpload,
+  claimed: async (n) => (await hasOwner(n)) || (n.toLowerCase().endsWith('.stl') && !!(await findJobByFile(n))),
 };
 
 export type Finalized = { status: number; body: UploadResult | { error: string } };
@@ -37,6 +41,7 @@ export type Finalized = { status: number; body: UploadResult | { error: string }
 /** Checks a file the browser put into Blob, analyzes it, and deletes it when it is missing, empty, too big or the wrong type. */
 export async function finalizeUpload(name: unknown, originalName: unknown, deps: FinalizeDeps = realDeps): Promise<Finalized> {
   if (!validUploadName(name)) return { status: 400, body: { error: 'Invalid file name' } };
+  if (await deps.claimed?.(name)) return { status: 409, body: { error: 'Already finalized' } };
   if (await deps.exists(`${name}.stats.json`)) return { status: 409, body: { error: 'Already finalized' } };
   const buffer = await deps.read(name);
   if (!buffer) return { status: 404, body: { error: 'Upload not found. Please try again.' } };

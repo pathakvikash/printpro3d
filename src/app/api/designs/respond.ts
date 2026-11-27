@@ -3,11 +3,12 @@ import { DesignError, type Project } from '@/lib/designProjects';
 import { configuredAi } from '@/lib/designAi';
 import { aiEnv } from '@/lib/aiSettings';
 import { limited } from '@/lib/spam';
+import { withCookie } from '@/lib/fileAccess';
 
 export const NO_AI = { error: 'AI is not configured on this site. You can still start from a template or edit by hand.', code: 'ai_not_configured' };
 
 /** Project as the browser sees it: no email. */
-export const view = ({ email: _email, ...p }: Project) => p;
+export const view = ({ email: _email, owner: _owner, ...p }: Project) => p;
 
 export async function readBody(request: Request): Promise<Record<string, unknown>> {
   const len = request.headers.get('content-length');
@@ -19,10 +20,10 @@ export async function readBody(request: Request): Promise<Record<string, unknown
   throw new DesignError(400, 'Invalid JSON');
 }
 
-/** Runs a handler and maps DesignError to its status; anything else is a 500 that says nothing about the cause. */
-export async function respond(fn: () => Promise<unknown>): Promise<Response> {
+/** Runs a handler and maps DesignError to its status; anything else is a 500 that says nothing about the cause. `setCookie` is a guest cookie to attach on success. */
+export async function respond(fn: () => Promise<unknown>, setCookie?: () => string | undefined): Promise<Response> {
   try {
-    return NextResponse.json(await fn());
+    return withCookie(NextResponse.json(await fn()), setCookie?.());
   } catch (e) {
     if (e instanceof DesignError) return NextResponse.json({ error: e.message }, { status: e.status });
     console.error('Designs: unexpected failure:', e instanceof Error ? e.message : 'unknown');
