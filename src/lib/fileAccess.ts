@@ -71,11 +71,16 @@ const real: AccessDeps = {
   },
 };
 
-/** Job ownership by VERIFIED identity. Website jobs: job.owner. Orrery jobs (no owner field, email = token sub): only for a bearer request. The typed contact email never counts. */
-function jobMatches(j: JobInfo | null, who: { sub?: string; email: string }, bearer: boolean): boolean {
-  if (!j) return false;
-  if (j.owner) return j.owner.email === who.email || (!!who.sub && j.owner.sub === who.sub);
-  return bearer && j.email.trim().toLowerCase() === who.email;
+const same = (a: string | undefined, b: string | undefined) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+const ownerMatches = (o: Owner | null | undefined, who: { sub?: string; email: string }) => !!o && (same(o.email, who.email) || (!!o.sub && o.sub === who.sub));
+
+/** Job ownership by VERIFIED identity only (job.owner, set at job start from the session or the Orrery token). The typed contact email never counts. */
+export const jobMatches = (j: JobInfo | null, who: { sub?: string; email: string }) => !!j && ownerMatches(j.owner, who);
+
+/** True when `who` verifiably owns `file`: its create-only owner record, or the verified owner of the AI job that made it (.stl only, scans jobs). */
+export async function ownedBy(who: { sub?: string; email: string }, file: string, deps: Pick<AccessDeps, 'owner' | 'jobOf'> = real): Promise<boolean> {
+  if (ownerMatches(await deps.owner(file), who)) return true;
+  return file.toLowerCase().endsWith('.stl') && jobMatches(await deps.jobOf(file), who);
 }
 
 /** Admin, the file's owner (session, guest cookie), or an Orrery service token whose sub owns it. */
@@ -86,11 +91,11 @@ export async function canRead(request: Request, file: string, deps: AccessDeps =
   if (request.headers.get('authorization')) {
     const b = deps.bearer(request);
     if (!b || b instanceof Response) return false;
-    return owner?.email === b.sub || jobMatches(await job(), { email: b.sub }, true);
+    return ownedBy({ email: b.sub }, file, deps);
   }
   const u = await deps.user();
-  if (u && ((owner?.sub && owner.sub === u.sub) || (owner?.email && owner.email === u.email))) return true;
+  if (u && ownerMatches(owner, u)) return true;
   const guest = guestFromRequest(request);
   if (guest && owner?.guest === guest) return true;
-  return !!u && jobMatches(await job(), u, false);
+  return !!u && jobMatches(await job(), u);
 }

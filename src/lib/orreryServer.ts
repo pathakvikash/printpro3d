@@ -1,10 +1,11 @@
 // Orrery glue to the real generator, store and quota. Server only; the logic worth testing lives in orrery.ts.
 import { checkPrompt } from './aiGuard.ts';
 import { startJob } from './aiGenerate.ts';
-import { findJobByFile, readJob } from './aiJobs.ts';
+import { readJob } from './aiJobs.ts';
 import { pollJob } from './aiPoll.ts';
 import { meshyEnabled } from './meshy.ts';
 import type { Deps } from './orrery.ts';
+import { jobMatches, ownedBy, type AccessDeps } from './fileAccess.ts';
 
 /** Log one JSON line per MCP call: who, which tool, how long. */
 export const logCall = (sub: string, tool: string, started: number) =>
@@ -23,7 +24,7 @@ export const realDeps: Deps = {
   },
   async status({ sub, jobId }) {
     const job = await readJob(jobId);
-    if (!job || job.email.trim().toLowerCase() !== sub) return null; // someone else's job looks like a missing one
+    if (!job || !jobMatches(job, { email: sub })) return null; // someone else's job looks like a missing one
     let p;
     try {
       p = await pollJob(job);
@@ -45,21 +46,18 @@ export const realDeps: Deps = {
 
 /**
  * The generated file /quote?file= or ?job= may preselect: only when the viewer is signed in and a generation job of that
- * same email made it. Anything else returns null and the quote page opens as usual.
+ * same verified owner made it (never the typed contact email). Anything else returns null and the quote page opens as usual.
  */
 export async function preselectFile(q: { file?: string; job?: string }, email: string | null): Promise<string | null> {
   if (!email) return null;
   const who = email.trim().toLowerCase();
   if (q.job) {
     const j = await readJob(q.job);
-    return j && j.state === 'ready' && j.file && j.email.trim().toLowerCase() === who ? j.file : null;
+    return j && j.state === 'ready' && j.file && jobMatches(j, { email: who }) ? j.file : null;
   }
   const f = q.file ?? '';
   return /^[A-Za-z0-9._-]{1,128}$/.test(f) && (await ownsFile(who, f)) ? f : null;
 }
 
-/** True when `file` is an STL made by a job of this user. */
-export async function ownsFile(sub: string, file: string): Promise<boolean> {
-  const j = await findJobByFile(file);
-  return !!j && j.email.trim().toLowerCase() === sub;
-}
+/** True when the verified identity `sub` owns `file` (owner record or the AI job's verified owner), same rule as /api/upload/[name]. */
+export const ownsFile = (sub: string, file: string, deps?: Pick<AccessDeps, 'owner' | 'jobOf'>): Promise<boolean> => ownedBy({ email: sub }, file, deps);

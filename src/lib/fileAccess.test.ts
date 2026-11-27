@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { canRead, guestFromRequest, ownerFor, recordOwner, OWNERS, type AccessDeps, type Owner } from './fileAccess.ts';
 import { finalizeUpload } from './uploads.ts';
 import { createFromMesh } from './designProjects.ts';
+import { ownsFile } from './orreryServer.ts';
 import { getJson } from './store.ts';
 
 const G1 = '11111111-1111-4111-8111-111111111111';
@@ -32,7 +33,7 @@ test('session owner allowed, other user denied', async () => {
 });
 test('admin allowed', async () => assert.equal(await canRead(req(), 'a.stl', mk({ admin: async () => true, owner: null })), true));
 test('valid Orrery bearer owning via job allowed', async () => {
-  const d = mk({ bearer: () => ({ sub: 'o@x.com' }), jobOf: async () => ({ email: 'o@x.com' }) });
+  const d = mk({ bearer: () => ({ sub: 'o@x.com' }), jobOf: async () => ({ email: 'typed@x.com', owner: { email: 'o@x.com' } }) });
   assert.equal(await canRead(req({ authorization: 'Bearer t' }), 'a.stl', d), true);
 });
 test('invalid bearer denied even with a matching guest cookie', async () => {
@@ -106,4 +107,18 @@ test('recordOwner never overwrites; finalize refuses a claimed name', async () =
 test('design mesh project refuses an unreadable file; route passes canRead', async () => {
   await assert.rejects(createFromMesh({ file: 'victim.stl', readable: async () => false }), /File not found/);
   assert.match(readFileSync(new URL('../app/api/designs/route.ts', import.meta.url), 'utf8'), /readable: \(f\) => canRead\(request, f\)/);
+});
+
+test('Orrery ownsFile (/api/orrery/file, preselect): verified owner only, never the typed job email', async () => {
+  const job = mk({ owner: null, jobOf: async () => ({ email: 'typed@x.com', owner: { email: 'o@x.com' } }) });
+  assert.equal(await ownsFile('o@x.com', 'a.stl', job), true);
+  assert.equal(await ownsFile('typed@x.com', 'a.stl', job), false);
+  assert.equal(await ownsFile('typed@x.com', 'a.stl', mk({ owner: null, jobOf: async () => ({ email: 'typed@x.com' }) })), false); // job with no verified owner
+  assert.equal(await ownsFile('o@x.com', 'a.stl', mk({ owner: { email: 'o@x.com' } })), true); // create-only owner record
+  assert.equal(await ownsFile('x@x.com', 'a.stl', mk({ owner: { email: 'o@x.com' } })), false);
+});
+test('preselectFile matches the job by verified owner, not job.email', () => {
+  const src = readFileSync(new URL('./orreryServer.ts', import.meta.url), 'utf8');
+  assert.match(src, /jobMatches\(j, \{ email: who \}\)/);
+  assert.doesNotMatch(src, /j\.email\.trim\(\)/);
 });
