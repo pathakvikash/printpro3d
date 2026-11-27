@@ -192,7 +192,7 @@ Every variable is listed with a comment in [.env.example](.env.example). Keys ar
 | `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google sign-in |
 | `ADMIN_EMAILS` | Comma-separated Google emails allowed into admin (unset = admin disabled) |
 | `BLOB_READ_WRITE_TOKEN` | Durable storage on Vercel (private Blob store) |
-| `LEGACY_FILES_PUBLIC` | Unset or `1`: files stored before per-file owners (2026-11-27 12:30 UTC) stay readable by their link, as before. `0`: lock them (admin, or the customer's own signed-in order). Newer files always need their owner, admin or an Orrery token |
+| `LEGACY_FILES_PUBLIC` | Unset or `1`: files stored before per-file owners (2026-11-27 12:40 UTC) stay readable by their link, as before. `0`: lock them (admin, or the customer's own signed-in order). Newer files always need their owner, admin or an Orrery token |
 | `ANTHROPIC_API_KEY` | AI drawing with Anthropic; or `AI_PRESET` + `AI_API_KEY` + `AI_MODEL` for an OpenAI-compatible provider |
 | `AI_DESIGN_TIER`, `AI_DESIGN_MODEL`, `AI_REVISIONS_PER_PROJECT`, `AI_DAILY_PER_EMAIL`, `AI_DAILY_TOTAL` | AI model tier and caps |
 | `MESHY_API_KEY` | Meshy text/image to 3D |

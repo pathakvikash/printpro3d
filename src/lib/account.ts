@@ -75,7 +75,7 @@ export async function listMine(u: SessionUser): Promise<MyRecord[]> {
  */
 // Owner records went in after this instant (set before the change was deployed). Only records created before it can link a legacy file:
 // otherwise anyone could place a free order naming someone else's file and unlock it.
-export const LEGACY_LINK_BEFORE = '2026-11-27T12:30:00.000Z';
+export const LEGACY_LINK_BEFORE = '2026-11-27T12:40:00.000Z';
 
 export async function linksFile(sub: string, file: string): Promise<boolean> {
   if (!SUB.test(sub)) return false;
