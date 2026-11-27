@@ -15,6 +15,7 @@ const mk = (o: Partial<Omit<AccessDeps, "owner">> & { owner?: Owner | null }): A
   user: async () => null,
   bearer: () => null,
   jobOf: async () => null,
+  linked: async () => false,
   ...o,
   owner: async () => (o.owner === undefined ? { sub: 's1', email: 'a@x.com', guest: G1 } : o.owner),
 });
@@ -121,4 +122,13 @@ test('preselectFile matches the job by verified owner, not job.email', () => {
   const src = readFileSync(new URL('./orreryServer.ts', import.meta.url), 'utf8');
   assert.match(src, /jobMatches\(j, \{ email: who \}\)/);
   assert.doesNotMatch(src, /j\.email\.trim\(\)/);
+});
+
+test('legacy file (no owner record): a verified order/request link of the signed-in user grants read; nothing else does', async () => {
+  const linked = async (sub: string, f: string) => sub === 's1' && f === 'a.stl';
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: null, linked, user: async () => ({ sub: 's1', email: 'a@x.com' }) })), true);
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: null, linked, user: async () => ({ sub: 's2', email: 'a@x.com' }) })), false);
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: null, linked })), false); // signed out
+  // a file that has an owner record never falls back to order links
+  assert.equal(await canRead(req(), 'a.stl', mk({ owner: { guest: G2 }, linked, user: async () => ({ sub: 's1', email: 'a@x.com' }) })), false);
 });

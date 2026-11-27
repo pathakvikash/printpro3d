@@ -1,7 +1,7 @@
 // Who may read a stored upload. Owner records live in 'upload-owners' (key `${file}.json`); files without one are admin-only.
 // `email` only ever comes from a verified session (or an Orrery token sub), never from a typed contact email. Server only.
 import { emailAllowed, sessionEmail } from './adminAuth.ts';
-import { sessionUser } from './account.ts';
+import { linksFile, sessionUser } from './account.ts';
 import { bearerSub } from './orrery.ts';
 import { getJson, putJson } from './store.ts';
 
@@ -59,6 +59,7 @@ export type AccessDeps = {
   bearer: (request: Request) => { sub: string } | Response | null;
   owner: (file: string) => Promise<Owner | null>;
   jobOf: (file: string) => Promise<JobInfo | null>; // the AI job that made `file`; scans the job list, so called last
+  linked: (sub: string, file: string) => Promise<boolean>; // legacy files: a pre-cutoff order/request placed while signed in as `sub` names it
 };
 
 const real: AccessDeps = {
@@ -66,6 +67,7 @@ const real: AccessDeps = {
   user: sessionUser,
   bearer: bearerSub,
   owner: (file) => getJson<Owner>(OWNERS, `${file}.json`),
+  linked: (sub, file) => linksFile(sub, file),
   async jobOf(file) {
     return (await import('./aiJobs.ts')).findJobByFile(file);
   },
@@ -97,5 +99,6 @@ export async function canRead(request: Request, file: string, deps: AccessDeps =
   if (u && ownerMatches(owner, u)) return true;
   const guest = guestFromRequest(request);
   if (guest && owner?.guest === guest) return true;
+  if (u && !owner && (await deps.linked(u.sub, file))) return true; // stored before owner records: a verified order/request link only
   return !!u && jobMatches(await job(), u);
 }

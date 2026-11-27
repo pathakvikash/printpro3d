@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 process.env.DATA_DIR = mkdtempSync(path.join(tmpdir(), 'acct-'));
-const { indexAdd, listMine, ownerFields } = await import('./account.ts');
+const { indexAdd, linksFile, listMine, ownerFields } = await import('./account.ts');
 const { putJson, getJson } = await import('./store.ts');
 
 const A = { sub: '111', email: 'a@gmail.com', name: 'A' };
@@ -62,4 +62,25 @@ test('a typed contact email cannot push a new anonymous order into someone else\
   const signedIn = { ...spoof, id: '00000000-0000-4000-8000-000000000078', userSub: '222', userEmail: 'b@gmail.com' };
   await putJson('orders', `${signedIn.id}.json`, signedIn);
   assert.ok((await listMine(B)).some((r) => r.id === signedIn.id));
+});
+
+test('linksFile: only records placed signed in as that sub, via its own index; typed email and forged entries never link', async () => {
+  const o = (n: number, extra: Record<string, unknown>) => putJson('orders', `${id(n)}.json`, rec(n, extra));
+  await o(31, { userSub: '333', userEmail: 'c@gmail.com', lines: [{ kind: 'model', file: 'mine.stl' }] });
+  await o(32, { email: 'c@gmail.com', lines: [{ kind: 'model', file: 'typed.stl' }] }); // guest order, typed email only
+  await o(33, { userSub: '444', lines: [{ kind: 'model', file: 'theirs.stl' }] });
+  await putJson('requests', `${id(34)}.json`, rec(4, { id: id(34), userSub: '333', names: ['ref.png'] }));
+  const C = { sub: '333', email: 'c@gmail.com', name: 'C' };
+  for (const n of [31, 32, 33]) await indexAdd(C, { type: 'order', id: id(n), createdAt: 'x' }); // 32 and 33 are forged entries
+  await indexAdd(C, { type: 'request', id: id(34), createdAt: 'x' });
+  assert.equal(await linksFile('333', 'mine.stl'), true);
+  assert.equal(await linksFile('333', 'ref.png'), true);
+  assert.equal(await linksFile('333', 'typed.stl'), false);
+  assert.equal(await linksFile('333', 'theirs.stl'), false);
+  assert.equal(await linksFile('444', 'mine.stl'), false);
+  assert.equal(await linksFile('../x', 'mine.stl'), false);
+  // an order placed after owner records went live cannot unlock a legacy file, even for the signed-in user who placed it
+  await putJson('orders', `${id(35)}.json`, { ...rec(5, { userSub: '333', lines: [{ kind: 'model', file: 'victim.stl' }] }), id: id(35), createdAt: '2026-11-28T00:00:00.000Z' });
+  await indexAdd(C, { type: 'order', id: id(35), createdAt: 'x' });
+  assert.equal(await linksFile('333', 'victim.stl'), false);
 });
