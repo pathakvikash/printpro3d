@@ -11,6 +11,12 @@ The full grouped list is in [OWNER-CHECKLIST.md](OWNER-CHECKLIST.md). Everything
 5. Confirm copy: "We use your files only to quote and print your order." and the files line in `page.tsx` marked `// OWNER:`.
 6. Download the showcase STLs from Thingiverse manually into `public/models/showcase/` (check each licence; skip the gears set until its parent licence is confirmed).
 
+## Owner data needed: materials and laser
+
+Materials for sale and laser cutting are enquiry-only until the owner gives: prices; brands; filament colours and spool sizes; resin types and bottle sizes; sheet sizes, thicknesses and colours; stock; laser bed size, laser power and what it can cut or engrave; laser rates (cut time, engrave area, setup, minimum). Then add them to `src/lib/supplies.ts` and the `/laser` page.
+
+Made to order (`src/lib/madeToOrder.ts`, `/shop#made-to-order`) is also enquiry-only, original designs only (no licensed characters, team or league logos, resold STLs). Per item the owner still gives: a price or price rule, a real photo of a made sample, and a design file or template (the `needs` list per item in the file; today every item needs all three). Also owner decisions: which Devanagari fonts for name signs, lead times, and whether lithophane and photo keychains need a photo upload step.
+
 ## Not built
 
 | Gap | Note |

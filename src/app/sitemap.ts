@@ -5,7 +5,7 @@ import { PARTS } from '@/lib/parts';
 import { KITS } from '@/lib/kits';
 
 // Public routes only: /admin and /api are left out on purpose.
-const ROUTES = ['', '/quote', '/request', '/shop', '/playground', '/track', '/materials', '/how-it-works', '/about', '/credits', '/privacy', '/contact', ...shopVisible(CATALOG).map((i) => `/blueprint/${i.id}`), ...[...shopVisible(CATALOG), ...shopVisible(TEMPLATES), ...shopVisible(KITS)].map((i) => `/shop/${i.id}`), ...PARTS.map((p) => `/shop/part/${p.id}`)];
+const ROUTES = ['', '/quote', '/request', '/laser', '/shop', '/playground', '/track', '/materials', '/how-it-works', '/about', '/credits', '/privacy', '/contact', ...shopVisible(CATALOG).map((i) => `/blueprint/${i.id}`), ...[...shopVisible(CATALOG), ...shopVisible(TEMPLATES), ...shopVisible(KITS)].map((i) => `/shop/${i.id}`), ...PARTS.map((p) => `/shop/part/${p.id}`)];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = (process.env.SITE_URL?.trim() || 'https://printpro3d.vercel.app').replace(/\/+$/, '');

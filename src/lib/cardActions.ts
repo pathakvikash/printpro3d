@@ -19,3 +19,6 @@ export function cardActions(kind: CardKind, id: string, exampleId?: string | nul
 
 /** "Customise with AI" for a fixed item: the builder opens a sandbox copy of the example (the catalog is never touched) with the AI panel open. */
 export const aiHref = (exampleId: string) => `/playground?mode=build&example=${encodeURIComponent(exampleId)}&ai=1`;
+
+/** Enquire link for a material for sale (lib/supplies.ts); prefilled by /request?material=<id>. */
+export const supplyHref = (id: string) => `/request?material=${encodeURIComponent(id)}`;

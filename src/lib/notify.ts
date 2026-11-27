@@ -117,6 +117,7 @@ export type RequestNotice = {
   extras: string;
   budget: string;
   images: string[];
+  designFile?: string;
   name: string;
   email: string;
   phone: string;
@@ -140,6 +141,7 @@ export async function notifyNewRequest(r: RequestNotice): Promise<boolean> {
         '',
         `Description: ${r.description}`,
         ...r.images.map((n) => `Image: ${fileLink(n)}`),
+        ...(r.designFile ? [`Design file: ${fileLink(r.designFile)}`] : []),
         '',
         `Customer: ${r.name}`,
         `Email: ${r.email}`,

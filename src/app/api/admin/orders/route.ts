@@ -17,6 +17,7 @@ function view(type: TrackType, r: Rec) {
   const files: string[] = [];
   if (type === 'request') {
     for (const n of Array.isArray(r.images) ? r.images : []) if (typeof n === 'string') files.push(n);
+    if (typeof r.designFile === 'string') files.push(r.designFile); // laser design file (svg, dxf or pdf)
   } else {
     // old single-item orders were saved without `lines`
     const lines: Rec[] = Array.isArray(r.lines) ? (r.lines as Rec[]) : [r];

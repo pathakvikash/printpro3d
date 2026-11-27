@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { canGoDirect } from '@/lib/directMode';
 import { imagesTotalProblem } from '@/lib/uploadRules';
+import { DESIGN_EXTS, MAX_DESIGN } from '@/lib/designFile';
 import { CATEGORIES, DELIVERABLES, QTY_BANDS } from '@/lib/catalog';
 import { ContactFields, Done, card, input, label, submitBtn } from './ContactFields';
 
@@ -13,6 +14,8 @@ const PROMPTS: Record<string, string> = {
   enclosure: 'Board or component dimensions, mounting holes, ports and cut-outs, and how it opens.',
   toy: 'What moves, and how: motor or wind. Shaft size, and who it is for.',
   drone: 'Frame size, motor mount pattern, battery and flight controller, and the weight limit.',
+  laser: 'Material (acrylic, MDF, plywood or other), thickness, size, cut or engrave, and how many.',
+  material: 'Which material, colour or size, how much you need, and what it is for.',
   other: 'Tell us what you want made and what it needs to do.',
 };
 const MAX_IMG = 5 * 1024 * 1024;
@@ -38,8 +41,10 @@ async function shrink(f: File): Promise<File> {
 }
 
 // replacement: opened from "Need a part reproduced?"; same form, with prompts for the original part
-export default function IdeaRequest({ replacement = false, part }: { replacement?: boolean; part?: { id: string; title: string; lipo: boolean } }) {
-  const [category, setCategory] = useState(part ? 'robotics' : replacement ? 'other' : 'game');
+// mode: 'laser' (/laser) or 'material' (/request?material=<id>, with `part` carrying the material): category fixed, printed deliverable only
+// defaultCategory: preselected (not fixed) category, e.g. for a made-to-order item
+export default function IdeaRequest({ replacement = false, part, mode, defaultCategory }: { replacement?: boolean; part?: { id: string; title: string; lipo: boolean }; mode?: 'laser' | 'material'; defaultCategory?: string }) {
+  const [category, setCategory] = useState(mode ?? defaultCategory ?? (part ? 'robotics' : replacement ? 'other' : 'game'));
   const [deliver, setDeliver] = useState('print');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,18 +59,24 @@ export default function IdeaRequest({ replacement = false, part }: { replacement
     if (imgs.some((f) => !/\.(png|jpe?g|webp)$/i.test(f.name) || f.size > MAX_IMG)) {
       return setError('Images must be png, jpg or webp, up to 5MB each.');
     }
+    const design = mode === 'laser' ? body.get('designFile') : null;
+    const dFile = design instanceof File && design.size > 0 ? design : null;
+    if (!dFile) body.delete('designFile'); // never send an empty file part
+    if (dFile && (!DESIGN_EXTS.includes(dFile.name.slice(dFile.name.lastIndexOf('.')).toLowerCase()) || dFile.size > MAX_DESIGN)) {
+      return setError('The design file must be .svg, ASCII .dxf or .pdf, up to 4MB.');
+    }
     setBusy(true);
     try {
-      if (imgs.length && (await canGoDirect())) {
+      if ((imgs.length || dFile) && (await canGoDirect())) {
         const small = await Promise.all(imgs.map(shrink));
-        const tooBig = imagesTotalProblem(small.map((f) => f.size));
+        const tooBig = imagesTotalProblem([...small.map((f) => f.size), ...(dFile ? [dFile.size] : [])]);
         if (tooBig) throw new Error(tooBig);
         body.delete('images');
         small.forEach((f) => body.append('images', f));
       }
       const res = await fetch('/api/requests', { method: 'POST', body });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'The images are too large to send. Use fewer or smaller images.' : res.statusText || 'Request failed'));
+      if (!res.ok) throw new Error(data.error || (res.status === 413 ? 'The files are too large to send. Use fewer or smaller files.' : res.statusText || 'Request failed'));
       setDone(data.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
@@ -82,10 +93,21 @@ export default function IdeaRequest({ replacement = false, part }: { replacement
 
       {part?.lipo && <p role="note" className="rounded-lg bg-amber-50 p-2 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">Shipping of LiPo batteries is limited; enquire first.</p>}
       <div>
-        <label htmlFor="category" className={label}>Category</label>
-        <select id="category" name="category" value={category} onChange={(e) => setCategory(e.target.value)} className={input}>
-          {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-        </select>
+        {mode ? (
+          <>
+            <span className={label}>Category</span>
+            <p className="text-gray-900 dark:text-gray-100">{CATEGORIES.find((c) => c.id === mode)?.label}</p>
+            <input type="hidden" name="category" value={mode} />
+            <input type="hidden" name="deliver" value="print" />
+          </>
+        ) : (
+          <>
+            <label htmlFor="category" className={label}>Category</label>
+            <select id="category" name="category" value={category} onChange={(e) => setCategory(e.target.value)} className={input}>
+              {CATEGORIES.filter((c) => c.id !== 'laser' && c.id !== 'material').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </>
+        )}
       </div>
       <div>
         <label htmlFor="description" className={label}>Description</label>
@@ -111,7 +133,7 @@ export default function IdeaRequest({ replacement = false, part }: { replacement
         </select>
       </div>
 
-      <fieldset>
+      {!mode && <fieldset>
         <legend className={label}>Deliver as</legend>
         <div className="flex flex-wrap gap-x-6 gap-y-2">
           {DELIVERABLES.map((d) => (
@@ -121,20 +143,26 @@ export default function IdeaRequest({ replacement = false, part }: { replacement
             </label>
           ))}
         </div>
-      </fieldset>
+      </fieldset>}
 
-      <div>
+      {!mode && <div>
         <label htmlFor="extras" className={label}>Moving parts or electronics inside? (optional)</label>
         <input id="extras" name="extras" maxLength={300} className={input} />
-      </div>
+      </div>}
       <div>
         <label htmlFor="budget" className={label}>Budget (optional)</label>
         <input id="budget" name="budget" maxLength={50} className={input} />
       </div>
-      <div>
+      {mode === 'laser' && (
+        <div>
+          <label htmlFor="designFile" className={label}>Design file (optional, .svg, ASCII .dxf or .pdf, up to 4MB)</label>
+          <input id="designFile" name="designFile" type="file" accept={DESIGN_EXTS.join(',')} className={input} />
+        </div>
+      )}
+      {mode !== 'material' && <div>
         <label htmlFor="images" className={label}>{replacement ? 'Photos of the original part (up to 3, png, jpg or webp, 5MB each)' : 'Reference images (optional, up to 3, png, jpg or webp, 5MB each)'}</label>
         <input id="images" name="images" type="file" multiple accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" className={input} />
-      </div>
+      </div>}
 
       <ContactFields addressRequired={deliver !== 'file'} notes={false} />
 

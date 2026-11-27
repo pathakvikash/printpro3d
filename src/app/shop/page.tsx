@@ -4,7 +4,7 @@ import PageShell from '@/components/PageShell';
 import ShopRoute from '@/components/ShopRoute';
 import FlowStrip from '@/components/FlowStrip';
 
-export const metadata: Metadata = { title: 'Shop ready-made parts - PrintPro3D', description: 'Drone, RC, robotics, toy and hobby parts printed to order. Pick a part, a material and a quantity.' };
+export const metadata: Metadata = { title: 'Shop - 3D printing, laser cutting and materials - PrintPro3D', description: 'Drone, RC, robotics, toy and hobby parts printed to order, plus filament, resin and laser sheets by enquiry.' };
 
 export default function ShopPage() {
   return (

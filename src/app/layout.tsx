@@ -24,13 +24,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PrintPro3D - Professional 3D Printing Services',
+  title: 'PrintPro3D - 3D printing, laser cutting and materials',
   description:
-    'Made-to-order 3D design and printing, from a single piece to wholesale, starting from a 3D file or an idea.',
-  keywords: ['3D printing', '3D model upload', 'custom 3D prints', 'prototyping', 'rapid prototyping'],
+    '3D printing, laser cutting and materials. Made to order from a single piece to wholesale, starting from a file or an idea.',
+  keywords: ['3D printing', 'laser cutting', 'laser engraving', 'filament', '3D model upload', 'custom 3D prints', 'prototyping', 'rapid prototyping'],
   openGraph: {
-    title: 'PrintPro3D - Professional 3D Printing Services',
-    description: 'Made-to-order 3D design and printing, from a single piece to wholesale.',
+    title: 'PrintPro3D - 3D printing, laser cutting and materials',
+    description: '3D printing, laser cutting and materials, made to order from a single piece to wholesale.',
     type: 'website',
     locale: 'en_IN',
   },
