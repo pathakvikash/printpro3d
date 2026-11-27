@@ -7,7 +7,8 @@ import { card, secondaryBtn, submitBtn } from './ContactFields';
 export default async function AdminAccess({ path, localOpen = false, children }: { path: string; localOpen?: boolean; children: ReactNode }) {
   if (localOpen && isLocalDev()) return <>{children}</>; // AI settings stay open without sign-in outside production
   if (adminEmails().length === 0) return <p role="alert" className={`${card} max-w-md text-sm text-gray-700 dark:text-gray-300`}>Admin is off: ADMIN_EMAILS is not set on this server.</p>;
-  const email = (await auth().catch(() => null))?.user?.email ?? null;
+  const su = (await auth().catch(() => null))?.user as { email?: string | null; via?: string } | undefined;
+  const email = su?.via === 'orrery' ? null : su?.email ?? null; // an Orrery handoff session is never admin
   const out = async () => { 'use server'; await signOut({ redirectTo: path }); };
   if (email && emailAllowed(email, undefined)) {
     return (

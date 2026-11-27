@@ -27,7 +27,8 @@ async function uploadDirect(f: File) {
 }
 
 // idle: filler shown beside / under the drop zone until a file is chosen (side = right column at lg, below = full width)
-export default function UploadForm({ initialFile, onQuote, idle }: { initialFile?: File; onQuote?: () => void; idle?: { side: ReactNode; below: ReactNode } }) {
+// preselect: name of a generated STL the server already checked belongs to the signed-in user (/quote?file=)
+export default function UploadForm({ initialFile, onQuote, idle, preselect }: { initialFile?: File; onQuote?: () => void; idle?: { side: ReactNode; below: ReactNode }; preselect?: string }) {
   const [file, setFile] = useState<File | null>(initialFile ?? null); // initialFile: a model built in the playground
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -131,6 +132,22 @@ export default function UploadForm({ initialFile, onQuote, idle }: { initialFile
     if (err) { setError(err); handoffMaterial.current = 'PLA'; }
     else void runUpload(f);
   }, [runUpload, initialFile]);
+
+  // /quote?file=<generated stl>: fetch it like a dropped file (the ref keeps strict mode from running it twice)
+  const preselected = useRef(false);
+  useEffect(() => {
+    if (!preselect || initialFile || preselected.current) return;
+    preselected.current = true;
+    fetch(`/api/upload/${encodeURIComponent(preselect)}`)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error('missing'))))
+      .then((b) => {
+        const f = new File([b], preselect, { type: 'model/stl' });
+        const err = validateFile(f);
+        if (err) setError(err);
+        else void runUpload(f);
+      })
+      .catch(() => setError('We could not open that model. Upload it again below.'));
+  }, [preselect, initialFile, runUpload]);
 
   // runs after the quote section has rendered (the ref keeps an inline callback from re-firing on every render)
   const onQuoteRef = useRef(onQuote);

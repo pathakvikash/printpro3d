@@ -200,6 +200,25 @@ Every variable is listed with a comment in [.env.example](.env.example). Keys ar
 
 The AI provider, model and base URL can also be chosen in `/admin` (saved in the store, overrides the `AI_*` variables; keys stay in env only).
 
+## Using Print Pro 3D from Orrery
+
+Orrery (the owner's chat app) can call this site as an app: generate an STL from a prompt, poll the job, open the quote page. Off until `ORRERY_APP_SECRET` is set (then `/api/mcp` and `/api/orrery/*` answer 503 and the manifest 404).
+
+| Variable | Meaning |
+| --- | --- |
+| `ORRERY_APP_SECRET` | Shared HS256 secret, shown once by Orrery at registration |
+| `ORRERY_APP_ID` | App id, default `printpro3d` (token `aud`) |
+| `ORRERY_ISSUER` | Token `iss`, default `orrery` |
+| `NEXT_PUBLIC_ORRERY_URL` | Orrery's URL; shows the "Part of Orrery / Open Orrery" strip (hidden when unset) |
+| `NEXT_PUBLIC_SITE_URL` | This site's production origin for the manifest; falls back to `SITE_URL`, `AUTH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, then `https://printpro3d.vercel.app` |
+
+Registration: deploy, then in Orrery open Settings > Apps and enter `https://<this site>/.well-known/orrery-app.json`. Review the preview (tools `generate_model`, which spends Meshy credit so Orrery asks before each run, and read-only `job_status`), approve, copy the secret Orrery shows once, set `ORRERY_APP_SECRET` (and `ORRERY_ISSUER=orrery`) on Vercel and redeploy.
+
+- `POST /api/mcp`: minimal stateless MCP (JSON-RPC over HTTP). Each call needs an Orrery bearer token; `sub` is the user's email and the usual per-email daily quota (`AI_DAILY_PER_EMAIL`) is counted on it.
+- `GET /api/orrery/file?name=<stl>`: STL bytes, bearer token required, and only files made by that user's own jobs.
+- `/sso?token=&next=`: Orrery's 60 s single-use handoff signs the user in (Auth.js `orrery` provider) and redirects to a same-origin path. It never grants admin.
+- `/quote?file=<stl>` (or `?job=<id>`) preselects a model the signed-in user generated.
+
 ## Deploy
 
 Pushes to `main` deploy to Vercel. GitHub Actions (`.github/workflows/ci.yml`) runs `tsc`, the tests and `npm run build` on every push.

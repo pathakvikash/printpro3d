@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import OrreryStrip from '@/components/OrreryStrip';
 import Footer from '@/components/Footer';
 import { CartProvider } from '@/components/CartProvider';
 import CartDrawer from '@/components/CartDrawer';
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-950 flex min-h-screen flex-col`}
       >
+        <OrreryStrip />
         <CartProvider>
           <Navbar />
           <main className='flex-1 bg-gray-50 dark:bg-gray-900'>{children}</main>
