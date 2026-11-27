@@ -9,6 +9,7 @@ import { del, onBlobStore, putBytes, putJson } from '@/lib/store';
 import { indexAdd, ownerFields, sessionUser } from '@/lib/account';
 import { imagesTotalProblem } from '@/lib/uploadRules';
 import { filled, limited } from '@/lib/spam';
+import { designFileProblem, MAX_DESIGN } from '@/lib/designFile';
 
 const MAX_IMG = 5 * 1024 * 1024;
 const MAX_IMAGES = 3;
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   const slow = await limited(request, 'submit');
   if (slow) return slow;
   const len = request.headers.get('content-length');
-  if (len === null || !(Number(len) <= MAX_IMAGES * MAX_IMG + 1024 * 1024)) {
+  if (len === null || !(Number(len) <= MAX_IMAGES * MAX_IMG + MAX_DESIGN + 1024 * 1024)) {
     return NextResponse.json({ error: 'Request too large' }, { status: 413 });
   }
   let form: FormData;
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     const category = oneOf('category', CATEGORIES);
     const qtyBand = oneOf('qtyBand', QTY_BANDS);
     const deliver = oneOf('deliver', DELIVERABLES);
+    if ((category === 'laser' || category === 'material') && deliver !== 'print') throw new Error('deliver is invalid');
     const fields = parseContact(get, { addressRequired: deliver !== 'file' });
     const description = text(get, 'description', 2000);
     const extras = text(get, 'extras', 300, false);
@@ -57,7 +59,10 @@ export async function POST(request: Request) {
     const files = form.getAll('images').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length > MAX_IMAGES) throw new Error(`At most ${MAX_IMAGES} images`);
     // on Vercel (Blob backend) the platform caps a request at 4.5 MB, so keep the images consistent with the client's 4 MB total
-    const tooBig = onBlobStore() ? imagesTotalProblem(files.map((f) => f.size)) : null;
+    const dFiles = form.getAll('designFile').filter((f): f is File => f instanceof File && f.size > 0);
+    if (dFiles.length > 1) throw new Error('Only one design file');
+    if (dFiles.length && category !== 'laser') throw new Error('A design file is only for laser requests');
+    const tooBig = onBlobStore() ? imagesTotalProblem([...files, ...dFiles].map((f) => f.size)) : null;
     if (tooBig) throw new Error(tooBig);
     const images: { ext: string; bytes: Uint8Array }[] = [];
     for (const f of files) {
@@ -68,25 +73,43 @@ export async function POST(request: Request) {
       images.push({ ext, bytes });
     }
 
-    // everything validated; now write (client filenames are never used)
-    const names: string[] = [];
-    for (const img of images) {
-      const name = `${Date.now()}-${crypto.randomUUID()}${img.ext}`;
-      await putBytes('uploads', name, img.bytes);
-      names.push(name);
+    let design: { ext: string; bytes: Uint8Array } | null = null;
+    if (dFiles[0]) {
+      const bytes = new Uint8Array(await dFiles[0].arrayBuffer());
+      const bad = designFileProblem(dFiles[0].name, bytes);
+      if (bad) throw new Error(bad);
+      design = { ext: path.extname(dFiles[0].name).toLowerCase(), bytes };
     }
 
+    // everything validated; now write (client filenames are never used)
+    const stored: string[] = [];
+    const names: string[] = [];
+    let designFile: string | undefined;
     const id = crypto.randomUUID();
     const user = await sessionUser(); // from the session cookie, never from the form
-    const rec = {
+    const mk = () => ({
       id, createdAt: new Date().toISOString(), status: 'new',
-      category, description, sizeMm, qtyBand, deliver, extras, budget, images: names, ...fields, ...ownerFields(user),
-    };
+      category, description, sizeMm, qtyBand, deliver, extras, budget, images: names, ...(designFile ? { designFile } : {}), ...fields, ...ownerFields(user),
+    });
+    let rec!: ReturnType<typeof mk>;
     try {
+      for (const img of images) {
+        const name = `${Date.now()}-${crypto.randomUUID()}${img.ext}`;
+        await putBytes('uploads', name, img.bytes);
+        stored.push(name);
+        names.push(name);
+      }
+      if (design) {
+        const dn = `${Date.now()}-${crypto.randomUUID()}${design.ext}`;
+        await putBytes('uploads', dn, design.bytes);
+        stored.push(dn);
+        designFile = dn;
+      }
+      rec = mk();
       await putJson('requests', `${id}.json`, rec);
     } catch (e) {
-      // best effort: don't leave orphaned images behind
-      await Promise.all(names.map((n) => del('uploads', n).catch(() => {})));
+      // best effort: don't leave orphaned files behind
+      await Promise.all(stored.map((n) => del('uploads', n).catch(() => {})));
       throw e;
     }
     await indexAdd(user, { type: 'request', id, createdAt: rec.createdAt }).catch(() => {});

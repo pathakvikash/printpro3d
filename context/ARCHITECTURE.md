@@ -4,7 +4,7 @@
 
 ```
 src/app/page.tsx            home: hero, facts bar, option cards, 3-part shop preview, how it works, materials teaser; redirects old ?start= links
-src/app/{quote,request,ai,draw,shop,build,track,materials,how-it-works,contact}/page.tsx   one page per feature
+src/app/{quote,request,laser,ai,draw,shop,build,track,materials,how-it-works,contact}/page.tsx   one page per feature
 src/app/sitemap.ts          public routes (no /admin)
 src/app/layout.tsx          CartProvider, pre-paint theme script, fonts
 src/app/admin/page.tsx      owner page (Google sign-in, ADMIN_EMAILS), noindex, no nav link
@@ -30,6 +30,7 @@ Each feature is its own route (`/quote`, `/request`, `/ai`, `/draw`, `/shop`, `/
 Customer paths:
 - **File**: upload (`/api/upload`) → server parses STL/OBJ (`analyzeModel.ts`, `meshStats`) → volume, bounding box, bed fit → `.stats.json` sidecar → `QuoteOrder` shows per-material live prices → add to cart.
 - **Shop**: 7 sample items in `catalog.ts`, each tied to a builder example (`examples.ts`). Previews are the built CSG result.
+- **Materials and laser (enquiry only)**: `supplies.ts` lists filament, resin and laser sheets (no prices); `SuppliesShelf` shows them on `/shop#supplies` and Enquire goes to `/request?material=<id>`. `/laser` mounts `IdeaRequest mode="laser"`; `CATEGORIES` has `laser` and `material`, both force `deliver=print`. `/api/requests` accepts one optional `designFile` (.svg/.dxf/.pdf, 5 MB, content-checked by `designFile.ts`, laser only), stored under a random name in `uploads` and saved as `designFile`; admin downloads it as an attachment like images.
 - **Build**: `Playground` composes shapes (box, cylinder, sphere, cone, torus, wedge; solid or hole, Z-up mm), CSG via `three-bvh-csg` in a Web Worker (`playground.worker.ts`), `cleanTriangles` repair, exports STL, uploads it, adds to cart. Max 20 shapes, autosaved in localStorage `printpro3d.playground.v1`.
 - **AI**: `/api/design` (structured shape JSON → opens in the builder) and `/api/generate` (Meshy). Both gated by `aiGuard.ts` ledgers.
 - **Cart**: `cart.ts` pure rules, stored in localStorage `printpro3d.cart.v1` and `printpro3d.saved.v1`. Changing a model line's quantity clears its estimate (we re-quote). Checkout is one `POST /api/orders` with `{items:[{kind:'shop',id,qty}|{kind:'model',file,material,qty}], contact...}`.
