@@ -12,6 +12,7 @@ import { useAccountUser } from '@/lib/sessionClient';
 
 const LINKS = [
   { href: '/shop', label: 'Shop' },
+  { href: '/laser', label: 'Laser cutting' },
   { href: '/playground', label: 'Playground' },
 ];
 // the account/settings menu; Theme is a button, added by the menu itself
@@ -20,6 +21,7 @@ const MENU_LINKS = [
   { href: '/playground?mode=build', label: 'My designs' },
   { href: '/my-items', label: 'My items' },
   { href: '/how-it-works', label: 'How it works' },
+  { href: '/shop#supplies', label: 'Materials for sale' },
   { href: '/materials', label: 'Materials guide' },
 ];
 const itemCls = 'block rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-indigo-500';

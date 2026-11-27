@@ -36,6 +36,6 @@ export const nameFromBlobPath = (pathname: unknown): string | null =>
     ? pathname.slice(BLOB_PREFIX.length)
     : null;
 
-/** Error text when the idea-request images together would not fit one request, or null. */
+/** Error text when the idea-request images (and the laser design file, if any) together would not fit one request, or null. */
 export const imagesTotalProblem = (sizes: number[]): string | null =>
-  sizes.reduce((a, b) => a + b, 0) > IDEA_IMAGES_TOTAL ? 'The images are too large together. Use fewer or smaller images.' : null;
+  sizes.reduce((a, b) => a + b, 0) > IDEA_IMAGES_TOTAL ? 'The files are too large together. Use fewer or smaller files.' : null;

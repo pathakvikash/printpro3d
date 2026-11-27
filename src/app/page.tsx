@@ -44,9 +44,18 @@ const STARTS = [
   },
 ] as const;
 
+// what we do besides printing: plain links, enquiry or quote only until the owner sets prices
+const SERVICES = [
+  { href: '/quote', title: '3D printing', text: 'Upload a file for an instant price, or describe an idea.' },
+  { href: '/laser', title: 'Laser cutting and engraving', text: 'Acrylic, MDF and plywood sheets. Send a 2D file; quote on request.' },
+  { href: '/shop#supplies', title: 'Printing materials', text: 'Filament, resin and laser sheets. Enquire for price and availability.' },
+] as const;
+
 // smaller, secondary tools; the AI ones appear only when their provider is configured
 const MORE = [
   { href: '/playground?mode=build', label: 'Build from shapes', icon: 'shapes' },
+  { href: '/laser', label: 'Laser cutting', icon: 'bolt' },
+  { href: '/shop#supplies', label: 'Printing materials', icon: 'layers' },
   { href: '/ai', label: 'Build with AI', icon: 'spark' }, // the chat says itself when AI is off
   { href: '/draw', label: 'Draw with AI', icon: 'edit', needs: 'design' },
 ] as const;
@@ -80,9 +89,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
         <HeroPart />
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:py-24">
           <div className="max-w-xl">
-            <h1 className="pp-rise text-4xl font-bold leading-tight tracking-tight sm:text-5xl">3D printing to order, from one piece to a batch.</h1>
+            <h1 className="pp-rise text-4xl font-bold leading-tight tracking-tight sm:text-5xl">3D printing and laser cutting to order, and printing materials.</h1>
             <p className="mt-5 text-lg text-gray-700 dark:text-gray-300">
-              Send us an STL or OBJ file and see the price for each material. We review your order, then print and ship it.
+              Send us an STL or OBJ file and see the price for each material. We review your order, then print and ship it. We also laser cut and engrave sheets, and sell filament, resin and laser sheets.
             </p>
             <div className="mt-8">
               <HeroDrop />
@@ -94,6 +103,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
             </p>
           </div>
         </div>
+      </section>
+
+      <section aria-label="What we do" className="border-b border-gray-200 bg-white py-6 dark:border-gray-800 dark:bg-gray-950">
+        <ul className="mx-auto grid max-w-7xl gap-3 px-4 sm:px-6 md:grid-cols-3">
+          {SERVICES.map((v) => (
+            <li key={v.href}>
+              <Link href={v.href} className="block h-full rounded-xl border border-gray-200 bg-gray-50 p-4 hover:border-indigo-500 dark:border-gray-800 dark:bg-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500">
+                <span className="block font-semibold text-gray-900 dark:text-white">{v.title}</span>
+                <span className="mt-1 block text-sm text-gray-600 dark:text-gray-400">{v.text}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div className="border-b border-gray-200 bg-white py-10 dark:border-gray-800 dark:bg-gray-950">

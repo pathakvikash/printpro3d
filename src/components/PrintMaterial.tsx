@@ -3,7 +3,7 @@
 // Print-like preview kit: FDM material presets with layer-line shading, studio light, a draggable turntable stage
 // and the Solid / Mesh / Layers + print-bed toggles. Procedural only: no HDRI or texture downloads.
 // All geometry here is millimetres, Z up, the part standing on z = 0.
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, Line, OrbitControls } from '@react-three/drei';
@@ -24,8 +24,24 @@ export const PRESETS: Record<MaterialKey, Preset> = {
   TPU: { color: '#c2553f', rough: 0.92, clearcoat: 0, opacity: 1 }, // dull
 };
 
+/** Overlay on the stage background while a model loads: a thin indeterminate bar and a label (static under reduced motion). */
+export function StageLoading({ reduce, text }: { reduce: boolean; text?: string }) {
+  return (
+    <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 ${STAGE_BG}`}>
+      <style>{'@keyframes stageload{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}'}</style>
+      {!text && <div className="h-0.5 w-2/5 overflow-hidden rounded bg-gray-400/30">
+        <div className="h-full w-2/5 bg-indigo-500" style={reduce ? { width: '100%' } : { animation: 'stageload 1.2s ease-in-out infinite' }} />
+      </div>}
+      <span className="text-xs text-gray-600 dark:text-gray-300">{text ?? 'Loading 3D model…'}</span>
+    </div>
+  );
+}
+
 export type View = 'solid' | 'mesh' | 'layers';
-type Ctx = { material: MaterialKey; layerMm: number; view: View; clipZ: number };
+type Ctx = { material: MaterialKey; layerMm: number; view: View; clipZ: number; tint?: string };
+
+/** Stage background: follows the site theme, flat with a faint vignette. Shared with the loading overlay. */
+export const STAGE_BG = 'bg-[radial-gradient(110%_110%_at_50%_45%,#f4f3ef,#e6e4de)] dark:bg-[radial-gradient(110%_110%_at_50%_45%,#1c1f26,#14161b)]';
 const StageCtx = createContext<Ctx>({ material: 'PETG', layerMm: TRUE_LAYER_MM * CARD_EXAGGERATION, view: 'solid', clipZ: 1e4 });
 
 /** Tracks the html `dark` class (set by the theme toggle). */
@@ -66,8 +82,8 @@ export function prepGeometry(src: THREE.BufferGeometry): THREE.BufferGeometry {
   return g;
 }
 
-/** One mesh with the print material. Settings come from the surrounding PrintStage unless given. */
-export function PrintMesh({ geometry, ...over }: { geometry: THREE.BufferGeometry } & Partial<Ctx>) {
+/** One mesh with the print material. Settings come from the surrounding PrintStage unless given; `color` overrides the preset colour. */
+export function PrintMesh({ geometry, color, ...over }: { geometry: THREE.BufferGeometry; color?: string } & Partial<Ctx>) {
   const c = { ...useContext(StageCtx), ...over };
   const uniforms = useMemo(() => ({ uPitch: { value: 1 }, uAmp: { value: 0.45 } }), []);
   uniforms.uPitch.value = c.layerMm;
@@ -90,7 +106,7 @@ export function PrintMesh({ geometry, ...over }: { geometry: THREE.BufferGeometr
     <mesh geometry={geometry}>
       <meshPhysicalMaterial
         key={`${c.material}-${c.view}`} // side and wireframe change the shader program: a new material, not a stale one
-        color={c.view === 'mesh' ? '#94a3b8' : p.color}
+        color={c.view === 'mesh' ? '#94a3b8' : color ?? c.tint ?? p.color}
         roughness={p.rough}
         clearcoat={p.clearcoat}
         clearcoatRoughness={0.3}
@@ -128,26 +144,24 @@ export function StudioLight({ dark, light = 'studio' }: { dark: boolean; light?:
   );
 }
 
-// A soft blob under the part. (drei ContactShadows rendered nothing in this Z-up scene.) ponytail: not a true silhouette, just a footprint-sized glow.
-export function Shadow({ scale, dark, z = 0 }: { scale: number; dark: boolean; z?: number }) {
-  const tex = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const x = c.getContext('2d')!;
-    const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, 'rgba(0,0,0,1)');
-    g.addColorStop(0.45, 'rgba(0,0,0,.6)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    x.fillStyle = g;
-    x.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(c);
-  }, []);
-  useEffect(() => () => tex.dispose(), [tex]);
+/** Soft ground shadow from a light straight above. drei ContactShadows assumes a Y-up world: its blur pass draws an XZ plane, so in this Z-up scene it wipes the shadow to nothing. */
+function GroundShadow({ r, z, dark, coarse }: { r: number; z: number; dark: boolean; coarse: boolean }) {
+  const scene = useThree((s) => s.scene);
+  const invalidate = useThree((s) => s.invalidate);
+  const light = useRef<THREE.DirectionalLight>(null);
+  useLayoutEffect(() => { light.current?.shadow.camera.updateProjectionMatrix(); invalidate(); }, [r, z, invalidate]); // three never recomputes the shadow projection on its own
+  // parts arrive asynchronously from many components: mark every mesh as a caster. ponytail: per-frame traverse, fine at kit size (~100 meshes)
+  useFrame(() => scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && !o.userData.ground) m.castShadow = !(m.material as { isLineMaterial?: boolean }).isLineMaterial && (m.material as THREE.Material).opacity > 0.7; })); // smoke props (0.55) cast no shadow; PETG (0.9) does
+  const s = r * 1.3, map = 512; // low-res map + wide PCF radius = soft edge, cheap enough for phones
   return (
-    <mesh position={[0, 0, z + 0.01]} renderOrder={-1}>
-      <planeGeometry args={[scale * 0.6, scale * 0.6]} />
-      <meshBasicMaterial map={tex} transparent opacity={dark ? 0.9 : 0.5} depthWrite={false} color={dark ? '#000' : '#1a140a'} />
-    </mesh>
+    <>
+      <directionalLight ref={light} castShadow intensity={0} position={[r * 0.12, -r * 0.2, z + r * 4]} shadow-mapSize={[map, map]} shadow-radius={coarse ? 6 : 9} shadow-bias={-0.0004}
+        shadow-camera-left={-s} shadow-camera-right={s} shadow-camera-top={s} shadow-camera-bottom={-s} shadow-camera-near={r * 0.5} shadow-camera-far={r * 6} />
+      <mesh receiveShadow position={[0, 0, z + 0.02]} userData={{ ground: true }} renderOrder={-1}>
+        <planeGeometry args={[s * 2.4, s * 2.4]} />
+        <shadowMaterial transparent opacity={dark ? 0.55 : 0.32} depthWrite={false} />
+      </mesh>
+    </>
   );
 }
 
@@ -174,24 +188,50 @@ function Bed({ dark, x = 0 }: { dark: boolean; x?: number }) {
   );
 }
 
-function FitCamera({ dist, target, home, resetKey = 0 }: { dist: number; target: THREE.Vector3; home: THREE.Vector3; resetKey?: number }) {
+const FOV = 30;
+const HOME_DIR = (() => { const az = (35 * Math.PI) / 180, el = (30 * Math.PI) / 180; return new THREE.Vector3(Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)); })(); // front is -Y
+
+/** Camera distance that fits the bounding sphere (radius r) into ~72% of the shorter viewport side. */
+export function fitDistance(r: number, aspect: number, fov = FOV) {
+  const v = (fov * Math.PI) / 180, h = 2 * Math.atan(Math.tan(v / 2) * aspect);
+  return r / Math.sin(Math.min(v, h) / 2) / 0.72;
+}
+
+/** Moves the camera along its current direction to `dist`: instantly the first time, then eased (instant under reduced motion). */
+function FitCamera({ dist, target, home, instant, resetKey = 0 }: { dist: number; target: THREE.Vector3; home: THREE.Vector3; instant: boolean; resetKey?: number }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { update?: () => void; target?: THREE.Vector3 } | null;
   const invalidate = useThree((s) => s.invalidate); // frameloop="demand": a camera move alone does not redraw
+  const first = useRef(true);
+  const live = useRef({ dist, target, home });
+  useLayoutEffect(() => { live.current = { dist, target, home }; }); // read at reset time so a later resize never re-triggers the reset
   useEffect(() => {
     const dir = camera.position.clone().sub(target).normalize();
-    camera.position.copy(target).addScaledVector(dir, dist);
-    controls?.update?.();
-    invalidate();
-  }, [dist, camera, controls, target, invalidate]);
+    const r0 = camera.position.distanceTo(target);
+    const t0 = performance.now();
+    const ms = first.current || instant ? 0 : 400;
+    first.current = false;
+    let raf = 0;
+    const step = (now: number) => {
+      const k = ms ? Math.min(1, (now - t0) / ms) : 1;
+      const e = 1 - Math.pow(1 - k, 3);
+      camera.position.copy(target).addScaledVector(dir, r0 + (dist - r0) * e);
+      controls?.update?.();
+      invalidate();
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    step(t0);
+    return () => cancelAnimationFrame(raf);
+  }, [dist, camera, controls, target, invalidate, instant]);
   // camera reset: back to the opening view and centre (undoes pan, zoom and orbit)
   useEffect(() => {
     if (!resetKey) return;
-    camera.position.copy(target).addScaledVector(home.clone().sub(target).normalize(), dist);
-    controls?.target?.copy(target);
+    const { dist: d, target: t, home: h } = live.current;
+    camera.position.copy(t).addScaledVector(h.clone().sub(t).normalize(), d);
+    controls?.target?.copy(t);
     controls?.update?.();
     invalidate();
-  }, [resetKey, camera, controls, target, home, dist, invalidate]);
+  }, [resetKey, camera, controls, invalidate]);
   return null;
 }
 
@@ -205,8 +245,11 @@ function ViewRig({ cmd, target, home, dist, instant }: { cmd: { dir: ViewDir; n:
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { update?: () => void; target?: THREE.Vector3 } | null;
   const invalidate = useThree((s) => s.invalidate);
+  const live = useRef({ dist, target, home });
+  useLayoutEffect(() => { live.current = { dist, target, home }; });
   useEffect(() => {
     if (!cmd) return;
+    const { dist, target, home } = live.current;
     const to = new THREE.Vector3(...(cmd.dir === 'reset' ? home.clone().sub(target).toArray() : VIEWS[cmd.dir])).normalize();
     const from = camera.position.clone().sub(target);
     const r0 = from.length();
@@ -225,11 +268,25 @@ function ViewRig({ cmd, target, home, dist, instant }: { cmd: { dir: ViewDir; n:
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [cmd, camera, controls, target, home, dist, instant, invalidate]);
+  }, [cmd, camera, controls, instant, invalidate]);
   return null;
 }
 
-/** Hides the bed / shadow blob once the camera is under the bed plane so they never hide the model from below. */
+/** Fits the camera to the bounding sphere for the current canvas aspect, handles the view buttons, and hands the fit distance to the controls. */
+function Rig({ r, bed, cmd, target, home, instant, resetKey, children }: { r: number; bed: boolean; cmd: { dir: ViewDir; n: number } | null; target: THREE.Vector3; home: THREE.Vector3; instant: boolean; resetKey?: number; children: (dist: number) => ReactNode }) {
+  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
+  const fit = fitDistance(r, aspect);
+  const dist = bed ? Math.max(fit, 380) : fit;
+  return (
+    <>
+      <FitCamera dist={dist} target={target} home={home} instant={instant} resetKey={resetKey} />
+      <ViewRig cmd={cmd} target={target} home={home} dist={dist} instant={instant} />
+      {children(dist)}
+    </>
+  );
+}
+
+/** Hides the bed / shadow once the camera is under the bed plane so they never hide the model from below. */
 function HideUnderBed({ children }: { children: ReactNode }) {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ camera }) => { if (ref.current) ref.current.visible = camera.position.z > 0; });
@@ -270,7 +327,7 @@ export type StageOptions = { pan?: boolean; light?: LightKey; resetKey?: number;
 
 /** Draggable turntable with studio light. `interactive` adds zoom and the Solid / Mesh / Layers + bed controls. */
 export function PrintStage({ size, material = 'PETG', interactive = false, reduceMotion, stage = {}, children }: {
-  size: { x: number; y: number; z: number };
+  size: { x: number; y: number; z: number; z0?: number }; // z0: lowest point if some of the model hangs below the floor
   material?: MaterialKey;
   interactive?: boolean;
   reduceMotion: boolean;
@@ -284,16 +341,16 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   const total = Math.max(1, Math.round(size.z / TRUE_LAYER_MM));
   const [picked, setLayer] = useState<number | null>(null); // null = top layer, so a taller part is not left clipped
   const layer = Math.min(picked ?? total, total);
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const d = maxDim * 1.9;
-  const dist = bed ? Math.max(d * 1.2, 380) : d * 1.2;
-  const target = useMemo(() => new THREE.Vector3(0, 0, size.z / 2), [size.z]);
-  const home = useMemo(() => new THREE.Vector3(d * 0.8, -d, d * 0.75 + size.z / 2), [d, size.z]);
-  const ctx: Ctx = { material, layerMm, view, clipZ: view === 'layers' ? layer * TRUE_LAYER_MM + 0.01 : 1e4 };
+  const z0 = size.z0 ?? 0;
+  const r = Math.hypot(size.x, size.y, size.z - z0) / 2; // bounding sphere
+  const target = useMemo(() => new THREE.Vector3(0, 0, (size.z + z0) / 2), [size.z, z0]);
+  const home = useMemo(() => target.clone().add(HOME_DIR), [target]);
+  const ctx: Ctx = { material, layerMm, view, tint: stage.reference ? '#5b6470' : undefined, clipZ: view === 'layers' ? layer * TRUE_LAYER_MM + 0.01 : 1e4 };
   const [cmd, setCmd] = useState<{ dir: ViewDir; n: number } | null>(null);
   const [stopped, setStopped] = useState<boolean | null>(null); // the user took over: the auto-turn stops
   const wantSpin = stage.autoRotate ?? !reduceMotion;
   const touched = stopped === wantSpin; // re-arms when the spin toggle changes
+  const [coarse] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches); // touch device: cheaper shadow and pixel ratio
   const [onControls, setControls] = useState<{ domElement: HTMLElement } | null>(null);
   useEffect(() => {
     // vertical swipes still scroll the page on touch screens; sideways drags turn the part
@@ -301,20 +358,22 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
   }, [onControls, interactive]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(120%_90%_at_50%_20%,#fbfaf7,#dedbd3)] dark:bg-[radial-gradient(120%_90%_at_50%_20%,#2a303b,#12151b)]">
+    <div className={`relative h-full w-full overflow-hidden ${STAGE_BG}`}>
       <SafeCanvas
         frameloop={(stage.autoRotate ?? !reduceMotion) ? 'always' : 'demand'} // nothing moves unless it turns: draw on demand (orbit and prop changes invalidate)
-        dpr={[1, 1.5]}
+        dpr={coarse ? [1, 1.5] : [1, 2]}
+        shadows="percentage"
         gl={{ alpha: true }}
         onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
-        camera={{ position: [d * 0.8, -d, d * 0.75 + size.z / 2], up: [0, 0, 1], fov: 40, near: 1, far: 4000 }}
+        camera={{ position: target.clone().addScaledVector(HOME_DIR, r * 4).toArray(), up: [0, 0, 1], fov: FOV, near: 1, far: 10000 }}
       >
         <StudioLight dark={dark} light={stage.light} />
         <StageCtx.Provider value={ctx}>{children}</StageCtx.Provider>
-        <HideUnderBed>{bed ? Array.from({ length: stage.plates ?? 1 }, (_, i) => <Bed key={i} dark={dark} x={(i - ((stage.plates ?? 1) - 1) / 2) * (BED_MM.x + PLATE_GAP)} />) : <Shadow scale={maxDim * 2.6} dark={dark} />}</HideUnderBed>
+        <HideUnderBed>{bed ? Array.from({ length: stage.plates ?? 1 }, (_, i) => <Bed key={i} dark={dark} x={(i - ((stage.plates ?? 1) - 1) / 2) * (BED_MM.x + PLATE_GAP)} />) : view !== 'mesh' && (
+          <GroundShadow r={r} z={z0} dark={dark} coarse={coarse} />
+        )}</HideUnderBed>
         {stage.dims && <DimBox size={size} />}
-        <FitCamera dist={dist} target={target} home={home} resetKey={stage.resetKey} />
-        <ViewRig cmd={cmd} target={target} home={home} dist={dist} instant={reduceMotion} />
+        <Rig r={r} bed={bed} cmd={cmd} target={target} home={home} instant={reduceMotion} resetKey={stage.resetKey}>{(dist) => (
         <OrbitControls
           onStart={() => setStopped(wantSpin)}
           ref={(c) => setControls(c as unknown as { domElement: HTMLElement } | null)}
@@ -326,7 +385,12 @@ export function PrintStage({ size, material = 'PETG', interactive = false, reduc
           autoRotateSpeed={1.2}
           minPolarAngle={0}
           maxPolarAngle={Math.PI}
+          enableDamping
+          dampingFactor={0.08}
+          minDistance={dist * 0.3}
+          maxDistance={dist * 4}
         />
+        )}</Rig>
       </SafeCanvas>
       {!stage.reference && <span className="pointer-events-none absolute right-2 top-2 rounded border border-gray-300/70 bg-white/80 px-1.5 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-900/80 dark:text-gray-300">
         {material} · {interactive ? `${TRUE_LAYER_MM} mm layers (assumed)` : `layers drawn ${CARD_EXAGGERATION}× larger`}

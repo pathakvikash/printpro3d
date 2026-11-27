@@ -5,14 +5,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
-import { PrintMesh, PrintStage, useReducedMotion } from '@/components/PrintMaterial';
+import { PrintMesh, PrintStage, StageLoading, useReducedMotion } from '@/components/PrintMaterial';
+import BoughtPart from './BoughtPart';
 import { explodedTransform, flatLayLayout, jointTransform, lerp, spinDeg, type AssemblyPart } from '@/lib/assembly';
 import { BED_MM } from '@/lib/quote';
 
 export type AssemblyMode = 'assembled' | 'exploded' | 'unboxing';
 const RAD = Math.PI / 180;
 const MAX_VISUAL_RPM = 90; // a real prop turns thousands of rpm, which on screen is just a flicker
+
+const ORANGE = '#f26a1b', CHARCOAL = '#363a42'; // printed parts: the main one (and frame-like ones) in filament orange, the rest charcoal
+const FRAMEISH = /frame|guard|duct|arm|chassis|body/i;
 
 type Targets = { e: number; f: number; j: number; spin: boolean };
 
@@ -46,6 +49,7 @@ function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick
   const groups = useRef(new Map<string, THREE.Group>());
   const tgt = useRef(targets);
   const cur = useRef({ e: reduce ? targets.e : 0, f: reduce ? targets.f : 0, j: targets.j, spinT: 0 });
+  const mainId = useMemo(() => parts.filter((p) => !(p.bought || p.material === 'bought')).reduce<AssemblyPart | null>((m, p) => (!m || p.size[0] * p.size[1] > m.size[0] * m.size[1] ? p : m), null)?.id, [parts]);
   const tmp = useMemo(() => ({ q: new THREE.Quaternion(), id: new THREE.Quaternion(), s: new THREE.Quaternion(), a: new THREE.Vector3(), p: new THREE.Vector3() }), []);
   useEffect(() => { tgt.current = targets; invalidate(); }, [targets, parts, flat, reduce, invalidate]); // the poses are set by hand, not by props: ask for a frame
 
@@ -77,7 +81,7 @@ function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick
     <>
       {parts.map((p) => {
         const geo = typeof p.geometry === 'string' ? geometries?.[p.geometry] : p.geometry;
-        const [sx, sy, sz] = p.size;
+        const sz = p.size[2];
         const lift = geo?.boundingBox ? -(geo.boundingBox.min.z + geo.boundingBox.max.z) / 2 : -sz / 2;
         return (
           <group
@@ -89,22 +93,12 @@ function Scene({ parts, geometries, flat, targets, tags, reduce, onHover, onPick
           >
             {p.bought || p.material === 'bought' ? (
               <>
-                <mesh rotation={p.shape === 'cylinder' ? [Math.PI / 2, 0, 0] : undefined}>
-                  {p.shape === 'cylinder' ? <cylinderGeometry args={[sx / 2, sx / 2, sz, 32]} /> : <boxGeometry args={[sx, sy, sz]} />}
-                  <meshStandardMaterial color="#9ca3af" transparent opacity={0.55} roughness={0.9} />
-                  <Edges color="#4b5563" />
-                </mesh>
-                {p.spin && ( // a bar across the top, so a turning placeholder visibly turns
-                  <mesh position={[0, 0, sz / 2 + 0.3]}>
-                    <boxGeometry args={[Math.max(sx, sy) * 0.9, Math.max(sx, sy) * 0.14, 0.6]} />
-                    <meshStandardMaterial color="#374151" roughness={0.7} />
-                  </mesh>
-                )}
+                <BoughtPart part={p} />
                 {tags && <Tag text={`Bought · ${p.label}`} z={sz / 2 + 7} />}
               </>
             ) : geo ? (
               <group position={[0, 0, lift]}>
-                <PrintMesh geometry={geo} material={p.material as Exclude<AssemblyPart['material'], 'bought'>} />
+                <PrintMesh geometry={geo} material={p.material as Exclude<AssemblyPart['material'], 'bought'>} color={!['PLA', 'PETG', 'ABS'].includes(p.material) ? undefined : p.id === mainId || FRAMEISH.test(p.label) ? ORANGE : CHARCOAL} />
                 {marked?.(p) && <mesh geometry={geo}><meshBasicMaterial color="#6366f1" transparent opacity={0.45} depthWrite={false} polygonOffset polygonOffsetFactor={-2} /></mesh>}
               </group>
             ) : null}
@@ -138,15 +132,16 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
   const [hover, setHover] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const lay = useMemo(() => (plates ? { positions: Object.fromEntries(parts.map((p) => [p.id, p.position])), fits: true, extent: { x: 0, y: 0 } } : flatLayLayout(parts, BED_MM)), [parts, plates]);
-  const size = useMemo(() => { // room for every view, so the camera never has to move between them
-    let x = 1, y = 1, z = 1;
+  const size = useMemo(() => { // bounds of the CURRENT mode only; PrintStage fits the bounding sphere
+    let x = 1, y = 1, top = 1, bottom = 0;
     for (const p of parts) {
-      for (const pos of [p.position, [p.position[0] + p.explode[0], p.position[1] + p.explode[1], p.position[2] + p.explode[2]], lay.positions[p.id]]) {
-        x = Math.max(x, Math.abs(pos[0]) + p.size[0] / 2); y = Math.max(y, Math.abs(pos[1]) + p.size[1] / 2); z = Math.max(z, pos[2] + p.size[2] / 2);
-      }
+      const pos = mode === 'unboxing' ? lay.positions[p.id] : mode === 'exploded' ? [p.position[0] + p.explode[0] * explode, p.position[1] + p.explode[1] * explode, p.position[2] + p.explode[2] * explode] : p.position;
+      x = Math.max(x, Math.abs(pos[0]) + p.size[0] / 2); y = Math.max(y, Math.abs(pos[1]) + p.size[1] / 2);
+      top = Math.max(top, pos[2] + p.size[2] / 2); bottom = Math.min(bottom, pos[2] - p.size[2] / 2);
     }
-    return { x: 1.5 * x, y: 1.5 * y, z: 0.7 * z }; // PrintStage frames 1.9x the largest side: roomy for one part, loose for a kit
-  }, [parts, lay]);
+    return { x: 2 * x, y: 2 * y, z: top, z0: bottom };
+  }, [parts, lay, mode, explode]);
+  const loading = parts.some((p) => typeof p.geometry === 'string' && !geometries?.[p.geometry]);
   const targets = useMemo<Targets>(() => ({ e: mode === 'exploded' ? explode : 0, f: mode === 'unboxing' ? 1 : 0, j: fold, spin }), [mode, explode, fold, spin]);
   const stage = useMemo(() => (plates ? { pan: true, autoRotate: spin, bed: true, plates } : { pan: true, autoRotate: false }), [plates, spin]);
   const hasSpin = parts.some((p) => p.spin), hasJoint = parts.some((p) => p.joint);
@@ -159,6 +154,7 @@ export default function AssemblyViewer({ parts, geometries, className = 'h-[360p
         <PrintStage size={size} interactive reduceMotion={reduce} stage={stage}>
           <Scene parts={parts} geometries={geometries} flat={lay.positions} targets={targets} tags={mode !== 'assembled'} reduce={reduce} onHover={setHover} onPick={(id) => setPicked((c) => (c === id ? null : id))} marked={focusId ? (p) => p.id === focusId || p.geometry === focusId : undefined} />
         </PrintStage>
+        {loading && <StageLoading reduce={reduce} />}
         <p role="status" aria-live="polite" className="pointer-events-none absolute left-2 top-2 max-w-[70%] rounded border border-gray-300/70 bg-white/90 px-2 py-1 text-xs font-medium text-gray-900 dark:border-gray-600 dark:bg-gray-900/90 dark:text-gray-100">
           {shown ? `${shown.label} · ${shown.bought || shown.material === 'bought' ? 'bought separately, not printed' : `printed in ${shown.material}`}` : 'Hover or tap a part'}
         </p>

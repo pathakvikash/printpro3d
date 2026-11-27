@@ -43,3 +43,4 @@
 - Keep the site fast; mobile first.
 
 | India only, starting from Patna (Bihar), 2026-11-24 | Owner decision. One source: `src/lib/business.ts`. Checkout fixes country to India and requires a state (static list) and a 6-digit PIN, checked in the browser and in `/api/orders` (`src/lib/shipping.ts`). Street address, pin of the base, pickup and delivery times are NOT decided and must not be invented |
+| Keep the name PrintPro3D, 2026-11-27 | Owner decision after rename options were proposed (BanaoKart, BanaoLab, MakeDukaan, MakeKart, LayerCut). No rename; the site now says "3D printing, laser cutting and materials" under the same name. Do not re-propose a rename unless the owner asks |

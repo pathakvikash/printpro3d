@@ -6,6 +6,8 @@ export const CATEGORIES = [
   { id: 'toy', label: 'Toys and moving toys' },
   { id: 'drone', label: 'Drone and RC bodies' },
   { id: 'robotics', label: 'Robotics and hardware' },
+  { id: 'laser', label: 'Laser cutting or engraving' },
+  { id: 'material', label: 'Printing materials (filament, resin, sheets)' },
   { id: 'other', label: 'Something else' },
 ] as const;
 export const QTY_BANDS = [

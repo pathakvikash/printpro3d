@@ -2,6 +2,8 @@
 
 Made-to-order 3D printing for India, run from Patna, Bihar. Live at **https://printpro3d.vercel.app**.
 
+The shop does 3D printing, laser cutting and engraving (acrylic, MDF, plywood), and sells printing materials (filament, resin, laser sheets). Materials and laser work are enquiry / quote on request: no prices until the owner sets them.
+
 A customer uploads a model, picks a ready-made part or kit, builds one from shapes, or asks AI to draw it. They get a price, put it in a cart, check out once and track the order. The owner reviews, quotes, prints, ships and moves the order through its stages from `/admin`.
 
 | | |
@@ -142,7 +144,8 @@ flowchart TD
 | Quote | `/quote`, `/upload` | Upload STL or OBJ, see size, volume and price per material |
 | Build | `/playground`, `/blueprint/[id]` | Compose shapes (solid or hole), CSG in a Web Worker, drone hover simulation, part suggestions, blueprint pages with approve and finalize |
 | AI | `/ai`, AI button on every page | Describe or photograph a part, get a shape model with a live preview, refine it, then edit or price it. Meshy organic 3D is a tab when its key is set |
-| Request | `/request` | "Design this for me" with pictures |
+| Request | `/request` | "Design this for me" with pictures; `?material=<id>` enquires about a material |
+| Laser | `/laser` | Laser cutting/engraving request with an optional .svg/.dxf/.pdf design file (quote on request) |
 | Cart | `/cart` | Cart and saved list in the browser; one-request checkout |
 | Track | `/track` | Order and request status by id |
 | Account | `/account` | Google sign-in, My orders |
